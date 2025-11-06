@@ -91,3 +91,124 @@
         console.error("EmailJS Error:", error);
       });
   });
+
+  document.addEventListener('DOMContentLoaded', () => {
+  const reviewsList = document.getElementById('reviewsList');
+  const reviewFormContainer = document.getElementById('reviewFormContainer');
+  const reviewForm = document.getElementById('reviewForm');
+  const addReviewBtn = document.getElementById('addReviewBtn');
+  const apiUrl = 'https://chammyflorals.vercel.app/api/reviews';
+
+  // Load reviews into modal
+  function loadReviews() {
+    fetch(apiUrl)
+      .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
+      .then(reviews => {
+        reviewsList.innerHTML = ''; // Clear existing reviews
+        reviews.forEach(review => {
+          const colDiv = document.createElement('div');
+          colDiv.className = 'col-md-4 col-sm-6';
+
+          const cardDiv = document.createElement('div');
+          cardDiv.className = 'card shadow-sm h-100';
+
+          const cardBody = document.createElement('div');
+          cardBody.className = 'card-body text-center';
+
+          const name = document.createElement('h5');
+          name.className = 'card-title';
+          name.textContent = review.name;
+
+          const date = document.createElement('p');
+          date.className = 'text-muted mb-2';
+          date.textContent = new Date(review.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+          const starsDiv = document.createElement('div');
+          starsDiv.className = 'mb-3';
+          const fullStars = Math.floor(review.rating);
+          const hasHalfStar = review.rating % 1 !== 0;
+          for (let i = 0; i < 5; i++) {
+            const star = document.createElement('i');
+            if (i < fullStars) {
+              star.className = 'fas fa-star text-warning';
+            } else if (i === fullStars && hasHalfStar) {
+              star.className = 'fas fa-star-half-alt text-warning';
+            } else {
+              star.className = 'far fa-star text-warning';
+            }
+            starsDiv.appendChild(star);
+          }
+
+          const comment = document.createElement('p');
+          comment.className = 'card-text';
+          comment.textContent = review.comment;
+
+          cardBody.appendChild(name);
+          cardBody.appendChild(date);
+          cardBody.appendChild(starsDiv);
+          cardBody.appendChild(comment);
+          cardDiv.appendChild(cardBody);
+          colDiv.appendChild(cardDiv);
+          reviewsList.appendChild(colDiv);
+        });
+      })
+      .catch(error => {
+        console.error('Error fetching reviews:', error);
+        reviewsList.innerHTML = '<div class="col-12 text-center">Failed to load reviews. Please try again later.</div>';
+      });
+  }
+
+  // Toggle review form visibility
+  addReviewBtn.addEventListener('click', () => {
+    reviewFormContainer.style.display = 'block';
+    reviewsList.style.display = 'none';
+    addReviewBtn.style.display = 'none';
+  });
+
+  // Handle form submission
+  reviewForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    if (!form.checkValidity()) {
+      form.classList.add('was-validated');
+      return;
+    }
+
+    const newReview = {
+      name: document.getElementById('reviewName').value,
+      rating: parseFloat(document.getElementById('reviewRating').value),
+      comment: document.getElementById('reviewComment').value
+    };
+
+    fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newReview)
+    })
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to submit review');
+        return response.json();
+      })
+      .then(() => {
+        form.reset();
+        form.classList.remove('was-validated');
+        reviewFormContainer.style.display = 'none';
+        reviewsList.style.display = 'block';
+        addReviewBtn.style.display = 'block';
+        loadReviews(); // Refresh reviews
+        alert('Thank you for your review!');
+      })
+      .catch(error => {
+        console.error('Error submitting review:', error);
+        alert('Failed to submit review. Please try again.');
+      });
+  });
+
+  // Initial load when modal opens
+  const reviewsModal = document.getElementById('reviewsModal');
+  reviewsModal.addEventListener('show.bs.modal', loadReviews);
+});

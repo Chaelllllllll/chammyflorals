@@ -60,3 +60,33 @@ body {
     a:hover {
       text-decoration: underline;
     }
+    #reviewsModal .modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#reviewsModal .card {
+  transition: transform 0.3s ease;
+}
+
+#reviewsModal .card:hover {
+  transform: translateY(-5px);
+}
+
+#reviewForm .btn-pink {
+  background-color: #ff99bb;
+  color: white;
+  border: none;
+}
+
+#reviewForm .btn-pink:hover {
+  background-color: #ff77aa;
+}
+
+#reviewForm .invalid-feedback {
+  display: none;
+}
+
+#reviewForm.was-validated .invalid-feedback {
+  display: block;
+}
