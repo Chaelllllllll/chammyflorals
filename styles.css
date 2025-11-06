@@ -1,0 +1,62 @@
+body {
+      background-color: #fff5f8;
+      color: #5a4a4a;
+      font-family: 'Poppins', sans-serif;
+    }
+    .navbar {
+      background-color: #ffcce1;
+    }
+    .navbar-brand {
+      font-weight: bold;
+      color: #5a3b4e !important;
+    }
+    .section-title {
+      color: #d63384;
+      font-weight: bold;
+      text-align: center;
+    }
+    .section-subtitle {
+      color: #5a3b4e;
+      text-align: center;
+    }
+    .card {
+      border: none;
+      border-radius: 15px;
+      background: #ffe6ef;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .flower-img {
+      height: 250px;
+      object-fit: cover;
+      border-radius: 15px 15px 0 0;
+    }
+    .btn-pink {
+      background-color: #ff99bb;
+      color: white;
+      border: none;
+    }
+    .btn-pink:hover {
+      background-color: #ff77aa;
+    }
+    footer {
+      background-color: #ffcce1;
+      color: #5a3b4e;
+      padding: 30px 0;
+      text-align: center;
+    }
+    .modal-content {
+      border-radius: 15px;
+    }
+    .table th, .table td {
+      text-align: center;
+    }
+    a {
+      color: #d63384;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
