@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chammy Florals</title>
+  <title>Chammy Florals 💐</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
 
   <style>
     body {
@@ -23,6 +22,15 @@
       font-weight: bold;
       color: #5a3b4e !important;
     }
+    .section-title {
+      color: #d63384;
+      font-weight: bold;
+      text-align: center;
+    }
+    .section-subtitle {
+      color: #5a3b4e;
+      text-align: center;
+    }
     .card {
       border: none;
       border-radius: 15px;
@@ -31,6 +39,11 @@
     }
     .card:hover {
       transform: translateY(-5px);
+    }
+    .flower-img {
+      height: 250px;
+      object-fit: cover;
+      border-radius: 15px 15px 0 0;
     }
     .btn-pink {
       background-color: #ff99bb;
@@ -43,13 +56,21 @@
     footer {
       background-color: #ffcce1;
       color: #5a3b4e;
-      padding: 20px 0;
+      padding: 30px 0;
       text-align: center;
     }
-    .flower-img {
-      height: 250px;
-      object-fit: cover;
-      border-radius: 15px 15px 0 0;
+    .modal-content {
+      border-radius: 15px;
+    }
+    .table th, .table td {
+      text-align: center;
+    }
+    a {
+      color: #d63384;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -65,84 +86,280 @@
     </div>
   </nav>
 
-  <!-- Hero Section -->
+  <!-- Hero -->
   <section class="text-center py-5">
-    <h1 class="fw-bold">Handmade Bouquets & Keychains</h1>
-    <p>Chammy Florals creates handmade flower bouquets and keychains designed to spread love and happiness.</p>
+    <h1 class="fw-bold text-pink">Handmade Bouquets & Keychains</h1>
+    <p>Bloom with love — Chammy Florals crafts delicate pieces to make every day special.</p>
   </section>
 
-  <!-- Flower Gallery -->
-  <div class="container py-5">
-    <div class="row g-4">
-      <!-- Example Flower Card -->
-      <div class="col-md-4">
-        <div class="card">
-          <img src="yourimage1.jpg" alt="Flower 1" class="flower-img">
+    <!-- 🌸 Floral Collection Section -->
+  <section class="container my-5">
+    <h2 class="text-center fw-bold mb-4">Our Lovely Collections</h2>
+    <hr class="mx-auto" style="width: 200px; border: 2px solid #ff99bb;">
+    <h5 class="text-center text-muted mb-4">Flower Bouquets</h5>
+
+    <div class="row g-4 justify-content-center">
+      <!-- Flower with Glitters -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card shadow-sm">
+          <img src="flowers/bouquetwithglitter.jfif" alt="Bouquet with Glitter" class="card-img-top rounded-top">
           <div class="card-body text-center">
-            <h5 class="card-title">F1 - Pink Bouquet</h5>
-            <p>₱250 - Set of 6 pcs</p>
+            <h5 class="card-title">Flower with Glitters</h5>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#flowerwithglitter">View Price</button>
           </div>
         </div>
       </div>
 
-      <div class="col-md-4">
-        <div class="card">
-          <img src="yourimage2.jpg" alt="Flower 2" class="flower-img">
+      <!-- Flower without Glitters -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card shadow-sm">
+          <img src="flowers/bouquetwithoutglitter.jpg" alt="Bouquet without Glitter" class="card-img-top rounded-top">
           <div class="card-body text-center">
-            <h5 class="card-title">F2 - Red Rose Keychain</h5>
-            <p>₱150 - Single Piece</p>
+            <h5 class="card-title">Flower without Glitters</h5>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#flowerwithoutglitter">View Price</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🌷 Keychain Collection -->
+  <section class="container my-5">
+    <h5 class="text-center text-muted mb-4">Flower Bouquet Keychains</h5>
+    <div class="row g-4 justify-content-center">
+      <!-- Keychain 1 -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card shadow-sm">
+          <img src="flowers/keychain1.jfif" alt="Keychain 1" class="card-img-top rounded-top">
+          <div class="card-body text-center">
+            <h5 class="card-title">Flower with Glitters</h5>
+            <p class="price text-pink fw-bold mb-0">₱60</p>
           </div>
         </div>
       </div>
 
-      <!-- Add more flower cards manually -->
+      <!-- Keychain 2 -->
+      <div class="col-md-4 col-sm-6">
+        <div class="card shadow-sm">
+          <img src="flowers/keychain2.jpg" alt="Keychain 2" class="card-img-top rounded-top">
+          <div class="card-body text-center">
+            <h5 class="card-title">Flower without Glitters</h5>
+            <p class="price text-pink fw-bold mb-0">₱50</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 🌼 Flower With Glitter Modal -->
+  <div class="modal fade" id="flowerwithglitter" tabindex="-1" aria-labelledby="flowerwithglitterLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title text-pink" id="flowerwithglitterLabel">Flower With Glitters</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <h6 class="text-pink mb-3">Bouquet Pricing</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr><th>Set</th><th>Price (₱)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1 pc</td><td>80</td></tr>
+                <tr><td>3 pcs</td><td>225</td></tr>
+                <tr><td>4 pcs</td><td>310</td></tr>
+                <tr><td>5 pcs</td><td>400</td></tr>
+                <tr><td>6 pcs</td><td>480</td></tr>
+                <tr><td>11 pcs</td><td>850</td></tr>
+                <tr><td>20 pcs</td><td>1500</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h6 class="text-pink mt-4 mb-3">Add-ons</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr><th>Add-on</th><th>Price (₱)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Fairy Lights</td><td>20</td></tr>
+                <tr><td>Pearl</td><td>5–15</td></tr>
+                <tr><td>Butterfly</td><td>10</td></tr>
+                <tr><td>Letter</td><td>15</td></tr>
+                <tr><td>Picture</td><td>20</td></tr>
+                <tr><td>Artificial Leaves</td><td>20/stem</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Inquiry Modal -->
-  <div class="modal fade" id="inquiryModal" tabindex="-1">
-    <div class="modal-dialog">
+  <!-- 🌸 Flower Without Glitter Modal -->
+  <div class="modal fade" id="flowerwithoutglitter" tabindex="-1" aria-labelledby="flowerwithoutglitterLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content rounded-4">
         <div class="modal-header bg-light">
-          <h5 class="modal-title">Send Inquiry 💐</h5>
+          <h5 class="modal-title text-pink" id="flowerwithoutglitterLabel">Flower Without Glitters</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
-          <form id="inquiryForm">
-            <div class="mb-3">
-              <label class="form-label">Name *</label>
-              <input type="text" name="user_name" class="form-control" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Email *</label>
-              <input type="email" name="user_email" class="form-control" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Facebook Account Link</label>
-              <input type="url" name="fb_link" class="form-control">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Flower Type / ID (e.g., F1, F2...)</label>
-              <input type="text" name="flower_type" class="form-control" required>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Additional Message</label>
-              <textarea name="message" class="form-control" rows="3"></textarea>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Rush Order?</label>
-              <select name="rush" class="form-select">
-                <option value="No">No</option>
-                <option value="Yes">Yes (additional fee may apply)</option>
-              </select>
-            </div>
+        <div class="modal-body text-center">
+          <h6 class="text-pink mb-3">Bouquet Pricing</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr><th>Set</th><th>Price (₱)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>1 pc</td><td>75</td></tr>
+                <tr><td>3 pcs</td><td>220</td></tr>
+                <tr><td>4 pcs</td><td>300</td></tr>
+                <tr><td>5 pcs</td><td>380</td></tr>
+                <tr><td>6 pcs</td><td>460</td></tr>
+                <tr><td>11 pcs</td><td>800</td></tr>
+                <tr><td>20 pcs</td><td>1400</td></tr>
+              </tbody>
+            </table>
+          </div>
 
-            <div class="g-recaptcha" data-sitekey="6Lf-kgQsAAAAAF4IIrAn9hKXgPrQSyxPuXTr1XOm"></div>
-
-
-            <button type="submit" class="btn btn-pink w-100">Send Inquiry</button>
-          </form>
+          <h6 class="text-pink mt-4 mb-3">Add-ons</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle">
+              <thead class="table-light">
+                <tr><th>Add-on</th><th>Price (₱)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Fairy Lights</td><td>20</td></tr>
+                <tr><td>Pearl</td><td>5–15</td></tr>
+                <tr><td>Butterfly</td><td>10</td></tr>
+                <tr><td>Letter</td><td>15</td></tr>
+                <tr><td>Picture</td><td>20</td></tr>
+                <tr><td>Artificial Leaves</td><td>20/stem</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 💖 GCash Section -->
+  <section class="text-center my-5">
+    <h5>Pay via GCash</h5>
+    <button class="btn btn-pink mt-3" data-bs-toggle="modal" data-bs-target="#gcashModal">View QR Code</button>
+  </section>
+
+  <!-- GCash Modal -->
+  <div class="modal fade" id="gcashModal" tabindex="-1" aria-labelledby="gcashModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4">
+        <div class="modal-header bg-light">
+          <h5 class="modal-title text-pink" id="gcashModalLabel">Chammy Florals</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <img src="flowers/gcashqr.jfif" alt="GCash QR Code" class="img-fluid rounded shadow-sm">
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Inquiry Modal -->
+<div class="modal fade" id="inquiryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title">Send Inquiry</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="inquiryForm">
+          <div class="mb-3">
+            <label class="form-label">Name *</label>
+            <input type="text" name="user_name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="user_email" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Facebook Account Link</label>
+            <input type="url" name="fb_link" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Flower Type / ID</label>
+            <select name="flower_type" class="form-select" required>
+              <option value="">Select Flower Type</option>
+              <optgroup label="Flowers with Glitters - Bouquet">
+                <option value="FWG1">FWG1 - 1 pc - ₱80</option>
+                <option value="FWG2">FWG2 - 3 pcs - ₱225</option>
+                <option value="FWG3">FWG3 - 4 pcs - ₱310</option>
+                <option value="FWG4">FWG4 - 5 pcs - ₱400</option>
+                <option value="FWG5">FWG5 - 6 pcs - ₱480</option>
+                <option value="FWG6">FWG6 - 11 pcs - ₱850</option>
+                <option value="FWG7">FWG7 - 20 pcs - ₱1500</option>
+              </optgroup>
+              <optgroup label="Flowers without Glitters - Bouquet">
+                <option value="FWTG1">FWTG1 - 1 pc - ₱75</option>
+                <option value="FWTG2">FWTG2 - 3 pcs - ₱220</option>
+                <option value="FWTG3">FWTG3 - 4 pcs - ₱300</option>
+                <option value="FWTG4">FWTG4 - 5 pcs - ₱380</option>
+                <option value="FWTG5">FWTG5 - 6 pcs - ₱460</option>
+                <option value="FWTG6">FWTG6 - 11 pcs - ₱800</option>
+                <option value="FWTG7">FWTG7 - 20 pcs - ₱1400</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Quantity</label>
+            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Add-ons (Select multiple if needed)</label>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Fairy Lights - ₱20" class="form-check-input">
+              <label class="form-check-label">Fairy Lights - ₱20</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Pearl - ₱5–15" class="form-check-input">
+              <label class="form-check-label">Pearl - ₱5–15</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Butterfly - ₱10" class="form-check-input">
+              <label class="form-check-label">Butterfly - ₱10</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Letter - ₱15" class="form-check-input">
+              <label class="form-check-label">Letter - ₱15</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Picture - ₱20" class="form-check-input">
+              <label class="form-check-label">Picture - ₱20</label>
+            </div>
+            <div class="form-check">
+              <input type="checkbox" name="addons[]" value="Artificial Leaves - ₱20/stem" class="form-check-input">
+              <label class="form-check-label">Artificial Leaves - ₱20/stem</label>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Additional Message</label>
+            <textarea name="message" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Rush Order?</label>
+            <select name="rush" class="form-select">
+              <option value="No">No</option>
+              <option value="Yes">Yes (additional fee may apply)</option>
+            </select>
+          </div>
+          <div class="g-recaptcha" data-sitekey="6Lf-kgQsAAAAAF4IIrAn9hKXgPrQSyxPuXTr1XOm"></div>
+          <button type="submit" class="btn btn-pink w-100 mt-3">Send Inquiry</button>
+        </form>
       </div>
     </div>
   </div>
@@ -151,46 +368,88 @@
   <footer>
     <p>Follow us on:</p>
     <p>
-      <a href="https://facebook.com/YourPage" target="_blank">Facebook</a> |
-      <a href="https://tiktok.com/@YourPage" target="_blank">TikTok</a> |
-      <a href="https://instagram.com/YourPage" target="_blank">Instagram</a>
+      <a href="https://facebook.com/ChammyFlorals" target="_blank">Facebook</a> |
+      <a href="https://tiktok.com/@ChammyFlorals" target="_blank">TikTok</a> |
+      <a href="https://instagram.com/ChammyFlorals" target="_blank">Instagram</a>
     </p>
-    <p>Pay via GCash:</p>
-    <img src="your-gcash-qr.jpg" alt="GCash QR" width="150" class="rounded shadow-sm">
-    <p class="mt-3 mb-0">© 2025 Chammy Florals</p>
+    <p class="mt-3 mb-0">© 2025 Chammy Florals. All rights reserved.</p>
   </footer>
 
- <script>
+  <script>
   (function() {
-    emailjs.init("qqJjLgR4UzMvwH-Ll"); // your EmailJS public key
+    emailjs.init("qqJjLgR4UzMvwH-Ll");
   })();
 
   document.getElementById('inquiryForm').addEventListener('submit', function(e) {
     e.preventDefault();
-
-    // ✅ Check if reCAPTCHA was verified
     var recaptchaResponse = document.querySelector('#g-recaptcha-response').value;
-
     if (!recaptchaResponse) {
       alert("Please verify that you are not a robot before submitting.");
       return;
     }
 
-    // ✅ Send form using EmailJS
     emailjs.sendForm('service_yg6h87n', 'template_x15flic', this)
-      .then(function() {
-        alert("Your inquiry has been sent successfully! 💐");
-        e.target.reset();
-        grecaptcha.reset(); // reset the recaptcha checkbox
-        var modal = bootstrap.Modal.getInstance(document.getElementById('inquiryModal'));
-        modal.hide();
-      }, function(error) {
+      .then((response) => {
+        if (response.status === 200) {
+          // Collect form data
+          const formData = new FormData(this);
+          const name = formData.get('user_name');
+          const email = formData.get('user_email');
+          const fbLink = formData.get('fb_link') || 'Not provided';
+          const flowerType = formData.get('flower_type');
+          const quantity = formData.get('quantity');
+          const addons = Array.from(formData.getAll('addons[]')).join(', ') || 'None';
+          const message = formData.get('message') || 'Not provided';
+          const rush = formData.get('rush');
+
+          // Discord webhook URL (replace with your actual webhook URL)
+          const webhookUrl = 'https://discord.com/api/webhooks/1436036542412886170/e95zoWRkd7Di185COw5zxiKclNccg99B84azqTKhBfWQLagezc-X0wH__9DL60OgSa5X';
+
+          // Discord embed payload
+          const embed = {
+            embeds: [{
+              title: 'New Inquiry Received! 💐',
+              color: 0xff69b4, // Pink color
+              fields: [
+                { name: 'Name', value: name, inline: true },
+                { name: 'Email', value: email, inline: true },
+                { name: 'Facebook Link', value: fbLink, inline: true },
+                { name: 'Flower Type', value: flowerType, inline: true },
+                { name: 'Quantity', value: quantity, inline: true },
+                { name: 'Add-ons', value: addons, inline: false },
+                { name: 'Additional Message', value: message, inline: false },
+                { name: 'Rush Order', value: rush, inline: true }
+              ],
+              footer: {
+                text: `Submitted at ${new Date().toLocaleString('en-US', { timeZone: 'PST' })} via Chammy Florals`,
+              },
+              timestamp: new Date().toISOString()
+            }]
+          };
+
+          // Send to Discord webhook
+          fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(embed)
+          })
+          .then(response => {
+            if (!response.ok) throw new Error('Failed to send to Discord');
+            console.log('Discord notification sent successfully');
+          })
+          .catch(error => console.error('Discord Webhook Error:', error));
+
+          alert("Your inquiry has been sent successfully! 💐");
+          e.target.reset();
+          grecaptcha.reset();
+          var modal = bootstrap.Modal.getInstance(document.getElementById('inquiryModal'));
+          modal.hide();
+        }
+      }, (error) => {
         alert("Oops! Something went wrong. Please try again.");
         console.error("EmailJS Error:", error);
       });
   });
 </script>
-
-
 </body>
 </html>
