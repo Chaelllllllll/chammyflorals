@@ -438,7 +438,7 @@
           const embed = {
             embeds: [{
               title: 'New Inquiry Received! 💐',
-              color: 0xff69b4, // Pink color
+              color: 0xff69b4,
               fields: [
                 { name: 'Name', value: name, inline: true },
                 { name: 'Email', value: email, inline: true },
@@ -449,11 +449,7 @@
                 { name: 'Additional Message', value: message, inline: false },
                 { name: 'Rush Order', value: rush, inline: true },
                 { name: 'Total Fee (₱)', value: totalFee.toString(), inline: true }
-              ],
-              footer: {
-                text: `Submitted at ${new Date().toLocaleString('en-US', { timeZone: 'PST' })} via Chammy Florals`,
-              },
-              timestamp: new Date().toISOString()
+              ]
             }]
           };
 
