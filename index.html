@@ -42,9 +42,6 @@
     <button class="btn btn-pink me-2" data-bs-toggle="modal" data-bs-target="#inquiryModal">
       Inquire Now
     </button>
-    <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#reviewsModal">
-      Reviews
-    </button>
   </div>
 </nav>
 
@@ -219,43 +216,6 @@
     </div>
   </div>
 
-  <!-- Reviews Modal -->
-<div class="modal fade" id="reviewsModal" tabindex="-1" aria-labelledby="reviewsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content rounded-4">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title" id="reviewsModalLabel">Customer Reviews</h5>
-        <button type="button" class="btn btn-pink" id="addReviewBtn">Add Review</button>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div id="reviewsList" class="row g-4 justify-content-center">
-          <!-- Reviews will be injected here dynamically -->
-        </div>
-        <div id="reviewFormContainer" class="mt-4" style="display: none;">
-          <h4 class="text-center mb-4">Submit Your Review</h4>
-          <form id="reviewForm" class="needs-validation" novalidate>
-            <div class="mb-3">
-              <label for="reviewName" class="form-label">Your Name</label>
-              <input type="text" class="form-control" id="reviewName" name="name" required>
-              <div class="invalid-feedback">Please enter your name.</div>
-            </div>
-            <div class="mb-3">
-              <label for="reviewRating" class="form-label">Rating (1-5)</label>
-              <input type="number" class="form-control" id="reviewRating" name="rating" min="1" max="5" step="0.5" required>
-              <div class="invalid-feedback">Please enter a rating between 1 and 5.</div>
-            </div>
-            <div class="mb-3">
-              <label for="reviewComment" class="form-label">Comment</label>
-              <textarea class="form-control" id="reviewComment" name="comment" rows="3" required></textarea>
-              <div class="invalid-feedback">Please enter a comment.</div>
-            </div>
-            <button type="submit" class="btn btn-pink w-100">Submit Review</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <footer class="text-center py-4">
   <p>Follow us on:</p>
