@@ -397,10 +397,39 @@
           const email = formData.get('user_email');
           const fbLink = formData.get('fb_link') || 'Not provided';
           const flowerType = formData.get('flower_type');
-          const quantity = formData.get('quantity');
-          const addons = Array.from(formData.getAll('addons[]')).join(', ') || 'None';
+          const quantity = parseInt(formData.get('quantity')) || 1;
+          const addons = Array.from(formData.getAll('addons[]')) || [];
           const message = formData.get('message') || 'Not provided';
           const rush = formData.get('rush');
+
+          // Price mappings for flower types (in PHP)
+          const flowerPrices = {
+            'FWG1': 80, 'FWG2': 225, 'FWG3': 310, 'FWG4': 400,
+            'FWG5': 480, 'FWG6': 850, 'FWG7': 1500,
+            'FWTG1': 75, 'FWTG2': 220, 'FWTG3': 300, 'FWTG4': 380,
+            'FWTG5': 460, 'FWTG6': 800, 'FWTG7': 1400
+          };
+
+          // Price mappings for add-ons (in PHP, averaged for ranges)
+          const addonPrices = {
+            'Fairy Lights - ₱20': 20,
+            'Pearl - ₱5–15': 10, // Average of 5-15
+            'Butterfly - ₱10': 10,
+            'Letter - ₱15': 15,
+            'Picture - ₱20': 20,
+            'Artificial Leaves - ₱20/stem': 20
+          };
+
+          // Calculate total fee
+          let totalFee = 0;
+          if (flowerType && flowerPrices[flowerType]) {
+            totalFee += flowerPrices[flowerType] * quantity; // Base cost multiplied by quantity
+          }
+          addons.forEach(addon => {
+            if (addonPrices[addon]) {
+              totalFee += addonPrices[addon]; // Add cost of each selected add-on (assumes 1 unit)
+            }
+          });
 
           // Discord webhook URL (replace with your actual webhook URL)
           const webhookUrl = 'https://discord.com/api/webhooks/1436036542412886170/e95zoWRkd7Di185COw5zxiKclNccg99B84azqTKhBfWQLagezc-X0wH__9DL60OgSa5X';
@@ -415,10 +444,11 @@
                 { name: 'Email', value: email, inline: true },
                 { name: 'Facebook Link', value: fbLink, inline: true },
                 { name: 'Flower Type', value: flowerType, inline: true },
-                { name: 'Quantity', value: quantity, inline: true },
-                { name: 'Add-ons', value: addons, inline: false },
+                { name: 'Quantity', value: quantity.toString(), inline: true },
+                { name: 'Add-ons', value: addons.length ? addons.join(', ') : 'None', inline: false },
                 { name: 'Additional Message', value: message, inline: false },
-                { name: 'Rush Order', value: rush, inline: true }
+                { name: 'Rush Order', value: rush, inline: true },
+                { name: 'Total Fee (₱)', value: totalFee.toString(), inline: true }
               ],
               footer: {
                 text: `Submitted at ${new Date().toLocaleString('en-US', { timeZone: 'PST' })} via Chammy Florals`,
