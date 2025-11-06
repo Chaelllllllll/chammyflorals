@@ -161,7 +161,7 @@
 
   <script>
   (function() {
-    emailjs.init("YOUR_EMAILJS_PUBLIC_KEY");
+    emailjs.init("qqJjLgR4UzMvwH-Ll");
   })();
 
   document.getElementById('inquiryForm').addEventListener('submit', function(e) {
@@ -171,7 +171,7 @@
       grecaptcha.execute('6LdViwQsAAAAAIS2lEtyPxKV9WmR3jdRAOjBKpQR', {action: 'submit'}).then(function(token) {
         document.getElementById('recaptcha_token').value = token;
 
-        emailjs.sendForm('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', e.target)
+        emailjs.sendForm('service_yg6h87n', 'template_x15flic', e.target)
           .then(function() {
             alert("Your inquiry has been sent successfully! 💐");
             e.target.reset();
