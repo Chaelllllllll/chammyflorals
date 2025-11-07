@@ -31,18 +31,24 @@ app.use(
         defaultSrc: ["'self'"],
         // Allow Google Fonts stylesheet and common CDNs for styles
         styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', "'unsafe-inline'"],
+        // Allow scripts from self and common CDNs. 'unsafe-inline' is added here
+        // as a pragmatic compatibility measure for existing inline scripts in
+        // the static HTML files. For stronger security, move inline scripts to
+        // external files and use nonces or hashes instead of 'unsafe-inline'.
         scriptSrc: [
           "'self'",
           'https://cdn.jsdelivr.net',
           'https://www.google.com',
           'https://www.gstatic.com',
           "'sha256-Vf+GW0yKtct7GeV10jtC6PA6hf4F3eDZaI6YiPDkP2s='",
+          "'unsafe-inline'",
         ],
         scriptSrcAttr: ["'none'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
         connectSrc: ["'self'", 'https://www.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
         // Allow fonts.gstatic.com for font binary resources used by Google Fonts
-        fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
+  // Allow font resources from cdn.jsdelivr.net (bootstrap-icons), Cloudflare and Google Fonts
+  fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
         frameSrc: ["'self'", 'https://www.google.com', 'https://www.gstatic.com'],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],

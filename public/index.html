@@ -41,15 +41,16 @@
     </button>
 
     <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav ms-auto align-items-center">
-        <li class="nav-item me-2">
+      <!-- Use ms-md-auto so on small screens the buttons stay left; on md+ they align right -->
+      <ul class="navbar-nav ms-md-auto align-items-center">
+        <li class="nav-item me-2 mt-2 mb-2">
           <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#trackModal">Track Order</button>
         </li>
-        <li class="nav-item me-2">
+        <li class="nav-item me-2 mt-2 mb-2">
           <a class="btn btn-outline-success" id="navReviewsBtn" href="/reviews.html">Reviews</a>
         </li>
         <li class="nav-item">
-          <button class="btn btn-pink me-2" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order</button>
+          <button class="btn btn-pink me-2 mt-2 mb-2" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order</button>
         </li>
       </ul>
     </div>
@@ -93,9 +94,10 @@
 
   <!-- Reviews preview -->
   <section class="container my-5">
+    <hr class="mx-auto" style="width: 200px; border: 2px solid #ff99bb;">
+
     <h3 class="text-center fw-bold mb-3">Customer Reviews</h3>
     <div id="reviewsPreview" class="row g-3 justify-content-center">
-      <!-- review cards injected here -->
     </div>
     <div class="text-center mt-3">
       <a class="btn btn-pink" id="viewReviewsBtn" href="/reviews.html">View reviews</a>
@@ -143,7 +145,7 @@
             <label class="form-label">Flower Type</label>
             <select id="flowerTypeSelect" name="flower_type" class="form-select" required>
               <option value="">Select Flower Type</option>
-              <!-- options will be populated dynamically from /api/products -->
+              
             </select>
           </div>
           <div class="mb-3">
@@ -153,7 +155,7 @@
           <div class="mb-3">
             <label class="form-label">Add-ons (Select multiple if needed)</label>
             <div id="addonsContainer">
-              <!-- default fallback addons (will be replaced when a product with addons is selected) -->
+             
               <div class="form-check">
                 <input type="checkbox" name="addons[]" value="Fairy Lights - ₱20" class="form-check-input">
                 <label class="form-check-label">Fairy Lights - ₱20</label>
@@ -191,7 +193,6 @@
               <option value="Yes">Yes (additional fee may apply)</option>
             </select>
           </div>
-          <!-- reCAPTCHA removed: server-side validation not required for this project setup -->
           <button type="submit" class="btn btn-pink w-100 mt-3">Place Order</button>
         </form>
       </div>
