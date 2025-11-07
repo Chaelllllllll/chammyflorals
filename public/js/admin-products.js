@@ -1,0 +1,537 @@
+async function fetchJSON(url, opts = {}) {
+  const token = localStorage.getItem('adminToken');
+  opts.headers = opts.headers || {};
+  if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, opts);
+  let body;
+  try { body = await res.json(); } catch (e) { body = null; }
+  if (!res.ok) throw body || new Error('Request failed');
+  return body;
+}
+
+async function loadProducts() {
+  try {
+    const products = await fetchJSON('/admin/products');
+    const tbody = document.getElementById('productsTbody');
+    window._adminProducts = products || [];
+    // populate category lists from products + stored categories, then render
+    populateCategoryOptions(window._adminProducts);
+    applyProductFilters();
+    document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', onEdit));
+    document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e)=> showDeleteModal(e.currentTarget.dataset.id)));
+  } catch (err) {
+    showError(err.error || err.message || 'Failed to load products');
+  }
+}
+
+// Try to fetch admin categories from server; fallback to localStorage
+async function fetchAdminCategories() {
+  try {
+    const data = await fetchJSON('/admin/categories');
+    if (Array.isArray(data)) return data.map(c => ({ id: c.id, name: c.name }));
+  } catch (err) {
+    // ignore and fallback
+  }
+  // fallback to localStorage-stored names
+  try {
+    const local = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+    return (local || []).map((n, i) => ({ id: null, name: n }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// populate category selects (filter + product modal) using products and server/local categories
+async function populateCategoryOptions(products = []) {
+  try {
+    const fromServer = await fetchAdminCategories();
+    const set = new Set((fromServer || []).map(c => c.name).filter(Boolean));
+    products.forEach(p => { if (p && p.category) set.add(p.category); });
+
+    const categories = Array.from(set).filter(Boolean).sort((a,b)=> a.localeCompare(b));
+
+    const filter = document.getElementById('filterCategory');
+    const productSelect = document.getElementById('productCategory');
+    if (!filter || !productSelect) return;
+
+    const filterDefault = filter.querySelector('option[value=""]') ? filter.querySelector('option[value=""]').outerHTML : '<option value="">All categories</option>';
+    filter.innerHTML = filterDefault + categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+    const prodDefault = productSelect.querySelector('option[value=""]') ? productSelect.querySelector('option[value=""]').outerHTML : '<option value="">Uncategorized</option>';
+    productSelect.innerHTML = prodDefault + categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  } catch (err) {
+    console.warn('populateCategoryOptions error', err);
+  }
+}
+
+// Add category button/modal handlers
+document.getElementById('addCategoryBtn')?.addEventListener('click', () => {
+  document.getElementById('newCategoryName').value = '';
+  new bootstrap.Modal(document.getElementById('addCategoryModal')).show();
+});
+
+document.getElementById('saveCategoryBtn')?.addEventListener('click', async () => {
+  const name = (document.getElementById('newCategoryName').value || '').trim();
+  if (!name) return showToast('Category name is required', 'danger');
+
+  // try server-side create first
+  try {
+    const created = await fetchJSON('/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    // refresh categories
+    await populateCategoryOptions(window._adminProducts || []);
+    bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
+    showToast(`Category "${created.name || name}" added`, 'success');
+    return;
+  } catch (err) {
+    console.warn('Server create category failed, falling back to localStorage', err);
+  }
+
+  // fallback: add to localStorage-backed categories and update selects
+  try {
+    const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+    if (!saved.includes(name)) saved.push(name);
+    localStorage.setItem('adminCategories', JSON.stringify(saved));
+    await populateCategoryOptions(window._adminProducts || []);
+    bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
+    showToast(`Category "${name}" added (local)`, 'success');
+  } catch (err) {
+    console.error('Failed saving category locally', err);
+    showToast('Failed to add category', 'danger');
+  }
+});
+
+// Manage categories button
+document.getElementById('manageCategoriesBtn')?.addEventListener('click', () => {
+  populateManageCategories();
+  new bootstrap.Modal(document.getElementById('manageCategoriesModal')).show();
+});
+
+// focus the add input when manage modal is shown
+document.getElementById('manageCategoriesModal')?.addEventListener('shown.bs.modal', () => {
+  const input = document.getElementById('manageNewCategoryName');
+  if (input) input.focus();
+});
+
+// Add category from inside Manage Categories modal
+document.getElementById('manageSaveCategoryBtn')?.addEventListener('click', async () => {
+  const name = (document.getElementById('manageNewCategoryName').value || '').trim();
+  if (!name) return showToast('Category name is required', 'danger');
+  // try server-side create first
+  try {
+    const created = await fetchJSON('/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+    // refresh lists
+    document.getElementById('manageNewCategoryName').value = '';
+    await populateManageCategories();
+    await populateCategoryOptions(window._adminProducts || []);
+    showToast(`Category "${created.name || name}" added`, 'success');
+    return;
+  } catch (err) {
+    console.warn('Server create category failed inside manage modal, falling back to localStorage', err);
+  }
+  // fallback local
+  try {
+    const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+    if (!saved.includes(name)) saved.push(name);
+    localStorage.setItem('adminCategories', JSON.stringify(saved));
+    document.getElementById('manageNewCategoryName').value = '';
+    await populateManageCategories();
+    await populateCategoryOptions(window._adminProducts || []);
+    showToast(`Category "${name}" added (local)`, 'success');
+  } catch (err) {
+    console.error('Failed saving category locally inside manage modal', err);
+    showToast('Failed to add category', 'danger');
+  }
+});
+
+function populateManageCategories() {
+  const listEl = document.getElementById('categoriesList');
+  if (!listEl) return;
+  // prefer server-backed categories; fall back to localStorage
+  (async () => {
+    try {
+      const serverCats = await fetchAdminCategories(); // [{id,name}]
+      const set = new Set((serverCats || []).map(c => c.name).filter(Boolean));
+      (window._adminProducts || []).forEach(p => { if (p && p.category) set.add(p.category); });
+      const categories = Array.from(set).filter(Boolean).sort((a,b)=> a.localeCompare(b));
+      if (!categories.length) {
+        listEl.innerHTML = '<div class="text-muted">No categories yet.</div>';
+        return;
+      }
+
+      // Build list using server category ids when available
+      listEl.innerHTML = categories.map(name => {
+        const srv = (serverCats||[]).find(x => String(x.name) === String(name));
+        const idAttr = srv && srv.id ? `data-id="${srv.id}"` : `data-name="${escapeHtml(name)}"`;
+        const count = (window._adminProducts || []).filter(p => String(p.category||'') === String(name)).length;
+        return `<div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${escapeHtml(name)}</strong>
+            <div class="small text-muted">${count} product${count!==1?'s':''}</div>
+          </div>
+          <div>
+            <button class="btn btn-sm btn-outline-secondary me-2 edit-category" ${idAttr}>Edit</button>
+            <button class="btn btn-sm btn-danger delete-category" ${idAttr}>Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      // wire delete buttons
+      listEl.querySelectorAll('.delete-category').forEach(b => b.addEventListener('click', (e) => {
+        const id = e.target.dataset.id;
+        const name = e.target.dataset.name || e.target.dataset.id && (serverCats.find(s => String(s.id) === String(e.target.dataset.id)) || {}).name;
+        // if server id present, pass that along via a small lookup during confirm
+        confirmRemoveCategory(name || '');
+        // store pending server id to use when confirming
+        _pendingServerCategoryId = id || null;
+      }));
+    } catch (err) {
+      console.warn('populateManageCategories fallback to localStorage', err);
+      const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+      const set = new Set(saved || []);
+      (window._adminProducts || []).forEach(p => { if (p && p.category) set.add(p.category); });
+      const categories = Array.from(set).filter(Boolean).sort((a,b)=> a.localeCompare(b));
+      if (!categories.length) {
+        listEl.innerHTML = '<div class="text-muted">No categories yet.</div>';
+        return;
+      }
+      listEl.innerHTML = categories.map(c => {
+        const count = (window._adminProducts || []).filter(p => String(p.category||'') === String(c)).length;
+        return `<div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>${escapeHtml(c)}</strong>
+            <div class="small text-muted">${count} product${count!==1?'s':''}</div>
+          </div>
+          <div>
+            <button class="btn btn-sm btn-outline-secondary me-2 edit-category" data-name="${escapeHtml(c)}">Edit</button>
+            <button class="btn btn-sm btn-danger delete-category" data-name="${escapeHtml(c)}">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      listEl.querySelectorAll('.delete-category').forEach(b => b.addEventListener('click', (e) => {
+        const name = e.target.dataset.name;
+        confirmRemoveCategory(name);
+      }));
+    }
+  })();
+}
+
+let _pendingRemoveCategory = null;
+let _pendingServerCategoryId = null;
+function confirmRemoveCategory(name) {
+  _pendingRemoveCategory = name;
+  const productsUsing = (window._adminProducts || []).filter(p => String(p.category||'') === String(name));
+  const body = document.getElementById('confirmRemoveCategoryBody');
+  if (!body) return;
+  if (productsUsing.length) {
+    body.innerHTML = `Category <strong>${escapeHtml(name)}</strong> is used by <strong>${productsUsing.length}</strong> product${productsUsing.length!==1?'s':''}.<br><br>Click "Remove" to delete the category and clear it from these products, or Cancel.`;
+  } else {
+    body.innerHTML = `Delete category <strong>${escapeHtml(name)}</strong>? This cannot be undone.`;
+  }
+  new bootstrap.Modal(document.getElementById('confirmRemoveCategoryModal')).show();
+}
+
+document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', async () => {
+  const name = _pendingRemoveCategory;
+  if (!name) return;
+  try {
+    // attempt server-side delete if we have an id
+    if (_pendingServerCategoryId) {
+      try {
+        await fetchJSON(`/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.warn('Server delete failed, falling back to local removal', err);
+      }
+    }
+
+    // remove from saved local categories as well
+    try {
+      const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]').filter(x => x !== name);
+      localStorage.setItem('adminCategories', JSON.stringify(saved));
+    } catch (e) { /* ignore */ }
+
+    // if products use it, clear their category
+    const productsUsing = (window._adminProducts || []).filter(p => String(p.category||'') === String(name));
+    if (productsUsing.length) {
+      await Promise.all(productsUsing.map(p => fetchJSON(`/admin/products/${p.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ category: null }) }).catch(err => { console.error('Failed clearing category for product', p.id, err); } )));
+    }
+
+    // refresh products and UI
+    bootstrap.Modal.getInstance(document.getElementById('confirmRemoveCategoryModal')).hide();
+    bootstrap.Modal.getInstance(document.getElementById('manageCategoriesModal'))?.hide();
+    await loadProducts();
+    showToast(`Category "${name}" removed`, 'success');
+  } catch (err) {
+    console.error('Error removing category', err);
+    showToast('Failed to remove category', 'danger');
+  } finally {
+    _pendingRemoveCategory = null;
+    _pendingServerCategoryId = null;
+  }
+});
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function showError(msg) {
+  showToast(msg, 'danger');
+}
+
+// Filtering / search helpers
+function applyProductFilters() {
+  const products = window._adminProducts || [];
+  const query = (document.getElementById('productSearch')?.value || '').trim().toLowerCase();
+  const category = document.getElementById('filterCategory')?.value || '';
+
+  const filtered = products.filter(p => {
+    if (category && String(p.category || '') !== String(category)) return false;
+    if (!query) return true;
+    const hay = `${p.name} ${p.category || ''}`.toLowerCase();
+    return hay.includes(query);
+  });
+
+  const tbody = document.getElementById('productsTbody');
+  tbody.innerHTML = filtered.map(p => `
+    <tr data-id="${p.id}">
+      <td style="width:120px"><img src="${p.image_url || '/flowers/addons.jfif'}" alt="img" class="product-thumb"></td>
+      <td class="text-start">${escapeHtml(p.name)}<div class="small text-muted">${escapeHtml(p.description || '')}</div></td>
+      <td>${escapeHtml(p.category || '')}</td>
+      <td>
+        <div class="d-flex gap-2 justify-content-center">
+          <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Edit">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21l3-1 11-11a2 2 0 0 0-3-3L3 17v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn btn-sm btn-danger delete-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Delete">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 6h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', onEdit));
+  document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e)=> showDeleteModal(e.currentTarget.dataset.id)));
+}
+
+// hook up search / filters
+document.getElementById('productSearch')?.addEventListener('input', () => applyProductFilters());
+document.getElementById('filterCategory')?.addEventListener('change', () => applyProductFilters());
+document.getElementById('clearFilters')?.addEventListener('click', () => { document.getElementById('productSearch').value=''; document.getElementById('filterCategory').value=''; applyProductFilters(); });
+
+function showToast(message, variant = 'info', timeout = 4000) {
+  const id = `toast-${Date.now()}`;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = `
+    <div id="${id}" class="toast align-items-center text-bg-${variant} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(message)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>`;
+  document.getElementById('toastContainer').appendChild(wrapper);
+  const toastEl = wrapper.firstElementChild;
+  const toast = new bootstrap.Toast(toastEl, { delay: timeout });
+  toast.show();
+  toastEl.addEventListener('hidden.bs.toast', () => wrapper.remove());
+}
+
+function renderPricingSmall(p) {
+  if (p.pricing && Array.isArray(p.pricing) && p.pricing.length) {
+    const rows = p.pricing.map(r => `<tr><td style="padding:4px 8px">${escapeHtml(r.label||'')}</td><td style="padding:4px 8px">${escapeHtml(r.set||'')}</td><td style="padding:4px 8px">${escapeHtml(String(r.price||''))}</td></tr>`).join('');
+    return `<div class="table-responsive"><table class="table table-sm mb-0"><tbody>${rows}</tbody></table></div>`;
+  }
+  // fallback: try first pricing row price if present
+  if (p.pricing && Array.isArray(p.pricing) && p.pricing.length && typeof p.pricing[0].price !== 'undefined' && p.pricing[0].price !== null) {
+    return `₱${Number(p.pricing[0].price).toLocaleString()}`;
+  }
+  return '<span class="text-muted">No pricing</span>';
+}
+
+async function onEdit(e) {
+  const id = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id) || (e.target && e.target.dataset && e.target.dataset.id);
+  try {
+    const products = await fetchJSON('/admin/products');
+    const p = products.find(x => String(x.id) === String(id));
+    if (!p) throw new Error('Product not found');
+    document.getElementById('productModalLabel').textContent = 'Edit Product';
+    document.getElementById('productId').value = p.id;
+    document.getElementById('productName').value = p.name;
+  // productPrice input removed; no single price field to fill. Primary price will be derived from pricing rows.
+    document.getElementById('productImageUrl').value = p.image_url || '';
+  // description removed from modal
+    document.getElementById('productCategory').value = p.category || '';
+    // fill pricing and addons editors
+    try { fillPricingInForm(p.pricing || [], p.addons || []); } catch (err) { console.warn('No pricing/addons to fill', err); }
+    new bootstrap.Modal(document.getElementById('productModal')).show();
+  } catch (err) { showError(err.error || err.message || 'Failed to load product'); }
+}
+
+async function onDelete(e) {
+  // replaced by modal-based flow
+}
+
+let deleteCandidateId = null;
+function showDeleteModal(id) {
+  deleteCandidateId = id;
+  const modal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+  modal.show();
+}
+
+document.getElementById('confirmDeleteProductBtn').addEventListener('click', async () => {
+  if (!deleteCandidateId) return;
+  try {
+    await fetchJSON(`/admin/products/${deleteCandidateId}`, { method: 'DELETE' });
+    bootstrap.Modal.getInstance(document.getElementById('deleteProductModal')).hide();
+    await loadProducts();
+    showToast('Product deleted', 'success');
+  } catch (err) { showError(err.error || err.message || 'Failed to delete'); }
+});
+
+document.getElementById('addProductBtn').addEventListener('click', () => {
+  document.getElementById('productModalLabel').textContent = 'Add Product';
+  document.getElementById('productForm').reset();
+  document.getElementById('productId').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('imagePreview').src = '';
+  document.getElementById('productCategory').value = '';
+  // clear pricing and addons editors
+  try { fillPricingInForm([], []); } catch (e) { /* ignore */ }
+  new bootstrap.Modal(document.getElementById('productModal')).show();
+});
+
+document.getElementById('logoutButton').addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
+
+document.getElementById('productForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('productId').value;
+  const name = document.getElementById('productName').value.trim();
+  // price removed from form; derive primary price from pricing table if available
+  const pricing = readPricingFromForm();
+  const imageUrl = document.getElementById('productImageUrl').value.trim();
+  const file = document.getElementById('productImageFile').files[0];
+  // description field removed; no longer collected
+  const description = undefined;
+  const category = document.getElementById('productCategory').value || null;
+
+  try {
+  let payload = { name, description };
+    if (category) payload.category = category;
+    // include pricing and addons collected from the modal tables
+  const pricing = readPricingFromForm();
+    const addons = readAddonsFromForm();
+    if (pricing && pricing.length) payload.pricing = pricing;
+    if (addons && addons.length) payload.addons = addons;
+    if (file) {
+      // upload file via multipart endpoint to storage to avoid sending base64 in JSON
+      const fd = new FormData();
+      fd.append('file', file);
+      const upl = await fetchJSON('/admin/products/upload', { method: 'POST', body: fd });
+      payload.image_url = upl.url;
+      payload.image_path = upl.path;
+    } else if (imageUrl) {
+      payload.image_url = imageUrl;
+    }
+
+    if (id) {
+      await fetchJSON(`/admin/products/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetchJSON('/admin/products', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+    await loadProducts();
+    showToast('Product saved', 'success');
+  } catch (err) { showError(err.error || err.message || 'Failed to save product'); }
+});
+
+function toBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// image preview handler - use data URL (avoids blob: so CSP won't block it)
+document.getElementById('productImageFile').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  const preview = document.getElementById('imagePreview');
+  if (!f) { preview.style.display = 'none'; preview.src = ''; return; }
+  try {
+    const b64 = await toBase64(f);
+    preview.src = b64;
+    preview.style.display = 'block';
+  } catch (err) {
+    console.error('Preview read error:', err);
+    preview.style.display = 'none';
+    preview.src = '';
+  }
+});
+
+// initialize
+loadProducts();
+
+// -----------------
+// Pricing & add-ons UI helpers
+// -----------------
+function createPricingRow(row = {}) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="form-control form-control-sm pricing-label" value="${escapeHtml(row.label||'')}" placeholder="Label e.g. FWG1"></td>
+    <td><input class="form-control form-control-sm pricing-set" value="${escapeHtml(row.set||'')}" placeholder="Set e.g. 1 pc"></td>
+    <td><input class="form-control form-control-sm pricing-price" type="number" min="0" step="0.01" value="${row.price||''}"></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger remove-pricing">✕</button></td>
+  `;
+  tr.querySelector('.remove-pricing').addEventListener('click', () => tr.remove());
+  return tr;
+}
+
+function createAddonRow(row = {}) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="form-control form-control-sm addon-label" value="${escapeHtml(row.label||'')}" placeholder="Add-on name"></td>
+    <td><input class="form-control form-control-sm addon-price" type="text" value="${escapeHtml(row.price||'')}"></td>
+    <td><button type="button" class="btn btn-sm btn-outline-danger remove-addon">✕</button></td>
+  `;
+  tr.querySelector('.remove-addon').addEventListener('click', () => tr.remove());
+  return tr;
+}
+
+document.getElementById('addPricingRow').addEventListener('click', () => {
+  document.querySelector('#pricingTable tbody').appendChild(createPricingRow());
+});
+document.getElementById('addAddonRow').addEventListener('click', () => {
+  document.querySelector('#addonsTable tbody').appendChild(createAddonRow());
+});
+
+function readPricingFromForm() {
+  const rows = Array.from(document.querySelectorAll('#pricingTable tbody tr'));
+  return rows.map(r => ({
+    label: r.querySelector('.pricing-label').value.trim(),
+    set: r.querySelector('.pricing-set').value.trim(),
+    price: (function(v){ const s = String((r.querySelector('.pricing-price').value||'').trim()); const n = parseFloat(s); return isNaN(n) ? s : n; })(r),
+  })).filter(x => x.label || x.set || x.price);
+}
+
+function readAddonsFromForm() {
+  const rows = Array.from(document.querySelectorAll('#addonsTable tbody tr'));
+  return rows.map(r => ({ label: r.querySelector('.addon-label').value.trim(), price: r.querySelector('.addon-price').value.trim() })).filter(x => x.label || x.price);
+}
+
+function fillPricingInForm(pricing = [], addons = []) {
+  const pbody = document.querySelector('#pricingTable tbody');
+  pbody.innerHTML = '';
+  pricing.forEach(r => pbody.appendChild(createPricingRow(r)));
+
+  const abody = document.querySelector('#addonsTable tbody');
+  abody.innerHTML = '';
+  addons.forEach(a => abody.appendChild(createAddonRow(a)));
+}
+
+// When saving product, include pricing and addons as JSON
+const originalSubmit = document.getElementById('productForm').onsubmit;
+document.getElementById('productForm').addEventListener('submit', async (e) => {
+  // productForm submit logic exists above; we will not duplicate; the existing handler will pick category and other fields.
+});
+

@@ -1,0 +1,109 @@
+body {
+      background-color: #fff5f8;
+      color: #5a4a4a;
+      font-family: 'Poppins', sans-serif;
+    }
+    .navbar {
+      background-color: #ffcce1;
+    }
+    .navbar-brand {
+      font-weight: bold;
+      color: #5a3b4e !important;
+    }
+    .section-title {
+      color: #d63384;
+      font-weight: bold;
+      text-align: center;
+    }
+    .section-subtitle {
+      color: #5a3b4e;
+      text-align: center;
+    }
+    .card {
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(180deg,#fffafc,#fff1f6);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+    }
+    .flower-img {
+      height: 250px;
+      object-fit: cover;
+      border-radius: 15px 15px 0 0;
+    }
+    .btn-pink {
+      background-color: #ff6f9b;
+      color: white;
+      border: none;
+      box-shadow: 0 2px 6px rgba(255,111,155,0.18);
+    }
+    .btn-pink:hover {
+      background-color: #ff5588;
+    }
+    footer {
+      background-color: #ffcce1;
+      color: #5a3b4e;
+      padding: 30px 0;
+      text-align: center;
+    }
+    .modal-content {
+      border-radius: 12px;
+    }
+    /* Admin header */
+    .header { position: sticky; top: 0; z-index: 1030; }
+    .admin-logo { border-radius: 8px; object-fit:cover }
+    @media (max-width: 576px) {
+      .header nav { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    }
+    /* header brand shrink and ellipsis to keep hamburger inline */
+    .header .brand { min-width: 0; }
+    .header .brand h1, .header .brand .text-muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header nav { gap: 0.5rem; }
+    /* Admin products responsive tweaks */
+    .admin-controls > * { flex: 0 0 auto; }
+    .search-input { min-width: 220px; }
+    /* reduce search width on small screens and make inputs full width */
+    @media (max-width: 768px) {
+      .search-input { min-width: 120px; width: 100%; }
+      .admin-controls { width: 100%; justify-content: flex-end; }
+      .admin-controls .btn { flex: 1 1 auto; }
+      .admin-controls .btn + .btn { margin-left: 0.5rem; }
+      .table td, .table th { font-size: 0.9rem; }
+      .admin-logo { width: 36px; height:36px; }
+      #imagePreview { max-width: 100%; height: auto; }
+    }
+    /* Make the header collapse expand full-width when opened on small screens without forcing layout when closed */
+    @media (max-width: 576px) {
+      #adminControlsCollapse.show { display: block !important; width: 100%; margin-top: 0.5rem; }
+      header .admin-controls { justify-content: flex-end; }
+      header .d-flex.align-items-center > button.d-sm-none { align-self: center; }
+    }
+    /* Toolbar styling for products page */
+    .toolbar.card { border-radius: 12px; padding: 0; }
+    .toolbar .card-body { padding: 0.8rem 1rem; }
+    .toolbar .search-input { max-width: 420px; }
+    .table img { border-radius: 8px; object-fit: cover; width: 96px; height: 64px; }
+    .table th, .table td { vertical-align: middle; }
+    .edit-btn, .delete-btn { min-width: 36px; }
+    .btn i.bi { vertical-align: -.125em; }
+  .icon-svg { width: 16px; height: 16px; display: inline-block; vertical-align: middle; }
+    @media (max-width: 480px) {
+      .search-input { min-width: 0; }
+      .admin-controls { flex-direction: column; gap: 0.5rem; }
+      .admin-controls .btn { width: 100%; }
+    }
+    .table th, .table td {
+      text-align: center;
+    }
+    a {
+      color: #d63384;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    
