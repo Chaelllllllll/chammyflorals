@@ -46,7 +46,10 @@
           <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#trackModal">Track Order</button>
         </li>
         <li class="nav-item">
-          <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order</button>
+          <button class="btn btn-pink me-2" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order</button>
+        </li>
+        <li class="nav-item">
+          <a class="btn btn-outline-primary" id="navReviewsBtn" href="/reviews.html">Reviews</a>
         </li>
       </ul>
     </div>
@@ -57,6 +60,7 @@
     <h1 class="fw-bold text-pink">Handmade Bouquets & Keychains</h1>
     <p>Bloom with love — Chammy Florals crafts delicate pieces to make every day special.</p>
   </section>
+
 
   <section class="container my-5">
     <h2 class="text-center fw-bold mb-4">Our Lovely Collections</h2>
@@ -86,6 +90,17 @@
       </div>
     </div>
   </div>
+
+  <!-- Reviews preview -->
+  <section class="container my-5">
+    <h3 class="text-center fw-bold mb-3">Customer Reviews</h3>
+    <div id="reviewsPreview" class="row g-3 justify-content-center">
+      <!-- review cards injected here -->
+    </div>
+    <div class="text-center mt-3">
+      <a class="btn btn-outline-secondary" id="viewReviewsBtn" href="/reviews.html">View reviews</a>
+    </div>
+  </section>
 
   <footer class="text-center py-4">
   <p>Follow us on:</p>
@@ -183,7 +198,10 @@
     </div>
   </div>
 
+  
+
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
+  <script src="/js/reviews.js" defer></script>
 </body>
 </html>

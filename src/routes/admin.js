@@ -257,6 +257,35 @@ router.delete('/orders/:orderId', auth, async (req, res) => {
   }
 });
 
+// Admin: list reviews (protected)
+router.get('/reviews', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id,order_id,name,stars,message,created_at')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error fetching reviews (admin):', error);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+// Admin: delete review by id (protected)
+router.delete('/reviews/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'ID is required' });
+    const { data, error } = await supabase.from('reviews').delete().eq('id', id).select('id,order_id,name');
+    if (error) throw error;
+    res.json({ message: 'Review deleted', review: data && data[0] ? data[0] : null });
+  } catch (error) {
+    console.error('Error deleting review:', error);
+    res.status(500).json({ error: 'Failed to delete review' });
+  }
+});
+
 // ------------------
 // Products CRUD (protected)
 // Expects a Supabase table named `products` with columns: id, name, image_url, image_path, category, pricing (jsonb), addons (jsonb)

@@ -29,7 +29,8 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', "'unsafe-inline'"],
+        // Allow Google Fonts stylesheet and common CDNs for styles
+        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', "'unsafe-inline'"],
         scriptSrc: [
           "'self'",
           'https://cdn.jsdelivr.net',
@@ -40,7 +41,8 @@ app.use(
         scriptSrcAttr: ["'none'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
         connectSrc: ["'self'", 'https://www.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
-        fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+        // Allow fonts.gstatic.com for font binary resources used by Google Fonts
+        fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
         frameSrc: ["'self'", 'https://www.google.com', 'https://www.gstatic.com'],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],

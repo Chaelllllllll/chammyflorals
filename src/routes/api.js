@@ -234,4 +234,77 @@ router.get('/categories', async (req, res) => {
   }
 });
 
+// Reviews endpoints (public)
+// GET /reviews - list recent reviews
+router.get('/reviews', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id,order_id,name,stars,message,created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) {
+      console.error('Error fetching reviews:', error);
+      return res.status(500).json({ error: 'Failed to fetch reviews' });
+    }
+    res.json(data || []);
+  } catch (err) {
+    console.error('Unexpected error fetching reviews:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+// POST /reviews - create a review after validating order id
+router.post('/reviews', async (req, res) => {
+  try {
+    const { orderId, stars, message } = req.body || {};
+    if (!orderId || !stars || !message) {
+      return res.status(400).json({ error: 'orderId, stars and message are required' });
+    }
+
+    // validate order exists and get customer name and status
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('order_id,name,status')
+      .eq('order_id', String(orderId))
+      .single();
+
+    if (orderErr || !order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Only allow reviews for delivered orders
+    if (String(order.status || '').toLowerCase() !== 'delivered') {
+      return res.status(400).json({ error: 'Reviews can only be submitted for orders with status "Delivered"' });
+    }
+
+    // Prevent duplicate reviews per order_id
+    const { data: existing, error: existErr } = await supabase.from('reviews').select('id').eq('order_id', String(orderId)).limit(1);
+    if (existErr) {
+      console.error('Failed checking existing review:', existErr);
+      // continue to attempt insert (don't leak too much info)
+    }
+    if (existing && existing.length) {
+      return res.status(409).json({ error: 'Review for this order already exists' });
+    }
+
+    const review = {
+      order_id: String(orderId),
+      name: String(order.name || ''),
+      stars: Math.max(1, Math.min(5, Number(stars) || 0)),
+      message: String(message).replace(/<[^>]*>?/gm, ''),
+    };
+
+    const { data, error } = await supabase.from('reviews').insert([review]).select();
+    if (error) {
+      console.error('Failed to insert review:', error);
+      return res.status(500).json({ error: 'Failed to save review' });
+    }
+    res.json((data && data[0]) || { message: 'Review saved' });
+  } catch (err) {
+    console.error('Unexpected error saving review:', err);
+    res.status(500).json({ error: 'Failed to save review' });
+  }
+});
+
 module.exports = router;
