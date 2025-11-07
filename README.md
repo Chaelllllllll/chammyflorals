@@ -40,7 +40,7 @@ Environment variables to add in Vercel Project settings (check `src/config/supab
 Notes
 - The Express app in `api/index.js` exports the app so Vercel will create serverless functions from files under `api/`.
 - Static assets under `public/` will be served by Vercel when `Output Directory` is set to `public`.
-- If you need a specific Node version, `package.json` contains an `engines` entry (Node 18.x).
+- If you need a specific Node version, `package.json` contains an `engines` entry (Node 22.x).
 
 Security
 - Never commit your `.env` file. Store secrets in Vercel's Environment Variables interface.
