@@ -88,7 +88,9 @@ app.use(express.static('public'));
 
 // Routes
 app.use('/api', apiRoutes);
-app.use('/admin', adminRoutes);
+// Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
+// Express router when Vercel routes them to /api/index.js.
+app.use('/api/admin', adminRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
