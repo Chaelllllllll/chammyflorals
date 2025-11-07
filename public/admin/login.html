@@ -75,7 +75,7 @@
       const token = localStorage.getItem('adminToken');
       if (token) {
         try {
-          const response = await fetch('/admin/verify-token', {
+          const response = await fetch('/api/admin/verify-token', {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (response.ok) {

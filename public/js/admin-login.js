@@ -11,7 +11,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   const password = document.getElementById('adminPassword').value;
 
   try {
-    const response = await fetch('/admin/login', {
+  const response = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -64,7 +64,7 @@ function showErrorModal(message) {
   const token = localStorage.getItem('adminToken');
   if (token) {
     try {
-      const response = await fetch('/admin/verify-token', {
+  const response = await fetch('/api/admin/verify-token', {
         headers: { Authorization: `Bearer ${token}` },
       });
       let result;

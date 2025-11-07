@@ -13,7 +13,7 @@ async function loadDeliveredOrders() {
   const tbody = document.getElementById('deliveredOrdersTbody');
   tbody.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
   try {
-    const res = await fetch('/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
     const orders = await res.json();
     if (!res.ok) {
       tbody.innerHTML = `<tr><td colspan="6">Error: ${orders.error || res.status}</td></tr>`;
@@ -52,7 +52,7 @@ function viewOrder(id) {
   const order = orders.find(o => String(o.order_id) === String(id));
   if (!order) {
     // fallback: fetch all and try again
-    fetch('/admin/orders', { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } })
+  fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` } })
       .then(r => r.json())
       .then(list => {
         const found = (list || []).find(o => String(o.order_id) === String(id));

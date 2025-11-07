@@ -11,7 +11,7 @@ async function fetchJSON(url, opts = {}) {
 
 async function loadProducts() {
   try {
-    const products = await fetchJSON('/admin/products');
+  const products = await fetchJSON('/api/admin/products');
     const tbody = document.getElementById('productsTbody');
     window._adminProducts = products || [];
     // populate category lists from products + stored categories, then render
@@ -27,7 +27,7 @@ async function loadProducts() {
 // Try to fetch admin categories from server; fallback to localStorage
 async function fetchAdminCategories() {
   try {
-    const data = await fetchJSON('/admin/categories');
+  const data = await fetchJSON('/api/admin/categories');
     if (Array.isArray(data)) return data.map(c => ({ id: c.id, name: c.name }));
   } catch (err) {
     // ignore and fallback
@@ -76,7 +76,7 @@ document.getElementById('saveCategoryBtn')?.addEventListener('click', async () =
 
   // try server-side create first
   try {
-    const created = await fetchJSON('/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const created = await fetchJSON('/api/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
     // refresh categories
     await populateCategoryOptions(window._adminProducts || []);
     bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
@@ -118,7 +118,7 @@ document.getElementById('manageSaveCategoryBtn')?.addEventListener('click', asyn
   if (!name) return showToast('Category name is required', 'danger');
   // try server-side create first
   try {
-    const created = await fetchJSON('/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
+  const created = await fetchJSON('/api/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
     // refresh lists
     document.getElementById('manageNewCategoryName').value = '';
     await populateManageCategories();
@@ -237,7 +237,7 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     // attempt server-side delete if we have an id
     if (_pendingServerCategoryId) {
       try {
-        await fetchJSON(`/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
+  await fetchJSON(`/api/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
       } catch (err) {
         console.warn('Server delete failed, falling back to local removal', err);
       }
@@ -252,7 +252,7 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     // if products use it, clear their category
     const productsUsing = (window._adminProducts || []).filter(p => String(p.category||'') === String(name));
     if (productsUsing.length) {
-      await Promise.all(productsUsing.map(p => fetchJSON(`/admin/products/${p.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ category: null }) }).catch(err => { console.error('Failed clearing category for product', p.id, err); } )));
+  await Promise.all(productsUsing.map(p => fetchJSON(`/api/admin/products/${p.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ category: null }) }).catch(err => { console.error('Failed clearing category for product', p.id, err); } )));
     }
 
     // refresh products and UI
@@ -350,7 +350,7 @@ function renderPricingSmall(p) {
 async function onEdit(e) {
   const id = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id) || (e.target && e.target.dataset && e.target.dataset.id);
   try {
-    const products = await fetchJSON('/admin/products');
+  const products = await fetchJSON('/api/admin/products');
     const p = products.find(x => String(x.id) === String(id));
     if (!p) throw new Error('Product not found');
     document.getElementById('productModalLabel').textContent = 'Edit Product';
@@ -380,7 +380,7 @@ function showDeleteModal(id) {
 document.getElementById('confirmDeleteProductBtn').addEventListener('click', async () => {
   if (!deleteCandidateId) return;
   try {
-    await fetchJSON(`/admin/products/${deleteCandidateId}`, { method: 'DELETE' });
+  await fetchJSON(`/api/admin/products/${deleteCandidateId}`, { method: 'DELETE' });
     bootstrap.Modal.getInstance(document.getElementById('deleteProductModal')).hide();
     await loadProducts();
     showToast('Product deleted', 'success');
@@ -425,7 +425,7 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
       // upload file via multipart endpoint to storage to avoid sending base64 in JSON
       const fd = new FormData();
       fd.append('file', file);
-      const upl = await fetchJSON('/admin/products/upload', { method: 'POST', body: fd });
+  const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
       payload.image_url = upl.url;
       payload.image_path = upl.path;
     } else if (imageUrl) {
@@ -433,9 +433,9 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     }
 
     if (id) {
-      await fetchJSON(`/admin/products/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  await fetchJSON(`/api/admin/products/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     } else {
-      await fetchJSON('/admin/products', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  await fetchJSON('/api/admin/products', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     }
 
     bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();

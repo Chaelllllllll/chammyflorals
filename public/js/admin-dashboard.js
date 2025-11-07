@@ -7,7 +7,7 @@ async function loadOrders() {
 
   try {
     // Verify token
-    const verifyResponse = await fetch('/admin/verify-token', {
+  const verifyResponse = await fetch('/api/admin/verify-token', {
       headers: { Authorization: `Bearer ${token}` },
     });
     let verifyResult;
@@ -23,7 +23,7 @@ async function loadOrders() {
       return;
     }
 
-    const response = await fetch('/admin/orders', {
+  const response = await fetch('/api/admin/orders', {
       headers: { Authorization: `Bearer ${token}` },
     });
     let orders;
@@ -141,7 +141,7 @@ async function changeStatus(orderId) {
   const status = document.getElementById('orderStatus').value;
   try {
   console.log('Sending PATCH for order:', orderId, 'Status:', status);
-    const response = await fetch(`/admin/orders/${orderId}`, {
+  const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ async function deleteOrder(orderId) {
   const token = localStorage.getItem('adminToken');
   try {
   console.log('Sending DELETE for order:', orderId);
-    const response = await fetch(`/admin/orders/${orderId}`, {
+  const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
