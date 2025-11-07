@@ -4,6 +4,7 @@ const validate = require('../middleware/validate');
 const mailer = require('../lib/mailer');
 const templates = require('../lib/email-templates');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const router = express.Router();
 
 const generateOrderId = () => {
@@ -11,7 +12,21 @@ const generateOrderId = () => {
 };
 
 // Apply a stricter rate limit to the public inquiry endpoint to mitigate abuse.
-const inquiryLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
+const inquiryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req /*, res*/) => {
+    const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
+    if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
+    try {
+      return ipKeyGenerator(req.ip);
+    } catch (err) {
+      return req.ip || '';
+    }
+  },
+});
 
 router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
   try {

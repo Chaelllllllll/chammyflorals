@@ -3,6 +3,7 @@ const supabase = require('../config/supabase');
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
 const router = express.Router();
 
@@ -50,7 +51,21 @@ async function uploadBase64ToStorage(dataUrl) {
 }
 
 // Rate limit login attempts to mitigate brute force attacks
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 6, standardHeaders: true, legacyHeaders: false });
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req /*, res*/) => {
+    const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
+    if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
+    try {
+      return ipKeyGenerator(req.ip);
+    } catch (err) {
+      return req.ip || '';
+    }
+  },
+});
 
 router.post('/login', loginLimiter, async (req, res) => {
   try {

@@ -2,11 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 const apiRoutes = require('../src/routes/api');
 const adminRoutes = require('../src/routes/admin');
 require('dotenv').config();
 
 const app = express();
+
+// When running behind proxies (Vercel, Heroku, etc.) trust the first proxy so
+// req.ip is derived from X-Forwarded-For. This avoids express-rate-limit
+// validation errors related to forwarded headers (ERR_ERL_FORWARDED_HEADER).
+// Use `1` to trust the first proxy (recommended on Vercel / serverless).
+app.set('trust proxy', 1);
 
 // Minimal request logging (only outside production)
 app.use((req, res, next) => {
@@ -52,10 +59,27 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiter
+// Rate limiter — use a keyGenerator that prefers the X-Forwarded-For header when
+// available (common on serverless platforms) and emit standard headers for
+// monitoring. This prevents express-rate-limit from throwing when the
+// Forwarded header is present.
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req /*, res*/) => {
+    // Prefer the X-Forwarded-For / Forwarded headers set by proxies (Vercel).
+    const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
+    if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
+    // Fall back to the request IP but normalize IPv6 using the library helper
+    // to satisfy express-rate-limit validations.
+    try {
+      return ipKeyGenerator(req.ip);
+    } catch (err) {
+      return req.ip || '';
+    }
+  },
 });
 app.use(limiter);
 
