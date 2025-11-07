@@ -34,53 +34,125 @@ Environment variables to add in Vercel Project settings (check `src/config/supab
 - SUPABASE_STORAGE_BUCKET (optional)
 - ADMIN_EMAIL
 - ADMIN_PASSWORD
-- DISCORD_WEBHOOK_URL (optional)
-- NODE_ENV=production
+ # Chammy Florals — Project README
 
-Notes
-- The Express app in `api/index.js` exports the app so Vercel will create serverless functions from files under `api/`.
-- Static assets under `public/` will be served by Vercel when `Output Directory` is set to `public`.
-- If you need a specific Node version, `package.json` contains an `engines` entry (Node 22.x).
+This repository contains the Chammy Florals website and server API:
 
-Security
-- Never commit your `.env` file. Store secrets in Vercel's Environment Variables interface.
+- Public static site and client scripts: `public/` (homepage, reviews page, admin UI assets)
+- Serverless Express app (API): `api/index.js` (mounts routes from `src/routes/*`)
+- Admin front-end: `public/admin/` (HTML + JS protected by an admin token scheme)
 
-Troubleshooting
-- If you get errors about missing buckets, check your Supabase keys and permissions.
-- For local dev, use `npm run dev` (nodemon) so code reloads on changes.
- 
-Fixing the 404s / 401s on Vercel
-------------------
-- If you see 404s for `/api/products` in Vercel logs, it's likely because Vercel tried to route `/api/products` to a file named `api/products` that does not exist. The repository has a single Express app in `api/index.js` that mounts internal routes (it expects the function to receive requests for all `/api/*` paths).
+This README explains how to run, configure, deploy, and troubleshoot the project.
 
-	To fix this I updated `vercel.json` so all requests under `/api/*` are routed to the single function at `/api/index.js`.
+## Quick start (local development)
 
-- If static images (e.g. `/flowers/cherry-blossom.png`) show 404s, make sure those image files are inside the `public/` directory (for example `public/flowers/cherry-blossom.png`). Vercel will only serve static files that are part of the build output (our `vercel.json` is configured to serve `public/**`). If your `flowers/` folder is at the repository root, move it into `public/flowers/` or add a static build step.
-
-- 401 responses for image requests may happen if a protected route or middleware is handling those paths. Confirm the image paths are not processed by any auth middleware (e.g., under `/admin`) and are directly available in `public/`.
-
-Redeploy & verify
-------------------
-
-After the changes above are deployed to Vercel (they set the app to trust the proxy and add a rewrite for `/admin/*`):
-
-1. Push your branch and trigger a Vercel deploy (or use the Vercel dashboard to re-deploy the branch).
-
-2. Confirm the forwarded-header error is gone by making a request that includes an X-Forwarded-For header and watching the Vercel function logs:
+1. Install dependencies
 
 ```powershell
-curl -v -H "X-Forwarded-For: 1.2.3.4" https://<your-deployment-domain>/api/products
+cd C:\Users\johnm\Desktop\ChamFlorals
+npm install
 ```
 
-3. Confirm `/admin/login` serves the admin HTML. Example:
+2. Run the app
 
 ```powershell
-curl -I https://<your-deployment-domain>/admin/login
+# Run once
+npm start
+
+# Or run with auto-reload (recommended during development)
+npm run dev
 ```
 
-4. If preview deployments still show 401/404 for images, check that the preview's environment variables include the correct Supabase keys and that the storage bucket/object is public or uses signed URLs.
+The local server listens on port 3000 by default (see `dev.js`). Visit `http://localhost:3000`.
 
-If you want, I can also move `admin/` into `public/admin/` so Vercel serves it as a static asset without a rewrite; tell me which you prefer and I'll create the patch.
-If you'd like, I can:
-- Move the existing `flowers/` folder into `public/flowers` and update any client paths.
-- Or add a separate static build rule to `vercel.json` to include the top-level `flowers/` folder (less common).
+## Architecture overview
+
+- `api/index.js` — Express app exported for serverless hosting (Vercel). It mounts routes under `/api` and `/api/admin`.
+- `src/routes/` — Express routers (public API, admin API). Key endpoints:
+	- `GET /api/products`, `GET /api/categories` — public product endpoints
+	- `GET /api/reviews`, `POST /api/reviews` — public reviews (server validates order & prevents duplicates)
+	- `GET /api/admin/reviews`, `DELETE /api/admin/reviews/:id` — admin review management (protected)
+	- `POST /api/admin/login`, `GET /api/admin/verify-token` — admin authentication
+- `public/` — static frontend files served directly in production. Admin HTML lives in `public/admin/`.
+
+The app uses Supabase for persistence; see `src/config/supabase.js` for configuration.
+
+## Environment variables
+
+Set these in your local `.env` (DO NOT commit) and in your Vercel project settings:
+
+- SUPABASE_URL — your Supabase project URL
+- SUPABASE_KEY — service role or anon key used by the server (use service role only on server)
+- SUPABASE_STORAGE_BUCKET — optional storage bucket name
+- ADMIN_EMAIL — admin username/email used for the built-in admin token
+- ADMIN_PASSWORD — admin password used for the built-in admin token
+- DISCORD_WEBHOOK_URL — optional webhook for notifications
+- NODE_ENV — set to `production` in deployment
+
+Note: The code expects environment variables referenced by `src/config/supabase.js` — confirm the exact names there before deploying.
+
+## Reviews feature
+
+- Public users can submit reviews via `/api/reviews`. Submissions require a valid `orderId` whose status is `Delivered`. Server enforces:
+	- Order exists
+	- Order status equals `Delivered`
+	- One review per order (returns 409 on duplicates)
+	- Stars clamped to 1–5, message sanitized server-side
+- Admins can view and delete reviews under the admin UI (`/admin/reviews.html`) using `/api/admin/reviews` and `DELETE /api/admin/reviews/:id`.
+
+## Security
+
+- Admin auth: a simple token scheme (base64 of `ADMIN_EMAIL:ADMIN_PASSWORD`) is used for protected admin endpoints. Keep `ADMIN_PASSWORD` secret.
+- Input sanitization: the server strips tags from review messages and clamps numeric fields. Client-side sanitization is applied for UX but should not be relied on for security.
+- Helmet CSP: the app configures a Content-Security-Policy (see `api/index.js`). If you change external assets (fonts, CDNs), update CSP accordingly.
+
+## Deployment — Vercel
+
+Recommended Vercel configuration:
+
+- Install Command: `npm install` (or `npm ci`)
+- Build Command: (leave empty)
+- Output Directory: `public`
+
+Routing notes
+- `api/index.js` exports an Express app and the project expects API requests under `/api/*` to be routed to that function. `vercel.json` in this repo contains the rewrite rules to ensure `/api/*` requests reach `api/index.js`.
+
+Environment variables
+- Add the environment variables listed above into your Vercel project (Production and Preview as appropriate).
+
+Static files
+- Files under `public/` are served as static assets. Ensure image and asset paths reference `public/` (e.g., `public/flowers/...`).
+
+## Troubleshooting
+
+- 404 on `/api/...`:
+	- Ensure the dev server is running locally (npm start / npm run dev).
+	- Verify `vercel.json` contains the API rewrite so `/api/*` reaches `api/index.js` on Vercel.
+
+- CSP blocks (fonts, inline scripts):
+	- The server configures Helmet CSP in `api/index.js`. If external assets are blocked, add their host to the appropriate CSP directive (e.g., `fonts.googleapis.com` to `style-src`) or self-host the asset.
+
+- Supabase errors:
+	- Confirm `SUPABASE_URL` and `SUPABASE_KEY` are correct and that the `reviews`, `orders`, and `products` tables exist with the expected columns.
+
+## Testing & verification
+
+- Local smoke test examples (PowerShell):
+
+```powershell
+# Get public products
+curl http://localhost:3000/api/products
+
+# Attempt admin verify-token (replace <token>)
+curl -H "Authorization: Bearer <token>" http://localhost:3000/api/admin/verify-token
+```
+
+## Contributing
+
+If you plan to change routing, CSP, or environment variable names, update this README and verify locally with `npm run dev` before pushing.
+
+If you'd like help hardening CSP (nonces/hashes) or moving inline scripts to external files, I can prepare a focused patch and run a smoke test.
+
+## License
+
+This repository does not include a license file. Add a LICENSE file if you want to make the project open source.
