@@ -33,7 +33,7 @@ async function loadDeliveredOrders() {
         <td>${escapeHtml(o.flower_type)}</td>
         <td>${o.quantity || 1}</td>
         <td>₱${o.total_fee || o.total || o.amount || 0}</td>
-        <td><button class="btn btn-sm btn-secondary view-order-btn" data-order-id="${o.order_id}">View</button></td>
+        <td><button class="btn btn-sm btn-success view-order-btn" data-order-id="${o.order_id}">View</button></td>
       </tr>
     `).join('');
     // attach handlers
@@ -81,8 +81,47 @@ function showOrderModal(order) {
     <p><strong>Status:</strong> ${escapeHtml(order.status || '')}</p>
     
   `;
+  // Wire delete button inside modal
+  const deleteBtn = document.getElementById('deleteOrderButton');
+  if (deleteBtn) {
+    // store order id
+    deleteBtn.dataset.orderId = order.order_id;
+    // remove previous handlers (use onclick to avoid duplicates)
+    deleteBtn.onclick = async (e) => {
+      const id = e.currentTarget.dataset.orderId;
+      if (!id) return;
+      const ok = window.confirm('Are you sure you want to delete this order? This action cannot be undone.');
+      if (!ok) return;
+      await deleteOrder(id);
+    };
+  }
+
   const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   modal.show();
+}
+
+async function deleteOrder(orderId) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) { window.location.href = '/admin/login.html'; return; }
+  try {
+    const resp = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    let parsed;
+    try { parsed = await resp.json(); } catch (e) { parsed = {}; }
+    if (!resp.ok) {
+      throw new Error(parsed.error || `Failed to delete order: ${resp.status}`);
+    }
+    // success
+    alert(parsed.message || 'Order deleted successfully');
+    // hide modal and reload list
+    bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal'))?.hide();
+    await loadDeliveredOrders();
+  } catch (err) {
+    console.error('deleteOrder error', err);
+    alert(err.message || 'Failed to delete order');
+  }
 }
 
 function applyDeliveredFilters() {
