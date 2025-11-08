@@ -129,7 +129,22 @@ async function handleTrackRequest(psid, orderId) {
   parts.push('Order Status');
   parts.push('------------------------------');
   parts.push(`Order ID: ${data.order_id}`);
-  if (data.status) parts.push(`Status: ${data.status}`);
+  if (data.status) {
+    // Map status to a badge-like emoji + label (Bootstrap color equivalence shown in parentheses)
+    const st = String(data.status || '').trim();
+    const key = st.toLowerCase().replace(/\s+/g, '');
+    const statusMap = {
+      pending: { emoji: '⚪', note: 'secondary' },
+      processing: { emoji: '🟡', note: 'warning' },
+      toreceive: { emoji: '🔵', note: 'info' },
+      'to receive': { emoji: '🔵', note: 'info' },
+      delivered: { emoji: '🟢', note: 'success' },
+      cancelled: { emoji: '🔴', note: 'danger' },
+      canceled: { emoji: '🔴', note: 'danger' }
+    };
+    const mapped = statusMap[key] || { emoji: 'ℹ️', note: '' };
+    parts.push(`Status: ${mapped.emoji} ${st}${mapped.note ? ` (${mapped.note})` : ''}`);
+  }
   if (data.name) parts.push(`Customer: ${data.name}`);
   if (data.flower_type) parts.push(`Items: ${data.flower_type} × ${data.quantity || 1}`);
   if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${Number(data.total_fee).toLocaleString()}`);
