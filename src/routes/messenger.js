@@ -38,7 +38,7 @@ router.post('/webhook', express.json(), async (req, res) => {
             const payload = event.postback.payload;
             if (payload === 'TRACK_ORDER') {
               sessions.set(sender, 'awaitingOrderId');
-              await sendMessage(sender, 'Please enter your Order ID and I will fetch the status for you.');
+              await sendMessage(sender, '🌻Kindly enter your 𝗢𝗿𝗱𝗲𝗿 𝗜𝗗/𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴 𝗜𝗗 from your receipt so I can check your order status');
             }
             continue;
           }
@@ -72,7 +72,7 @@ router.post('/webhook', express.json(), async (req, res) => {
             sessions.set(sender, 'awaitingOrderId');
             // send a neutral prompt without a quick-reply button to avoid clients sending the
             // quick-reply title as the message text when tapped
-            await sendMessage(sender, 'Sure — please type your Order ID (e.g. ABC12345) and I will look it up.');
+            await sendMessage(sender, '🌻Kindly enter your 𝗢𝗿𝗱𝗲𝗿 𝗜𝗗/𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴 𝗜𝗗 from your receipt so I can check your order status');
             continue;
           }
         }
