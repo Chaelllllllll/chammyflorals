@@ -351,4 +351,26 @@ router.get('/check-persistent-menu', async (req, res) => {
   }
 });
 
+// Diagnostic endpoint: debug the configured Page token using the App Access Token
+// Protected by ADMIN_SETUP_TOKEN (provide ?token=ADMIN_SETUP_TOKEN)
+router.get('/debug-token', async (req, res) => {
+  const adminToken = process.env.ADMIN_SETUP_TOKEN || '';
+  const provided = (req.query.token || req.headers['x-admin-token'] || '');
+  if (adminToken && adminToken !== provided) return res.status(403).json({ error: 'Invalid setup token' });
+  const pageToken = process.env.FB_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_TOKEN || '';
+  if (!pageToken) return res.status(500).json({ error: 'FB_PAGE_ACCESS_TOKEN not configured' });
+  const appId = process.env.FB_APP_ID;
+  const appSecret = process.env.FB_APP_SECRET;
+  if (!appId || !appSecret) return res.status(500).json({ error: 'FB_APP_ID or FB_APP_SECRET not configured' });
+  const appAccess = `${appId}|${appSecret}`;
+  try {
+    const resp = await fetch(`https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(pageToken)}&access_token=${encodeURIComponent(appAccess)}`);
+    const json = await resp.json().catch(() => null);
+    return res.json({ ok: resp.ok, status: resp.status, result: json });
+  } catch (err) {
+    console.error('debug-token error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to call debug_token' });
+  }
+});
+
 module.exports = router;
