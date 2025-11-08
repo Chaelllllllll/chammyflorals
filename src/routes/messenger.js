@@ -56,7 +56,7 @@ router.post('/webhook', express.json(), async (req, res) => {
             // Robustly treat quick-reply taps (or the 'Enter Order ID' text) as prompts
             // (some clients/platforms may omit payloads or vary the text)
             if (quickPayload === 'TRACK_ORDER_PROMPT' || /^enter order id\b/i.test(trimmed)) {
-              await sendMessage(sender, 'Please type your Order ID (for example: ABC12345) and I will look it up.');
+              await sendMessage(sender, '🌻Kindly enter your 𝗢𝗿𝗱𝗲𝗿 𝗜𝗗/𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴 𝗜𝗗 from your receipt so I can check your order status');
               // keep session waiting
               continue;
             }
@@ -126,7 +126,7 @@ async function handleTrackRequest(psid, orderId) {
 
   // Build a concise, professional order summary for messaging
   const parts = [];
-  parts.push('𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');
+  parts.push('⋆˚✿˖° 𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');
   parts.push('───────୨ৎ───────');
     // helper: convert ASCII letters/digits to Unicode Mathematical Bold characters
     function toBold(s) {
