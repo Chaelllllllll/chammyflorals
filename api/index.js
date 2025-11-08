@@ -100,7 +100,7 @@ app.use('/api', apiRoutes);
 // Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
 // Express router when Vercel routes them to /api/index.js.
 app.use('/api/admin', adminRoutes);
-// Messenger/Instagram webhook endpoint
+// Messenger webhook endpoint
 app.use('/api/messenger', messengerRoutes);
 
 // Error handler
