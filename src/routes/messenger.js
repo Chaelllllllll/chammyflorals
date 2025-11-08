@@ -176,44 +176,47 @@ async function handleTrackRequest(psid, orderId) {
   }
     if (data.name) parts.push(`Customer: ${toBold(data.name)}`);
     if (data.flower_type) {
-        let itemsText = '';
-        let totalQuantity = 0;
+  let itemsText = '';
+  let totalQuantity = 0;
 
-        try {
-            // Normalize data formats
-            let types = data.flower_type;
-            let qtys = data.quantity;
+  try {
+    let types = data.flower_type;
+    let qtys = data.quantity;
 
-            // Parse if JSON array
-            if (typeof types === 'string' && types.trim().startsWith('[')) types = JSON.parse(types);
-            if (typeof qtys === 'string' && qtys.trim().startsWith('[')) qtys = JSON.parse(qtys);
+    // 🧩 Try to parse JSON arrays if stored as JSON strings
+    if (typeof types === 'string' && types.trim().startsWith('[')) types = JSON.parse(types);
+    if (typeof qtys === 'string' && qtys.trim().startsWith('[')) qtys = JSON.parse(qtys);
 
-            // Handle comma-separated string fallback
-            if (typeof types === 'string') types = types.split(',').map(s => s.trim());
-            if (typeof qtys === 'string') qtys = qtys.split(',').map(s => s.trim());
+    // 🧩 Handle comma-separated values (e.g. "Rose, Tulip")
+    if (typeof types === 'string') types = types.split(',').map(s => s.trim());
+    if (typeof qtys === 'string') qtys = qtys.split(',').map(s => s.trim());
 
-            // Ensure arrays
-            if (!Array.isArray(types)) types = [types];
-            if (!Array.isArray(qtys)) qtys = [qtys];
+    // 🧩 Convert single value to array
+    if (!Array.isArray(types)) types = [types];
+    if (!Array.isArray(qtys)) qtys = [qtys];
 
-            // Compute total quantity
-            totalQuantity = qtys.reduce((sum, q) => sum + Number(q || 0), 0);
+    // 🧩 Compute total quantity
+    totalQuantity = qtys.reduce((sum, q) => sum + Number(q || 0), 0);
 
-            if (types.length > 1) {
-            const bullets = types.map(t => `• ${toBold(t)}`);
-            itemsText = `Items:\n${bullets.join('\n')}`;
-            } else {
-            itemsText = `Items: ${toBold(types[0])}`;
-            }
-        } catch (e) {
-            console.warn('Error formatting items', e);
-            itemsText = `Items: ${toBold(data.flower_type)}`;
-            totalQuantity = Number(data.quantity || 0);
-        }
+    // 🧩 Bullet if more than one item
+    if (types.length > 1) {
+      const bullets = types.map(t => `• ${toBold(t)}`);
+      itemsText = `Items:\n${bullets.join('\n')}`;
+    } else {
+      itemsText = `Items: ${toBold(types[0])}`;
+    }
 
-        parts.push(itemsText);
-        if (totalQuantity) parts.push(`Quantity: ${toBold(totalQuantity)}`);
-        }
+  } catch (e) {
+    console.warn('Error formatting items', e);
+    itemsText = `Items: ${toBold(data.flower_type)}`;
+    totalQuantity = Number(data.quantity || 0);
+  }
+
+  // 🧩 Add both to message parts
+  parts.push(itemsText);
+  if (totalQuantity) parts.push(`Quantity: ${toBold(totalQuantity)}`);
+}
+
 
 
     if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${toBold(Number(data.total_fee).toLocaleString())}`);
