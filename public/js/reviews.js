@@ -21,11 +21,16 @@ async function fetchReviewsFromServer() {
 
 async function postReviewToServer(payload) {
   try {
-    const resp = await fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    let resp;
+    if (payload instanceof FormData) {
+      resp = await fetch('/api/reviews', { method: 'POST', body: payload });
+    } else {
+      resp = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
     if (!resp.ok) {
         // try to parse JSON error first
         let errMsg = 'Failed to post review';
@@ -62,12 +67,19 @@ async function renderPreview() {
   container.innerHTML = top.map(r => `
     <div class="col-12 col-md-4">
       <div class="card h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <strong>${escapeHtml(r.name)}</strong>
-            <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+        <div class="card-body d-flex p-3">
+          ${r.image_url ? `
+            <div class="review-thumb-wrap">
+              <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
+            </div>
+          ` : ''}
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <strong>${escapeHtml(r.name)}</strong>
+              <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+            </div>
+            <p class="mb-0">${escapeHtml(r.message)}</p>
           </div>
-          <p class="mb-0">${escapeHtml(r.message)}</p>
         </div>
       </div>
     </div>
@@ -84,12 +96,23 @@ async function renderModalList() {
   }
   container.innerHTML = reviews.map(r => `
     <div class="mb-3 border-bottom pb-2">
-      <div class="d-flex justify-content-between align-items-center mb-1">
-        <strong>${escapeHtml(r.name)}</strong>
-        <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+      <div class="card">
+        <div class="card-body d-flex p-3">
+          ${r.image_url ? `
+            <div class="review-thumb-wrap">
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
+          </div>
+          ` : ''}
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <strong>${escapeHtml(r.name)}</strong>
+              <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+            </div>
+            <div class="small text-muted mb-1">Order: ${escapeHtml(r.order_id || r.orderId || '')} • ${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
+            <div>${escapeHtml(r.message)}</div>
+          </div>
+        </div>
       </div>
-  <div class="small text-muted mb-1">Order: ${escapeHtml(r.order_id || r.orderId || '')} • ${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
-      <div>${escapeHtml(r.message)}</div>
     </div>
   `).join('');
 }
@@ -110,6 +133,19 @@ async function validateOrderId(orderId) {
   }
   return data; // contains name etc.
 }
+
+  // image click -> modal (delegated)
+  document.addEventListener('click', (e) => {
+    const img = e.target && e.target.closest && e.target.closest('.review-thumb');
+    if (!img) return;
+    const url = img.dataset && img.dataset.url ? img.dataset.url : img.src;
+    const modalImg = document.getElementById('reviewImageModalImg');
+    if (modalImg) modalImg.src = url || '';
+    const modalEl = document.getElementById('reviewImageModal');
+    if (modalEl) {
+      try { new bootstrap.Modal(modalEl).show(); } catch (err) { console.warn('Failed to show image modal', err); }
+    }
+  });
 
 function escapeHtml(s='') {
   return String(s)

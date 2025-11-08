@@ -38,15 +38,22 @@ async function renderPageReviews() {
     const sorted = reviews.slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
     container.innerHTML = sorted.map(r => `
       <div class="card mb-3 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <div>
-              <strong>${escapeHtml(r.name || 'Customer')}</strong>
-              <div class="small text-muted">${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
+        <div class="card-body d-flex p-3">
+          ${r.image_url ? `
+            <div class="review-thumb-wrap">
+              <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
             </div>
-            <div class="text-warning fs-5">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+          ` : ''}
+          <div class="flex-grow-1">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <strong>${escapeHtml(r.name || 'Customer')}</strong>
+                <div class="small text-muted">${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
+              </div>
+              <div class="text-warning fs-5">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+            </div>
+            <p class="mb-0">${escapeHtml(r.message)}</p>
           </div>
-          <p class="mb-0">${escapeHtml(r.message)}</p>
         </div>
       </div>
     `).join('');
@@ -114,10 +121,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       setButtonLoading(submitBtn, true);
-  // validate order exists (also enforces Delivered status)
-  await validateOrderId(orderId);
-  // submit to server (server will re-validate and sanitize)
-  await postReviewToServer({ orderId, stars, message });
+      // validate order exists (also enforces Delivered status)
+      await validateOrderId(orderId);
+      // prepare payload; if image selected send multipart/form-data
+      const imageEl = document.getElementById('pageReviewImage');
+      if (imageEl && imageEl.files && imageEl.files.length) {
+        const fd = new FormData();
+        fd.append('orderId', orderId);
+        fd.append('stars', String(stars));
+        fd.append('message', message);
+        fd.append('image', imageEl.files[0]);
+        await postReviewToServer(fd);
+      } else {
+        // submit to server (server will re-validate and sanitize)
+        await postReviewToServer({ orderId, stars, message });
+      }
       // on success: clear form, re-render
   form.reset();
   // Invalidate cache so the new review shows
@@ -136,6 +154,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } finally {
       setButtonLoading(submitBtn, false);
+    }
+  });
+  // delegated click handler for thumbnails -> modal
+  document.addEventListener('click', (e) => {
+    const img = e.target && e.target.closest && e.target.closest('.review-thumb');
+    if (!img) return;
+    const url = img.dataset && img.dataset.url ? img.dataset.url : img.src;
+    const modalImg = document.getElementById('reviewImageModalImg');
+    if (modalImg) modalImg.src = url || '';
+    const modalEl = document.getElementById('reviewImageModal');
+    if (modalEl) {
+      try { new bootstrap.Modal(modalEl).show(); } catch (err) { console.warn('Failed to show image modal', err); }
     }
   });
 });

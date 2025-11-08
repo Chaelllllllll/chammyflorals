@@ -142,15 +142,21 @@
             <input type="url" name="fb_link" class="form-control" required>
           </div>
           <div class="mb-3">
-            <label class="form-label">Flower Type</label>
-            <select id="flowerTypeSelect" name="flower_type" class="form-select" required>
-              <option value="">Select Flower Type</option>
-              
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Quantity</label>
-            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+            <label class="form-label">Items</label>
+            <div id="itemsContainer">
+              <!-- Single item row template -->
+              <div class="order-item d-flex gap-2 align-items-start mb-2">
+                <select class="form-select item-flower" name="flower_type_0" required>
+                  <option value="">Select Flower Type</option>
+                </select>
+                <input type="number" class="form-control item-quantity" name="quantity_0" min="1" value="1" required style="width:110px;">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="height:38px;">&times;</button>
+              </div>
+            </div>
+            <div class="mt-2">
+              <button type="button" id="addItemBtn" class="btn btn-sm btn-outline-primary">Add another item</button>
+            </div>
+            <div class="form-text">You can add multiple items to a single order. Add-ons apply to the whole order.</div>
           </div>
           <div class="mb-3">
             <label class="form-label">Add-ons (Select multiple if needed)</label>

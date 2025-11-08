@@ -6,6 +6,9 @@ const templates = require('../lib/email-templates');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const router = express.Router();
+const multer = require('multer');
+// use memory storage so we can upload the buffer to Supabase storage
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const generateOrderId = () => {
   return Math.random().toString(36).substr(2, 8).toUpperCase();
@@ -51,31 +54,73 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
     try {
       const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
       if (products && Array.isArray(products)) {
-        let found = null;
-        for (const p of products) {
-          if (Array.isArray(p.pricing)) {
-            const row = p.pricing.find(r => {
-              const label = String(r.label || '').trim();
-              const set = String(r.set || '').trim();
-              return label === flower_type || set === flower_type || label.includes(flower_type) || set.includes(flower_type);
-            });
-            if (row) { found = { product: p, row }; break; }
+        // Helper to compute price for a single item
+        // Normalize a code by removing non-alphanumeric chars and uppercasing
+        const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+        const computeFor = (itemFlower, itemQty) => {
+          let itemTotal = 0;
+          let found = null;
+          const needle = normalizeCode(itemFlower);
+          for (const p of products) {
+            if (p.pricing && Array.isArray(p.pricing)) {
+              const row = p.pricing.find(r => {
+                const label = normalizeCode(r.label || r.set || '');
+                // match exact normalized code or allow contains
+                return label === needle || label.includes(needle) || needle.includes(label);
+              });
+              if (row) { found = { product: p, row }; break; }
+            }
+            const pname = normalizeCode(p.name || '');
+            if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+              found = { product: p, row: null };
+              break;
+            }
           }
-          // fallback: product name match
-          if (String(p.name || '').toUpperCase().includes(String(flower_type || '').toUpperCase())) {
-            found = { product: p, row: null };
-            break;
+          const qty = parseInt(itemQty) || 1;
+          if (found && found.row && found.row.price != null) {
+            itemTotal = Number(found.row.price) * qty;
+          } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
+            const r = found.product.pricing.find(x => x.price != null);
+            itemTotal = r ? Number(r.price) * qty : 0;
           }
-        }
-        const qty = parseInt(quantity) || 1;
-        if (found && found.row && found.row.price != null) {
-          totalFee = Number(found.row.price) * qty;
-        } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
-          // fallback to first pricing row with a price
-          const r = found.product.pricing.find(x => x.price != null);
-          totalFee = r ? Number(r.price) * qty : 0;
+          if (!itemTotal) {
+            console.warn('Price not found for item code:', itemFlower, 'matchedProduct:', found && found.product ? found.product.name : null);
+          }
+          return { itemTotal, matched: !!found, matchedProduct: found && found.product ? found.product.name : null, matchedRow: found && found.row ? (found.row.label || found.row.set) : null };
+        };
+
+        if (Array.isArray(req.body.items) && req.body.items.length) {
+          // multiple item order
+          for (const it of req.body.items) {
+            if (!it || !it.flower_type) continue;
+            const info = computeFor(it.flower_type, it.quantity || 1);
+            totalFee += info.itemTotal || 0;
+          }
         } else {
-          totalFee = 0;
+          // single item fallback (backwards compatible)
+          let found = null;
+          for (const p of products) {
+            if (Array.isArray(p.pricing)) {
+              const row = p.pricing.find(r => {
+                const label = String(r.label || '').trim();
+                const set = String(r.set || '').trim();
+                return label === flower_type || set === flower_type || label.includes(flower_type) || set.includes(flower_type);
+              });
+              if (row) { found = { product: p, row }; break; }
+            }
+            if (String(p.name || '').toUpperCase().includes(String(flower_type || '').toUpperCase())) {
+              found = { product: p, row: null };
+              break;
+            }
+          }
+          const qty = parseInt(quantity) || 1;
+          if (found && found.row && found.row.price != null) {
+            totalFee = Number(found.row.price) * qty;
+          } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
+            const r = found.product.pricing.find(x => x.price != null);
+            totalFee = r ? Number(r.price) * qty : 0;
+          }
         }
 
         // parse addon prices if present (attempt to extract numeric ₱ value from addon label)
@@ -88,7 +133,6 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
               const num = Number(m[1].replace(/,/g, ''));
               if (!Number.isNaN(num)) totalFee += num;
             } else {
-              // try to find a trailing number
               const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
               if (mm && mm[1]) {
                 const num = Number(mm[1].replace(/,/g, ''));
@@ -118,6 +162,18 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       rush,
       total_fee: totalFee,
     };
+    // Include optional phone and structured items when provided by the client
+    if (req.body.phone) orderData.phone = String(req.body.phone).trim();
+    if (Array.isArray(req.body.items) && req.body.items.length) {
+      // sanitize items: { flower_type, quantity }
+      orderData.items = req.body.items.map(it => ({
+        flower_type: String(it.flower_type || it.flower || '').trim(),
+        quantity: parseInt(it.quantity || it.qty || 1) || 1,
+      }));
+      // also keep backward-compatible summary fields
+      orderData.flower_type = orderData.items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
+      orderData.quantity = orderData.items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
+    }
   console.log('Inserting order:', { order_id: orderId, name: orderData.name });
 
     const { data, error } = await supabase.from('orders').insert([orderData]).select();
@@ -191,13 +247,219 @@ router.get('/track/:orderId', async (req, res) => {
       flower_type: data.flower_type,
       quantity: data.quantity,
       addons: data.addons,
-      total_fee: data.total_fee,
+      total_fee: data.total_fee == null ? 0 : data.total_fee,
       status: data.status,
       created_at: data.created_at,
+      items: data.items || null,
     });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to track order' });
+  }
+});
+
+// Debug endpoint: recompute total for an orderId using current products/pricing logic
+router.get('/recompute-total/:orderId', async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+    if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
+
+    const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
+    if (!products) return res.status(500).json({ error: 'Failed to load products' });
+
+    const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+    const computeForDebug = (itemFlower, itemQty) => {
+      const needle = normalizeCode(itemFlower);
+      let found = null;
+      for (const p of products) {
+        if (p.pricing && Array.isArray(p.pricing)) {
+          const row = p.pricing.find(r => {
+            const label = normalizeCode(r.label || r.set || '');
+            return label === needle || label.includes(needle) || needle.includes(label);
+          });
+          if (row) { found = { product: p, row }; break; }
+        }
+        const pname = normalizeCode(p.name || '');
+        if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+          found = { product: p, row: null };
+          break;
+        }
+      }
+      const qty = parseInt(itemQty) || 1;
+      let itemTotal = 0;
+      let matchedRowLabel = null;
+      let matchedProductName = null;
+      if (found && found.row && found.row.price != null) {
+        itemTotal = Number(found.row.price) * qty;
+        matchedRowLabel = found.row.label || found.row.set || null;
+        matchedProductName = found.product.name || null;
+      } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
+        const r = found.product.pricing.find(x => x.price != null);
+        itemTotal = r ? Number(r.price) * qty : 0;
+        matchedRowLabel = r ? (r.label || r.set || null) : null;
+        matchedProductName = found.product.name || null;
+      }
+      return { itemFlower, qty, itemTotal, matchedProductName, matchedRowLabel };
+    };
+
+    const details = [];
+    let recomputed = 0;
+    if (Array.isArray(order.items) && order.items.length) {
+      for (const it of order.items) {
+        const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
+        recomputed += d.itemTotal || 0;
+        details.push(d);
+      }
+    } else {
+      // attempt to parse summary flower_type like "FWGK1 x1; FWGK2 x1"
+      const parts = String(order.flower_type || '').split(';').map(s => s.trim()).filter(Boolean);
+      if (parts.length) {
+        for (const p of parts) {
+          const m = p.match(/(.+?)\s*[x×]\s*(\d+)$/i);
+          if (m) {
+            const d = computeForDebug(m[1].trim(), Number(m[2]));
+            recomputed += d.itemTotal || 0;
+            details.push(d);
+          } else {
+            const d = computeForDebug(p, 1);
+            recomputed += d.itemTotal || 0;
+            details.push(d);
+          }
+        }
+      }
+    }
+
+    // parse addons as before
+    if (order.addons && Array.isArray(order.addons)) {
+      for (const a of order.addons) {
+        if (!a) continue;
+        const str = String(a);
+        const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
+        if (m && m[1]) {
+          recomputed += Number(m[1].replace(/,/g, ''));
+        } else {
+          const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
+          if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
+        }
+      }
+    }
+
+    return res.json({ orderId: order.order_id, original_total_fee: order.total_fee, recomputed_total: recomputed, details });
+  } catch (err) {
+    console.error('recompute-total error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to recompute total' });
+  }
+});
+
+// ADMIN: recompute and update an order's items and total_fee in the DB
+router.post('/recompute-total/:orderId/update', async (req, res) => {
+  const adminToken = process.env.ADMIN_SETUP_TOKEN || '';
+  const provided = (req.query.token || req.body.token || '');
+  if (adminToken && adminToken !== provided) {
+    return res.status(403).json({ error: 'Invalid admin token' });
+  }
+  try {
+    const { orderId } = req.params;
+    const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+    if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
+
+    const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
+    if (!products) return res.status(500).json({ error: 'Failed to load products' });
+
+    const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+    const computeForDebug = (itemFlower, itemQty) => {
+      const needle = normalizeCode(itemFlower);
+      let found = null;
+      for (const p of products) {
+        if (p.pricing && Array.isArray(p.pricing)) {
+          const row = p.pricing.find(r => {
+            const label = normalizeCode(r.label || r.set || '');
+            return label === needle || label.includes(needle) || needle.includes(label);
+          });
+          if (row) { found = { product: p, row }; break; }
+        }
+        const pname = normalizeCode(p.name || '');
+        if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+          found = { product: p, row: null };
+          break;
+        }
+      }
+      const qty = parseInt(itemQty) || 1;
+      let itemTotal = 0;
+      let matchedRowLabel = null;
+      let matchedProductName = null;
+      if (found && found.row && found.row.price != null) {
+        itemTotal = Number(found.row.price) * qty;
+        matchedRowLabel = found.row.label || found.row.set || null;
+        matchedProductName = found.product.name || null;
+      } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
+        const r = found.product.pricing.find(x => x.price != null);
+        itemTotal = r ? Number(r.price) * qty : 0;
+        matchedRowLabel = r ? (r.label || r.set || null) : null;
+        matchedProductName = found.product.name || null;
+      }
+      return { flower_type: itemFlower, qty, itemTotal, matchedProductName, matchedRowLabel };
+    };
+
+    const details = [];
+    let recomputed = 0;
+    const itemsArr = [];
+    if (Array.isArray(order.items) && order.items.length) {
+      for (const it of order.items) {
+        const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
+        recomputed += d.itemTotal || 0;
+        details.push(d);
+        itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+      }
+    } else {
+      const parts = String(order.flower_type || '').split(';').map(s => s.trim()).filter(Boolean);
+      if (parts.length) {
+        for (const p of parts) {
+          const m = p.match(/(.+?)\s*[x×]\s*(\d+)$/i);
+          if (m) {
+            const d = computeForDebug(m[1].trim(), Number(m[2]));
+            recomputed += d.itemTotal || 0;
+            details.push(d);
+            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+          } else {
+            const d = computeForDebug(p, 1);
+            recomputed += d.itemTotal || 0;
+            details.push(d);
+            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+          }
+        }
+      }
+    }
+
+    if (order.addons && Array.isArray(order.addons)) {
+      for (const a of order.addons) {
+        if (!a) continue;
+        const str = String(a);
+        const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
+        if (m && m[1]) {
+          recomputed += Number(m[1].replace(/,/g, ''));
+        } else {
+          const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
+          if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
+        }
+      }
+    }
+
+    // update the order record with recomputed values (safe, minimal fields)
+    const updates = { total_fee: recomputed };
+    if (itemsArr.length) updates.items = itemsArr;
+    const { data: updated, error: updateErr } = await supabase.from('orders').update(updates).eq('order_id', orderId).select();
+    if (updateErr) {
+      console.error('Failed updating order during recompute:', updateErr);
+      return res.status(500).json({ error: 'Failed to update order' });
+    }
+
+    return res.json({ ok: true, orderId, recomputed_total: recomputed, details, updated: (updated && updated[0]) || null });
+  } catch (err) {
+    console.error('recompute-update error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to recompute and update order' });
   }
 });
 
@@ -240,7 +502,7 @@ router.get('/reviews', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select('id,order_id,name,stars,message,created_at')
+      .select('id,order_id,name,stars,message,image_url,created_at')
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) {
@@ -255,9 +517,12 @@ router.get('/reviews', async (req, res) => {
 });
 
 // POST /reviews - create a review after validating order id
-router.post('/reviews', async (req, res) => {
+// Accept JSON or multipart/form-data with an optional image file (field name 'image')
+router.post('/reviews', upload.single('image'), async (req, res) => {
   try {
-    const { orderId, stars, message } = req.body || {};
+    // support both JSON body and multipart form body
+    const body = req.body || {};
+    const { orderId, stars, message } = body || {};
     if (!orderId || !stars || !message) {
       return res.status(400).json({ error: 'orderId, stars and message are required' });
     }
@@ -295,12 +560,45 @@ router.post('/reviews', async (req, res) => {
       message: String(message).replace(/<[^>]*>?/gm, ''),
     };
 
-    const { data, error } = await supabase.from('reviews').insert([review]).select();
-    if (error) {
-      console.error('Failed to insert review:', error);
+    // If an image was uploaded, upload it to Supabase Storage and attach the public URL
+    if (req.file && req.file.buffer) {
+      try {
+        const supabase = require('../config/supabase');
+        const bucket = process.env.SUPABASE_REVIEWS_BUCKET || 'reviews';
+        const filename = `${String(orderId)}_${Date.now()}_${String(req.file.originalname || 'img').replace(/[^a-z0-9.\-]/gi,'')}`;
+        const path = `${String(orderId)}/${filename}`;
+        const { data: uploadData, error: uploadErr } = await supabase.storage.from(bucket).upload(path, req.file.buffer, { contentType: req.file.mimetype });
+        if (uploadErr) {
+          console.warn('Failed to upload review image to storage:', uploadErr);
+        } else {
+          // get public URL
+          try {
+            const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl(path);
+            if (urlData && urlData.publicUrl) review.image_url = urlData.publicUrl;
+          } catch (uerr) {
+            console.warn('Failed to get public URL for review image:', uerr);
+          }
+        }
+      } catch (err) {
+        console.warn('Unexpected error uploading review image:', err);
+      }
+    }
+
+    // Attempt insert including image_url if set; if the DB doesn't have that column, retry without it
+    let insertPayload = [review];
+    let result = await supabase.from('reviews').insert(insertPayload).select();
+    if (result.error && String(result.error.message || '').toLowerCase().includes('column') && review.image_url) {
+      // likely image_url column missing; retry without image_url
+      delete review.image_url;
+      insertPayload = [review];
+      result = await supabase.from('reviews').insert(insertPayload).select();
+    }
+
+    if (result.error) {
+      console.error('Failed to insert review:', result.error);
       return res.status(500).json({ error: 'Failed to save review' });
     }
-    res.json((data && data[0]) || { message: 'Review saved' });
+    res.json((result.data && result.data[0]) || { message: 'Review saved' });
   } catch (err) {
     console.error('Unexpected error saving review:', err);
     res.status(500).json({ error: 'Failed to save review' });

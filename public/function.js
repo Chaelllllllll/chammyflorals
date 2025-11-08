@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load products once and populate flower type select dynamically
   async function loadProductsForInquiry() {
-    if (!flowerSelect) return;
     try {
       const res = await fetch('/api/products');
       if (!res.ok) throw new Error('Failed to fetch products');
@@ -22,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Build option list grouped by product category from pricing rows
       const seen = new Set();
-      // start with the empty placeholder
-      flowerSelect.innerHTML = '<option value="">Select Flower Type</option>';
+      // populate legacy single select if present
+      if (flowerSelect) flowerSelect.innerHTML = '<option value="">Select Flower Type</option>';
 
       // Group pricing rows by category so the select shows categories first
       const groups = {};
@@ -55,12 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
           opt.value = it.code;
           opt.textContent = it.text;
           opt.dataset.productId = it.productId;
-          flowerSelect.appendChild(opt);
+          if (flowerSelect) flowerSelect.appendChild(opt);
         });
       });
 
       // fallback: if no pricing rows, group by product name and category
-      if (flowerSelect.options.length <= 1 && _productsCache.length) {
+      if (flowerSelect && flowerSelect.options.length <= 1 && _productsCache.length) {
         const namesByCat = {};
         _productsCache.forEach(p => {
           const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
@@ -178,9 +177,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (flowerSelect) {
     flowerSelect.addEventListener('change', onFlowerTypeChange);
-    // preload products and populate the select
-    loadProductsForInquiry();
   }
+  // Always load products so dynamic item selects can be populated even when
+  // the legacy single `flowerSelect` is not present (we now support multi-item orders).
+  loadProductsForInquiry();
+
+  // --- Multi-item order UI handling ---
+  const itemsContainer = document.getElementById('itemsContainer');
+  const addItemBtn = document.getElementById('addItemBtn');
+
+  function populateItemSelect(selectEl) {
+    // Reuse existing product cache to populate a select element
+    if (!_productsCache || !_productsCache.length) return;
+    // create options similar to the main flowerSelect
+    selectEl.innerHTML = '<option value="">Select Flower Type</option>';
+    const seen = new Set();
+    const groups = {};
+    _productsCache.forEach(p => {
+      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+      if (!groups[cat]) groups[cat] = [];
+      if (Array.isArray(p.pricing)) {
+        p.pricing.forEach(r => {
+          const code = String(r.label || r.set || '').trim();
+          if (!code) return;
+          if (seen.has(code)) return;
+          seen.add(code);
+          const parts = [];
+          if (r.set) parts.push(String(r.set));
+          if (r.price != null) parts.push('\u20B1' + Number(r.price));
+          const text = `${code}${parts.length ? ' - ' + parts.join(' - ') : ''}`;
+          groups[cat].push({ code, text });
+        });
+      }
+    });
+    Object.keys(groups).sort().forEach(cat => {
+      const og = document.createElement('optgroup');
+      og.label = cat;
+      groups[cat].forEach(it => {
+        const opt = document.createElement('option');
+        opt.value = it.code;
+        opt.textContent = it.text;
+        og.appendChild(opt);
+      });
+      selectEl.appendChild(og);
+    });
+  }
+
+  function createItemRow(index) {
+    const row = document.createElement('div');
+    row.className = 'order-item d-flex gap-2 align-items-start mb-2';
+    row.innerHTML = `
+      <select class="form-select item-flower" name="flower_type_${index}" required>
+        <option value="">Select Flower Type</option>
+      </select>
+      <input type="number" class="form-control item-quantity" name="quantity_${index}" min="1" value="1" required style="width:110px;">
+      <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="height:38px;">&times;</button>
+    `;
+    const selectEl = row.querySelector('.item-flower');
+    populateItemSelect(selectEl);
+    // attach change handler so addons preview updates when item selection changes
+    try { selectEl.addEventListener('change', onFlowerTypeChange); } catch (e) {}
+    row.querySelector('.remove-item').addEventListener('click', () => {
+      if (itemsContainer.children.length <= 1) return; // keep at least one
+      row.remove();
+    });
+    return row;
+  }
+
+  // ensure initial item has select options populated after products load
+  (async function ensureInitialItems() {
+    // wait until products cache is loaded
+    let tries = 0;
+    while (!_productsCache && tries < 10) {
+      await new Promise(r => setTimeout(r, 150));
+      tries++;
+    }
+    const initialSelects = itemsContainer.querySelectorAll('.item-flower');
+    initialSelects.forEach(s => {
+      populateItemSelect(s);
+      try { s.addEventListener('change', onFlowerTypeChange); } catch (e) {}
+    });
+  })();
+
+  addItemBtn.addEventListener('click', () => {
+    const idx = itemsContainer.children.length;
+    const newRow = createItemRow(idx);
+    itemsContainer.appendChild(newRow);
+  });
 
   // --- end auto-fetch logic ---
 
@@ -190,9 +273,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Submit the inquiry form to server. reCAPTCHA removed (server-side anti-abuse can be added later).
     const submitBtn = inquiryForm.querySelector('button[type="submit"]');
     const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    data.addons = formData.getAll('addons[]');
+    // Build data object explicitly to support multiple items
+    const data = {};
+    const form = e.target;
+    data.user_name = form.querySelector('input[name="user_name"]').value;
+    data.user_email = form.querySelector('input[name="user_email"]').value;
+    data.fb_link = form.querySelector('input[name="fb_link"]').value;
+    data.message = form.querySelector('textarea[name="message"]').value;
+    data.rush = form.querySelector('select[name="rush"]').value;
+    data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
+
+    // Collect items
+    const items = [];
+    const itemRows = itemsContainer.querySelectorAll('.order-item');
+    itemRows.forEach((row, i) => {
+      const flower = row.querySelector('.item-flower').value;
+      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+      if (!flower) return;
+      items.push({ flower_type: flower, quantity: qty });
+    });
+    if (!items.length) {
+      alert('Please add at least one item to your order');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml; }
+      return;
+    }
+
+    data.items = items;
+    // For backwards-compatibility keep flower_type and quantity as summary
+    data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
+    data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
 
     try {
       // show loading state
@@ -202,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Placing...';
       }
 
-      console.log('Submitting inquiry:', { flower_type: data.flower_type, quantity: data.quantity }); // minimal debug
+  console.log('Submitting inquiry:', { items: data.items, quantity: data.quantity }); // minimal debug
       const response = await fetch('/api/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

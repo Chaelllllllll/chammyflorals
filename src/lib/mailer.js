@@ -23,7 +23,10 @@ const transportOptions = {
 // If we're in development or SMTP verification problems occur in local environments,
 // allow connections even if the certificate chain can't be fully verified. This
 // is explicitly only for non-production environments to avoid weakening security in prod.
-if ((process.env.NODE_ENV || 'development') !== 'production') {
+// Allow an explicit env override to accept self-signed certs in non-standard setups.
+// WARNING: setting SMTP_ALLOW_SELF_SIGNED=true in production weakens TLS security.
+const allowSelfSigned = (process.env.SMTP_ALLOW_SELF_SIGNED === 'true');
+if (allowSelfSigned || ((process.env.NODE_ENV || 'development') !== 'production')) {
   transportOptions.tls = { rejectUnauthorized: false };
 }
 

@@ -50,16 +50,29 @@ router.post('/webhook', express.json(), async (req, res) => {
 
           const state = sessions.get(sender);
           if (state === 'awaitingOrderId') {
+            // If this message is the quick_reply 'Enter Order ID' tap, prompt the user to type the ID
+            const quickPayload = event.message && event.message.quick_reply && event.message.quick_reply.payload;
+            if (quickPayload === 'TRACK_ORDER_PROMPT' || /^enter order id$/i.test(trimmed)) {
+              await sendMessage(sender, 'Please type your Order ID (for example: ABC12345) and I will look it up.');
+              // keep session waiting
+              continue;
+            }
             sessions.delete(sender);
             console.log(`Messenger: received order id from sender=${sender} id=${trimmed}`);
             await handleTrackRequest(sender, trimmed);
             continue;
           }
 
-          // Quick trigger words
+          // Quick trigger words -> send a quick-reply prompt and set session state
           if (/^track\b/i.test(trimmed) || /^status\b/i.test(trimmed)) {
             sessions.set(sender, 'awaitingOrderId');
-            await sendMessage(sender, 'Sure — please send me your Tracking ID (e.g. ABC12345).');
+            const quick = {
+              text: 'Sure — please enter your Order ID (e.g. ABC12345).',
+              quick_replies: [
+                { content_type: 'text', title: 'Enter Order ID', payload: 'TRACK_ORDER_PROMPT' }
+              ]
+            };
+            await sendMessage(sender, quick);
             continue;
           }
         }
@@ -73,15 +86,16 @@ router.post('/webhook', express.json(), async (req, res) => {
   }
 });
 
-// Send a text message via the Facebook Send API
-async function sendMessage(psid, text) {
+// Send a message via the Facebook Send API. `message` can be a string or a message object
+async function sendMessage(psid, message) {
   if (!PAGE_TOKEN) {
     console.warn('FB_PAGE_ACCESS_TOKEN not configured; skipping sendMessage');
     return null;
   }
+  const msgPayload = typeof message === 'string' ? { text: message } : message;
   const payload = {
     recipient: { id: psid },
-    message: { text },
+    message: msgPayload,
   };
   try {
     const resp = await fetch(`https://graph.facebook.com/v16.0/me/messages?access_token=${encodeURIComponent(PAGE_TOKEN)}`, {
