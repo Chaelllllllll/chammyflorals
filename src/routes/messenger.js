@@ -5,6 +5,8 @@ const router = express.Router();
 const PAGE_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_TOKEN || '';
 const VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN || 'verify_token_example';
 const APP_SECRET = process.env.FB_APP_SECRET || '';
+// Feature flag: when true, explicitly include messaging_product='instagram' in Send API payloads
+const ENABLE_IG_MESSAGING = (process.env.ENABLE_IG_MESSAGING === 'true');
 
 // Simple in-memory session state for conversational flows (replace with Redis in prod)
 const sessions = new Map(); // key: senderId -> value: 'awaitingOrderId' | null
@@ -110,10 +112,15 @@ async function sendMessage(psid, message) {
     return null;
   }
   const msgPayload = typeof message === 'string' ? { text: message } : message;
+  // Build base payload; include messaging_product when IG flag is enabled so the
+  // Graph API treats the message as an Instagram Messaging request when needed.
   const payload = {
     recipient: { id: psid },
     message: msgPayload,
   };
+  if (ENABLE_IG_MESSAGING) {
+    payload.messaging_product = 'instagram';
+  }
   try {
     const resp = await fetch(`https://graph.facebook.com/v16.0/me/messages?access_token=${encodeURIComponent(PAGE_TOKEN)}`, {
       method: 'POST',
