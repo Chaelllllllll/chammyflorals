@@ -25,6 +25,7 @@ router.get('/webhook', (req, res) => {
 router.post('/webhook', express.json(), async (req, res) => {
   try {
     const body = req.body;
+    try { console.log('Messenger webhook received keys:', Object.keys(body).slice(0,10)); } catch (e) {}
     if (body.object === 'page' || body.object === 'instagram') {
       for (const entry of body.entry || []) {
         const messagingEvents = entry.messaging || entry.messages || [];
@@ -50,6 +51,7 @@ router.post('/webhook', express.json(), async (req, res) => {
           const state = sessions.get(sender);
           if (state === 'awaitingOrderId') {
             sessions.delete(sender);
+            console.log(`Messenger: received order id from sender=${sender} id=${trimmed}`);
             await handleTrackRequest(sender, trimmed);
             continue;
           }
@@ -104,12 +106,16 @@ async function handleTrackRequest(psid, orderId) {
   try {
     const base = process.env.SITE_BASE_URL || process.env.FRONTEND_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) || 'http://localhost:3000';
     const url = `${base.replace(/\/$/, '')}/api/track/${encodeURIComponent(orderId)}`;
+    console.log('Messenger: fetching track URL ->', url);
     const resp = await fetch(url);
+    const text = await resp.text().catch(() => null);
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
+    console.log('Messenger: track response status=', resp.status, 'body=', typeof data === 'string' ? data.slice(0,500) : JSON.stringify(data).slice(0,500));
     if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
+      const err = data || {};
       return sendMessage(psid, `Sorry, I couldn't find an order with ID ${orderId}. ${err.error || ''}`);
     }
-    const data = await resp.json();
     const lines = [];
     lines.push(`Order ${data.orderId}`);
     if (data.status) lines.push(`Status: ${data.status}`);
@@ -117,7 +123,9 @@ async function handleTrackRequest(psid, orderId) {
     if (data.flower_type) lines.push(`Items: ${data.flower_type} x${data.quantity || 1}`);
     if (typeof data.total_fee !== 'undefined') lines.push(`Total: ₱${data.total_fee}`);
     if (data.created_at) lines.push(`Ordered: ${new Date(data.created_at).toLocaleString()}`);
-    await sendMessage(psid, lines.join('\n'));
+    const reply = lines.join('\n');
+    const sendRes = await sendMessage(psid, reply);
+    try { console.log('Messenger: sendMessage response:', JSON.stringify(sendRes).slice(0,500)); } catch (e) {}
   } catch (err) {
     console.error('handleTrackRequest error:', err && err.message ? err.message : err);
     await sendMessage(psid, 'Sorry, something went wrong while fetching your order. Please try again later.');
