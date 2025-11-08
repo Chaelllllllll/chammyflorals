@@ -101,28 +101,26 @@ async function sendMessage(psid, text) {
   }
 }
 
-// Call internal track endpoint and reply with formatted info
+// Call Supabase directly to fetch order and reply with formatted info
 async function handleTrackRequest(psid, orderId) {
   try {
-    const base = process.env.SITE_BASE_URL || process.env.FRONTEND_ORIGIN || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) || 'http://localhost:3000';
-    const url = `${base.replace(/\/$/, '')}/api/track/${encodeURIComponent(orderId)}`;
-    console.log('Messenger: fetching track URL ->', url);
-    const resp = await fetch(url);
-    const text = await resp.text().catch(() => null);
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
-    console.log('Messenger: track response status=', resp.status, 'body=', typeof data === 'string' ? data.slice(0,500) : JSON.stringify(data).slice(0,500));
-    if (!resp.ok) {
-      const err = data || {};
-      return sendMessage(psid, `Sorry, I couldn't find an order with ID ${orderId}. ${err.error || ''}`);
+    // Query Supabase directly to avoid calling the public HTTP endpoint (avoids host-level 401s)
+    const supabase = require('../config/supabase');
+    console.log('Messenger: querying Supabase for orderId=', orderId);
+    const { data, error } = await supabase.from('orders').select('*').eq('order_id', String(orderId)).single();
+    if (error || !data) {
+      console.log('Messenger: supabase lookup no data/error:', error ? error.message || error : 'no data');
+      return sendMessage(psid, `Sorry, I couldn't find an order with ID ${orderId}.`);
     }
+
     const lines = [];
-    lines.push(`Order ${data.orderId}`);
+    lines.push(`Order ${data.order_id}`);
     if (data.status) lines.push(`Status: ${data.status}`);
     if (data.name) lines.push(`Name: ${data.name}`);
     if (data.flower_type) lines.push(`Items: ${data.flower_type} x${data.quantity || 1}`);
     if (typeof data.total_fee !== 'undefined') lines.push(`Total: ₱${data.total_fee}`);
     if (data.created_at) lines.push(`Ordered: ${new Date(data.created_at).toLocaleString()}`);
+
     const reply = lines.join('\n');
     const sendRes = await sendMessage(psid, reply);
     try { console.log('Messenger: sendMessage response:', JSON.stringify(sendRes).slice(0,500)); } catch (e) {}
