@@ -67,7 +67,24 @@ router.post('/webhook', express.json(), async (req, res) => {
             continue;
           }
 
-          // Quick trigger words -> send a quick-reply prompt and set session state
+          // Quick trigger words. Support both:
+          //  - "track" -> prompt for order id
+          //  - "track ORDERID" -> immediately handle the order id
+          // Same for "status"
+          const mTrackFull = trimmed.match(/^track\s+(\S+)/i);
+          const mStatusFull = trimmed.match(/^status\s+(\S+)/i);
+          if (mTrackFull) {
+            const orderId = mTrackFull[1].trim();
+            await handleTrackRequest(sender, orderId);
+            continue;
+          }
+          if (mStatusFull) {
+            const orderId = mStatusFull[1].trim();
+            await handleTrackRequest(sender, orderId);
+            continue;
+          }
+
+          // If user only typed the single word 'track' or 'status', set session and prompt
           if (/^track\b/i.test(trimmed) || /^status\b/i.test(trimmed)) {
             sessions.set(sender, 'awaitingOrderId');
             // send a neutral prompt without a quick-reply button to avoid clients sending the
