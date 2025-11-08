@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const apiRoutes = require('../src/routes/api');
 const adminRoutes = require('../src/routes/admin');
+const messengerRoutes = require('../src/routes/messenger');
 require('dotenv').config();
 
 const app = express();
@@ -99,6 +100,8 @@ app.use('/api', apiRoutes);
 // Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
 // Express router when Vercel routes them to /api/index.js.
 app.use('/api/admin', adminRoutes);
+// Messenger/Instagram webhook endpoint
+app.use('/api/messenger', messengerRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {

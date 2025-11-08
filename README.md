@@ -81,16 +81,35 @@ The app uses Supabase for persistence; see `src/config/supabase.js` for configur
 
 Set these in your local `.env` (DO NOT commit) and in your Vercel project settings:
 
-- SUPABASE_URL — your Supabase project URL
-- SUPABASE_KEY — service role or anon key used by the server (use service role only on server)
-- SUPABASE_STORAGE_BUCKET — optional storage bucket name
-- ADMIN_EMAIL — admin username/email used for the built-in admin token
-- ADMIN_PASSWORD — admin password used for the built-in admin token
-- DISCORD_WEBHOOK_URL — optional webhook for notifications
-- NODE_ENV — set to `production` in deployment
 
 Note: The code expects environment variables referenced by `src/config/supabase.js` — confirm the exact names there before deploying.
 
+
+## Facebook App & Webhook setup (high level)
+1. Create Facebook App in Facebook Developers.
+2. In Products, add "Messenger" and "Instagram" (Instagram Graph API + Instagram Messaging).
+3. Generate Page Access Token for your Page and add it to env as FB_PAGE_ACCESS_TOKEN.
+4. Configure Webhooks:
+	- Set callback URL to https://your-domain/api/messenger/webhook and verify token to FB_VERIFY_TOKEN value.
+	- Subscribe to page events: messages, messaging_postbacks, messaging_optins, instagram_messaging (if Instagram).
+5. For Instagram messaging, connect your Instagram Business Account to the Page and enable "Manage messages" in Instagram settings and app permissions.
+6. For testing you can work in development mode with app roles (admins/testers). For public usage, request app review for permissions.
+
+### Environment variables for Messenger/Instagram integration
+
+- FB_PAGE_ACCESS_TOKEN — Page access token used by the Send API.
+- FB_VERIFY_TOKEN — webhook verification token you choose (used during webhook setup).
+- FB_APP_SECRET — optional app secret used to verify request signatures (recommended).
+- SITE_BASE_URL — optional base URL for your site (used by the messenger webhook to call /api/track). If not set, the webhook will use FRONTEND_ORIGIN or VERCEL_URL or default to http://localhost:3000.
+
+The project includes a basic webhook router at `src/routes/messenger.js` which handles GET verification and POST events. It supports a simple flow:
+
+- Users can send "Track" or press a persistent-menu postback `TRACK_ORDER`.
+- The bot asks for the Order ID, calls `GET /api/track/:orderId`, and replies with status details.
+
+Notes:
+- The webhook uses an in-memory session map. For production, use Redis or another persistent store to handle multiple instances and restarts.
+- You must host the app on HTTPS (Vercel is fine) and set the webhook URL in the Facebook App dashboard.
 ## Reviews feature
 
 - Public users can submit reviews via `/api/reviews`. Submissions require a valid `orderId` whose status is `Delivered`. Server enforces:
