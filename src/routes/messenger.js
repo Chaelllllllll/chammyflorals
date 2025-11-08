@@ -128,7 +128,36 @@ async function handleTrackRequest(psid, orderId) {
   const parts = [];
   parts.push('𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');
   parts.push('───────୨ৎ───────');
-  parts.push(`Order ID: <b>${data.order_id}</b>`);
+    // helper: convert ASCII letters/digits to Unicode Mathematical Bold characters
+    function toBold(s) {
+      if (s == null) return '';
+      const str = String(s);
+      let out = '';
+      for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        const code = ch.charCodeAt(0);
+        // A-Z
+        if (code >= 65 && code <= 90) {
+          out += String.fromCodePoint(0x1D400 + (code - 65));
+          continue;
+        }
+        // a-z
+        if (code >= 97 && code <= 122) {
+          out += String.fromCodePoint(0x1D41A + (code - 97));
+          continue;
+        }
+        // 0-9
+        if (code >= 48 && code <= 57) {
+          out += String.fromCodePoint(0x1D7CE + (code - 48));
+          continue;
+        }
+        // otherwise keep as-is (punctuation, symbols, spaces)
+        out += ch;
+      }
+      return out;
+    }
+
+    parts.push(`Order ID: ${toBold(data.order_id)}`);
   if (data.status) {
     // Map status to a badge-like emoji + label (Bootstrap color equivalence shown in parentheses)
     const st = String(data.status || '').trim();
@@ -143,11 +172,11 @@ async function handleTrackRequest(psid, orderId) {
       canceled: { emoji: '🔴' }
     };
     const mapped = statusMap[key] || { emoji: 'ℹ️' };
-    parts.push(`Status: ${mapped.emoji} ${st}`);
+      parts.push(`Status: ${mapped.emoji} ${toBold(st)}`);
   }
-  if (data.name) parts.push(`Customer: ${data.name}`);
-  if (data.flower_type) parts.push(`Items: ${data.flower_type} × ${data.quantity || 1}`);
-  if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${Number(data.total_fee).toLocaleString()}`);
+    if (data.name) parts.push(`Customer: ${toBold(data.name)}`);
+    if (data.flower_type) parts.push(`Items: ${toBold(`${data.flower_type} × ${data.quantity || 1}`)}`);
+    if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${toBold(Number(data.total_fee).toLocaleString())}`);
   const reply = parts.join('\n');
 
   // Build a Button Template with a View button linking to the public track page for this order
