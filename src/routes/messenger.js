@@ -175,7 +175,42 @@ async function handleTrackRequest(psid, orderId) {
       parts.push(`Status: ${mapped.emoji} ${toBold(st)}`);
   }
     if (data.name) parts.push(`Customer: ${toBold(data.name)}`);
-    if (data.flower_type) parts.push(`Items: ${toBold(`${data.flower_type} × ${data.quantity || 1}`)}`);
+    if (data.flower_type) {
+  let itemsText = '';
+
+  try {
+    // If stored as JSON or comma-separated string, handle both cases
+    let types = data.flower_type;
+    let qtys = data.quantity;
+
+    // Parse arrays if stored as JSON strings
+    if (typeof types === 'string' && types.trim().startsWith('[')) types = JSON.parse(types);
+    if (typeof qtys === 'string' && qtys.trim().startsWith('[')) qtys = JSON.parse(qtys);
+
+    // If comma-separated string (e.g., "Rose, Tulip")
+    if (typeof types === 'string') types = types.split(',').map(s => s.trim());
+    if (typeof qtys === 'string') qtys = qtys.split(',').map(s => s.trim());
+
+    // Convert single values into arrays for uniform handling
+    if (!Array.isArray(types)) types = [types];
+    if (!Array.isArray(qtys)) qtys = [qtys];
+
+    if (types.length > 1) {
+      // bullet format if more than one item
+      const bullets = types.map((t, i) => `• ${toBold(t)} × ${toBold(qtys[i] || 1)}`);
+      itemsText = `Items:\n${bullets.join('\n')}`;
+    } else {
+      // single item, normal inline format
+      itemsText = `Items: ${toBold(types[0])} × ${toBold(qtys[0] || 1)}`;
+    }
+  } catch (e) {
+    console.warn('Error formatting items', e);
+    itemsText = `Items: ${toBold(data.flower_type)} × ${toBold(data.quantity || 1)}`;
+  }
+
+  parts.push(itemsText);
+}
+
     if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${toBold(Number(data.total_fee).toLocaleString())}`);
   const reply = parts.join('\n');
 
