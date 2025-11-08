@@ -175,7 +175,7 @@ async function handleTrackRequest(psid, orderId) {
       parts.push(`Status: ${mapped.emoji} ${toBold(st)}`);
   }
     if (data.name) parts.push(`Customer: ${toBold(data.name)}`);
-    if (data.flower_type) {
+   if (data.flower_type) {
   let itemsText = '';
   let totalQuantity = 0;
 
@@ -183,25 +183,25 @@ async function handleTrackRequest(psid, orderId) {
     let types = data.flower_type;
     let qtys = data.quantity;
 
-    // 🧩 Try to parse JSON arrays if stored as JSON strings
+    // Parse JSON arrays if stored that way
     if (typeof types === 'string' && types.trim().startsWith('[')) types = JSON.parse(types);
     if (typeof qtys === 'string' && qtys.trim().startsWith('[')) qtys = JSON.parse(qtys);
 
-    // 🧩 Handle comma-separated values (e.g. "Rose, Tulip")
+    // Handle comma-separated strings like "Rose, Tulip"
     if (typeof types === 'string') types = types.split(',').map(s => s.trim());
     if (typeof qtys === 'string') qtys = qtys.split(',').map(s => s.trim());
 
-    // 🧩 Convert single value to array
+    // Ensure arrays
     if (!Array.isArray(types)) types = [types];
     if (!Array.isArray(qtys)) qtys = [qtys];
 
-    // 🧩 Compute total quantity
+    // Compute total quantity
     totalQuantity = qtys.reduce((sum, q) => sum + Number(q || 0), 0);
 
-    // 🧩 Bullet if more than one item
+    // Multi-line if more than one item
     if (types.length > 1) {
-      const bullets = types.map(t => `• ${toBold(t)}`);
-      itemsText = `Items:\n${bullets.join('\n')}`;
+      const lines = types.map(t => `${toBold(t)}`);
+      itemsText = `Items:\n${lines.join('\n')}`;
     } else {
       itemsText = `Items: ${toBold(types[0])}`;
     }
@@ -212,7 +212,6 @@ async function handleTrackRequest(psid, orderId) {
     totalQuantity = Number(data.quantity || 0);
   }
 
-  // 🧩 Add both to message parts
   parts.push(itemsText);
   if (totalQuantity) parts.push(`Quantity: ${toBold(totalQuantity)}`);
 }
