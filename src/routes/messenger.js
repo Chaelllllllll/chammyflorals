@@ -134,16 +134,16 @@ async function handleTrackRequest(psid, orderId) {
     const st = String(data.status || '').trim();
     const key = st.toLowerCase().replace(/\s+/g, '');
     const statusMap = {
-      pending: { emoji: '⚪', note: 'secondary' },
-      processing: { emoji: '🟡', note: 'warning' },
-      toreceive: { emoji: '🔵', note: 'info' },
-      'to receive': { emoji: '🔵', note: 'info' },
-      delivered: { emoji: '🟢', note: 'success' },
-      cancelled: { emoji: '🔴', note: 'danger' },
-      canceled: { emoji: '🔴', note: 'danger' }
+      pending: { emoji: '⚪' },
+      processing: { emoji: '🟡' },
+      toreceive: { emoji: '🔵' },
+      'to receive': { emoji: '🔵' },
+      delivered: { emoji: '🟢' },
+      cancelled: { emoji: '🔴' },
+      canceled: { emoji: '🔴' }
     };
-    const mapped = statusMap[key] || { emoji: 'ℹ️', note: '' };
-    parts.push(`Status: ${mapped.emoji} ${st}${mapped.note ? ` (${mapped.note})` : ''}`);
+    const mapped = statusMap[key] || { emoji: 'ℹ️' };
+    parts.push(`Status: ${mapped.emoji} ${st}`);
   }
   if (data.name) parts.push(`Customer: ${data.name}`);
   if (data.flower_type) parts.push(`Items: ${data.flower_type} × ${data.quantity || 1}`);
