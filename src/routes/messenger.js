@@ -126,8 +126,8 @@ async function handleTrackRequest(psid, orderId) {
 
   // Build a concise, professional order summary for messaging
   const parts = [];
-  parts.push('Order Status');
-  parts.push('------------------------------');
+  parts.push('𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');
+  parts.push('────────୨ৎ────────');
   parts.push(`Order ID: ${data.order_id}`);
   if (data.status) {
     // Map status to a badge-like emoji + label (Bootstrap color equivalence shown in parentheses)
