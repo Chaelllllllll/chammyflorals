@@ -48,15 +48,20 @@ router.post('/webhook', express.json(), async (req, res) => {
           if (!text) continue;
           const trimmed = String(text).trim();
 
+          // detect quick_reply payload/title if present
+          const quickPayload = event.message && event.message.quick_reply && event.message.quick_reply.payload;
+          const hasQuick = !!(event.message && event.message.quick_reply);
+
           const state = sessions.get(sender);
           if (state === 'awaitingOrderId') {
-            // If this message is the quick_reply 'Enter Order ID' tap, prompt the user to type the ID
-            const quickPayload = event.message && event.message.quick_reply && event.message.quick_reply.payload;
-            if (quickPayload === 'TRACK_ORDER_PROMPT' || /^enter order id$/i.test(trimmed)) {
+            // Robustly treat quick-reply taps (or the 'Enter Order ID' text) as prompts
+            // (some clients/platforms may omit payloads or vary the text)
+            if (quickPayload === 'TRACK_ORDER_PROMPT' || hasQuick || /^enter order id\b/i.test(trimmed)) {
               await sendMessage(sender, 'Please type your Order ID (for example: ABC12345) and I will look it up.');
               // keep session waiting
               continue;
             }
+            // otherwise treat this message as the typed order id
             sessions.delete(sender);
             console.log(`Messenger: received order id from sender=${sender} id=${trimmed}`);
             await handleTrackRequest(sender, trimmed);
