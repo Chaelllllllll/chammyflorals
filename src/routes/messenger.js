@@ -134,8 +134,30 @@ async function handleTrackRequest(psid, orderId) {
   if (data.flower_type) parts.push(`Items: ${data.flower_type} × ${data.quantity || 1}`);
   if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${Number(data.total_fee).toLocaleString()}`);
   const reply = parts.join('\n');
-    const sendRes = await sendMessage(psid, reply);
+
+  // Build a Button Template with a View button linking to the public track page for this order
+  try {
+    const base = process.env.SITE_BASE_URL || 'https://your-site.example';
+    const trackUrl = `${base.replace(/\/$/, '')}/track.html?orderId=${encodeURIComponent(String(data.order_id))}`;
+    const messageObj = {
+      attachment: {
+        type: 'template',
+        payload: {
+          template_type: 'button',
+          text: reply,
+          buttons: [
+            { type: 'web_url', url: trackUrl, title: 'View', webview_height_ratio: 'full' }
+          ]
+        }
+      }
+    };
+    const sendRes = await sendMessage(psid, messageObj);
     try { console.log('Messenger: sendMessage response:', JSON.stringify(sendRes).slice(0,500)); } catch (e) {}
+  } catch (btnErr) {
+    // fallback to plain text if something goes wrong
+    const sendRes = await sendMessage(psid, reply);
+    try { console.log('Messenger: sendMessage fallback response:', JSON.stringify(sendRes).slice(0,500)); } catch (e) {}
+  }
   } catch (err) {
     console.error('handleTrackRequest error:', err && err.message ? err.message : err);
     await sendMessage(psid, 'Sorry, something went wrong while fetching your order. Please try again later.');
