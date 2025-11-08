@@ -33,7 +33,7 @@ async function loadDeliveredOrders() {
         <td>${escapeHtml(o.flower_type)}</td>
         <td>${o.quantity || 1}</td>
         <td>₱${o.total_fee || o.total || o.amount || 0}</td>
-        <td><button class="btn btn-sm btn-success view-order-btn" data-order-id="${o.order_id}">View</button></td>
+        <td><button class="btn btn-sm btn-pink view-order-btn" data-order-id="${o.order_id}">View</button></td>
       </tr>
     `).join('');
     // attach handlers

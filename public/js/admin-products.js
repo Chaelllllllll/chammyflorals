@@ -28,14 +28,17 @@ async function loadProducts() {
 async function fetchAdminCategories() {
   try {
   const data = await fetchJSON('/api/admin/categories');
-    if (Array.isArray(data)) return data.map(c => ({ id: c.id, name: c.name }));
+    if (Array.isArray(data)) return data.map(c => ({ id: c.id, name: c.name, rush_fee: (c.rush_fee == null ? 0 : Number(c.rush_fee)) }));
   } catch (err) {
     // ignore and fallback
   }
   // fallback to localStorage-stored names
   try {
     const local = JSON.parse(localStorage.getItem('adminCategories') || '[]');
-    return (local || []).map((n, i) => ({ id: null, name: n }));
+    // support both legacy array-of-strings and new array-of-objects format
+    if (!local || !local.length) return [];
+    if (typeof local[0] === 'string') return local.map(n => ({ id: null, name: n, rush_fee: 0 }));
+    return (local || []).map(o => ({ id: o.id || null, name: o.name || '', rush_fee: Number(o.rush_fee || 0) }));
   } catch (e) {
     return [];
   }
@@ -112,34 +115,67 @@ document.getElementById('manageCategoriesModal')?.addEventListener('shown.bs.mod
   if (input) input.focus();
 });
 
-// Add category from inside Manage Categories modal
+// Add / Edit category from inside Manage Categories modal
 document.getElementById('manageSaveCategoryBtn')?.addEventListener('click', async () => {
   const name = (document.getElementById('manageNewCategoryName').value || '').trim();
   if (!name) return showToast('Category name is required', 'danger');
-  // try server-side create first
+  const saveBtn = document.getElementById('manageSaveCategoryBtn');
   try {
-  const created = await fetchJSON('/api/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
-    // refresh lists
+    // If we have an editing state, perform update
+    if (typeof _editingCategory !== 'undefined' && _editingCategory && (_editingCategory.id || _editingCategory.id === null)) {
+      if (_editingCategory.id) {
+        // server-side update
+        const rushVal = Number((document.getElementById('manageCategoryRushFee')?.value || '0') || 0);
+        const updated = await fetchJSON(`/api/admin/categories/${_editingCategory.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, rush_fee: rushVal }) });
+        document.getElementById('manageNewCategoryName').value = '';
+        _editingCategory = null;
+        if (saveBtn) saveBtn.textContent = 'Add';
+        await populateManageCategories();
+        await populateCategoryOptions(window._adminProducts || []);
+        showToast(`Category updated to "${updated.name || name}"`, 'success');
+        return;
+      } else {
+        // local-only rename
+        const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+        // support objects in localStorage: [{name,rush_fee}]
+        const idx = saved.findIndex(x => (typeof x === 'string' ? x === _editingCategory.name : x.name === _editingCategory.name));
+        const rushVal = Number((document.getElementById('manageCategoryRushFee')?.value || '0') || 0);
+        if (idx !== -1) saved[idx] = { name, rush_fee: rushVal }; else saved.push({ name, rush_fee: rushVal });
+        localStorage.setItem('adminCategories', JSON.stringify(saved));
+        document.getElementById('manageNewCategoryName').value = '';
+        _editingCategory = null;
+        if (saveBtn) saveBtn.textContent = 'Add';
+        await populateManageCategories();
+        await populateCategoryOptions(window._adminProducts || []);
+        showToast(`Category "${name}" saved (local)`, 'success');
+        return;
+      }
+    }
+
+    // otherwise create new category (server-first)
+    const rushValCreate = Number((document.getElementById('manageCategoryRushFee')?.value || '0') || 0);
+    const created = await fetchJSON('/api/admin/categories', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, rush_fee: rushValCreate }) });
     document.getElementById('manageNewCategoryName').value = '';
     await populateManageCategories();
     await populateCategoryOptions(window._adminProducts || []);
     showToast(`Category "${created.name || name}" added`, 'success');
     return;
   } catch (err) {
-    console.warn('Server create category failed inside manage modal, falling back to localStorage', err);
-  }
-  // fallback local
-  try {
-    const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
-    if (!saved.includes(name)) saved.push(name);
-    localStorage.setItem('adminCategories', JSON.stringify(saved));
-    document.getElementById('manageNewCategoryName').value = '';
-    await populateManageCategories();
-    await populateCategoryOptions(window._adminProducts || []);
-    showToast(`Category "${name}" added (local)`, 'success');
-  } catch (err) {
-    console.error('Failed saving category locally inside manage modal', err);
-    showToast('Failed to add category', 'danger');
+    console.warn('Server create/update category failed inside manage modal, falling back to localStorage', err);
+    try {
+      const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+      if (!saved.includes(name)) saved.push(name);
+      localStorage.setItem('adminCategories', JSON.stringify(saved));
+      document.getElementById('manageNewCategoryName').value = '';
+      _editingCategory = null;
+      if (saveBtn) saveBtn.textContent = 'Add';
+      await populateManageCategories();
+      await populateCategoryOptions(window._adminProducts || []);
+      showToast(`Category "${name}" added (local)`, 'success');
+    } catch (err2) {
+      console.error('Failed saving category locally inside manage modal', err2);
+      showToast('Failed to add category', 'danger');
+    }
   }
 });
 
@@ -166,7 +202,7 @@ function populateManageCategories() {
         return `<div class="list-group-item d-flex justify-content-between align-items-center">
           <div>
             <strong>${escapeHtml(name)}</strong>
-            <div class="small text-muted">${count} product${count!==1?'s':''}</div>
+            <div class="small text-muted">${count} product${count!==1?'s':''} &middot; Rush: ₱${escapeHtml(String((srv && srv.rush_fee) || 0))}</div>
           </div>
           <div>
             <button class="btn btn-sm btn-outline-secondary me-2 edit-category" ${idAttr}>Edit</button>
@@ -184,6 +220,23 @@ function populateManageCategories() {
         // store pending server id to use when confirming
         _pendingServerCategoryId = id || null;
       }));
+      // wire edit buttons
+      listEl.querySelectorAll('.edit-category').forEach(b => b.addEventListener('click', (e) => {
+        const id = e.target.dataset.id || null;
+        const srv = id ? (serverCats||[]).find(s => String(s.id) === String(id)) : null;
+        const name = e.target.dataset.name || (srv && srv.name) || '';
+        const rush = srv ? (srv.rush_fee || 0) : 0;
+        // set editing state and prefill manage inputs
+        _editingCategory = { id: id || null, name, rush_fee: rush };
+        const input = document.getElementById('manageNewCategoryName');
+        const rushInput = document.getElementById('manageCategoryRushFee');
+        if (input) input.value = name;
+        if (rushInput) rushInput.value = rush;
+        const saveBtn = document.getElementById('manageSaveCategoryBtn');
+        if (saveBtn) saveBtn.textContent = 'Save Changes';
+        new bootstrap.Modal(document.getElementById('manageCategoriesModal')).show();
+        // focus input when modal shown (existing listener will focus)
+      }));
     } catch (err) {
       console.warn('populateManageCategories fallback to localStorage', err);
       const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
@@ -199,7 +252,7 @@ function populateManageCategories() {
         return `<div class="list-group-item d-flex justify-content-between align-items-center">
           <div>
             <strong>${escapeHtml(c)}</strong>
-            <div class="small text-muted">${count} product${count!==1?'s':''}</div>
+            <div class="small text-muted">${count} product${count!==1?'s':''} &middot; Rush: ₱0</div>
           </div>
           <div>
             <button class="btn btn-sm btn-outline-secondary me-2 edit-category" data-name="${escapeHtml(c)}">Edit</button>
@@ -211,12 +264,23 @@ function populateManageCategories() {
         const name = e.target.dataset.name;
         confirmRemoveCategory(name);
       }));
+      // wire edit buttons for local fallback listing
+      listEl.querySelectorAll('.edit-category').forEach(b => b.addEventListener('click', (e) => {
+        const name = e.target.dataset.name || '';
+        _editingCategory = { id: null, name };
+        const input = document.getElementById('manageNewCategoryName');
+        if (input) input.value = name;
+        const saveBtn = document.getElementById('manageSaveCategoryBtn');
+        if (saveBtn) saveBtn.textContent = 'Save Changes';
+        new bootstrap.Modal(document.getElementById('manageCategoriesModal')).show();
+      }));
     }
   })();
 }
 
 let _pendingRemoveCategory = null;
 let _pendingServerCategoryId = null;
+let _editingCategory = null;
 function confirmRemoveCategory(name) {
   _pendingRemoveCategory = name;
   const productsUsing = (window._adminProducts || []).filter(p => String(p.category||'') === String(name));
@@ -230,6 +294,7 @@ function confirmRemoveCategory(name) {
   new bootstrap.Modal(document.getElementById('confirmRemoveCategoryModal')).show();
 }
 
+// Confirm remove category button handler
 document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', async () => {
   const name = _pendingRemoveCategory;
   if (!name) return;
@@ -237,10 +302,8 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     // attempt server-side delete if we have an id
     if (_pendingServerCategoryId) {
       try {
-  await fetchJSON(`/api/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
-      } catch (err) {
-        console.warn('Server delete failed, falling back to local removal', err);
-      }
+        await fetchJSON(`/api/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
+      } catch (err) { console.warn('Server delete failed, falling back to local removal', err); }
     }
 
     // remove from saved local categories as well
@@ -252,10 +315,9 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     // if products use it, clear their category
     const productsUsing = (window._adminProducts || []).filter(p => String(p.category||'') === String(name));
     if (productsUsing.length) {
-  await Promise.all(productsUsing.map(p => fetchJSON(`/api/admin/products/${p.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ category: null }) }).catch(err => { console.error('Failed clearing category for product', p.id, err); } )));
+      await Promise.all(productsUsing.map(p => fetchJSON(`/api/admin/products/${p.id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ category: null }) }).catch(err => { console.error('Failed clearing category for product', p.id, err); } )));
     }
 
-    // refresh products and UI
     bootstrap.Modal.getInstance(document.getElementById('confirmRemoveCategoryModal')).hide();
     bootstrap.Modal.getInstance(document.getElementById('manageCategoriesModal'))?.hide();
     await loadProducts();
@@ -267,6 +329,15 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     _pendingRemoveCategory = null;
     _pendingServerCategoryId = null;
   }
+});
+
+// reset editing state when modal hidden
+document.getElementById('manageCategoriesModal')?.addEventListener('hidden.bs.modal', () => {
+  _editingCategory = null;
+  const saveBtn = document.getElementById('manageSaveCategoryBtn');
+  if (saveBtn) saveBtn.textContent = 'Add';
+  const input = document.getElementById('manageNewCategoryName');
+  if (input) input.value = '';
 });
 
 function escapeHtml(s) {
@@ -470,6 +541,11 @@ document.getElementById('productImageFile').addEventListener('change', async (e)
 });
 
 // initialize
+// initialize
+// Initialize Bootstrap tooltips (moved from inline script to comply with CSP)
+try {
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+} catch (e) { /* ignore if bootstrap not present yet */ }
 loadProducts();
 
 // -----------------

@@ -49,10 +49,16 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
 
     // reCAPTCHA removed: no client-side captcha required. Add server-side rate-limits/anti-abuse if needed.
 
-    // Compute total using products/pricing stored in the DB (pricing is an array of rows per product).
-    let totalFee = 0;
+  // Debug: log minimal incoming inquiry info (avoid logging PII)
+  console.log('Inquiry payload summary:', { itemsCount: Array.isArray(req.body.items) ? req.body.items.length : 0, rush: req.body.rush });
+
+  // Compute total using products/pricing stored in the DB (pricing is an array of rows per product).
+  let totalFee = 0;
+  // helpers to collect matched categories for rush fee calculation
+  let matchedCategories = [];
+  let singleMatchedCategory = null;
     try {
-      const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
       if (products && Array.isArray(products)) {
         // Helper to compute price for a single item
         // Normalize a code by removing non-alphanumeric chars and uppercasing
@@ -86,17 +92,29 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
           }
           if (!itemTotal) {
             console.warn('Price not found for item code:', itemFlower, 'matchedProduct:', found && found.product ? found.product.name : null);
+            // Debug: when no match, log the normalized needle and a sample of product labels to aid diagnosis
+            try {
+              const sample = (products || []).slice(0, 8).map(p => ({ id: p.id, name: p.name, category: p.category, pricing: (p.pricing || []).map(r => ({ label: r.label || r.set || null })) }));
+              console.log('No product match for normalized needle:', needle, 'sampleProducts:', sample);
+            } catch (e) { /* ignore debug errors */ }
           }
-          return { itemTotal, matched: !!found, matchedProduct: found && found.product ? found.product.name : null, matchedRow: found && found.row ? (found.row.label || found.row.set) : null };
+          return { itemTotal, matched: !!found, matchedProduct: found && found.product ? found.product.name : null, matchedRow: found && found.row ? (found.row.label || found.row.set) : null, matchedCategory: found && found.product ? found.product.category : null };
         };
 
         if (Array.isArray(req.body.items) && req.body.items.length) {
           // multiple item order
-          for (const it of req.body.items) {
-            if (!it || !it.flower_type) continue;
-            const info = computeFor(it.flower_type, it.quantity || 1);
-            totalFee += info.itemTotal || 0;
-          }
+            // reuse the outer `matchedCategories` (do not redeclare) so it is available
+            // later when applying rush fees
+            matchedCategories = [];
+            for (const it of req.body.items) {
+              if (!it || !it.flower_type) continue;
+              const info = computeFor(it.flower_type, it.quantity || 1);
+              totalFee += info.itemTotal || 0;
+              if (info.matchedCategory) matchedCategories.push({ category: info.matchedCategory, qty: parseInt(it.quantity) || 1 });
+            }
+          // Debug: show matched categories from products
+          console.log('Matched categories for items:', matchedCategories);
+          // if rush, we'll add category-specific rush fees below using matchedCategories
         } else {
           // single item fallback (backwards compatible)
           let found = null;
@@ -121,6 +139,8 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
             const r = found.product.pricing.find(x => x.price != null);
             totalFee = r ? Number(r.price) * qty : 0;
           }
+          // record matched category for single-item orders
+          singleMatchedCategory = found && found.product ? found.product.category : null;
         }
 
         // parse addon prices if present (attempt to extract numeric ₱ value from addon label)
@@ -144,6 +164,57 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       }
     } catch (err) {
       console.warn('Failed to compute price from products/pricing:', err);
+    }
+
+    // If rush is requested, add per-category rush fees (if categories define a rush_fee)
+    try {
+      const rushFlag = String(rush || '').toLowerCase() === 'yes' || String(rush || '').toLowerCase() === 'true' || rush === true;
+      if (rushFlag) {
+        // fetch categories and map by name, slug and id (case-insensitive) so product.category
+        // which may store a slug or id will still match the category's rush_fee
+        const { data: cats } = await supabase.from('categories').select('id,name,slug,rush_fee');
+        const feeMap = {};
+        (cats || []).forEach(c => {
+          const fee = Number(c.rush_fee) || 0;
+          const nameKey = String(c.name || '').trim().toLowerCase();
+          const slugKey = String(c.slug || '').trim().toLowerCase();
+          const idKey = c.id != null ? String(c.id).trim() : '';
+          if (nameKey) feeMap[nameKey] = fee;
+          if (slugKey) feeMap[slugKey] = fee;
+          if (idKey) feeMap[idKey] = fee;
+        });
+        // apply fees for multi-item orders
+        if (Array.isArray(req.body.items) && req.body.items.length) {
+          // Debug: compute and log per-category fee additions
+          let computedRush = 0;
+          for (const mc of (matchedCategories || [])) {
+            const key = String(mc.category || '').trim().toLowerCase();
+            const fee = feeMap[key] || 0;
+            if (fee) {
+              const add = fee * (mc.qty || 1);
+              computedRush += add;
+              console.log('Applying rush fee for category', mc.category, { feePerUnit: fee, qty: mc.qty, add });
+              totalFee += add;
+            } else {
+              console.log('No rush fee found for category key', key, 'matchedCategoryRaw', mc.category);
+            }
+          }
+          console.log('Total rush fee added for this inquiry:', computedRush);
+        } else {
+          // single item
+          const key = String(singleMatchedCategory || '').trim().toLowerCase();
+          const fee = feeMap[key] || 0;
+          if (fee) {
+            const add = fee * (parseInt(quantity) || 1);
+            console.log('Applying single-item rush fee', { category: singleMatchedCategory, feePerUnit: fee, qty: quantity, add });
+            totalFee += add;
+          } else {
+            console.log('No rush fee found for single item category key', key, 'singleMatchedCategoryRaw', singleMatchedCategory);
+          }
+        }
+      }
+    } catch (feeErr) {
+      console.warn('Failed to apply rush fees:', feeErr);
     }
 
     const orderId = generateOrderId();
@@ -265,7 +336,7 @@ router.get('/recompute-total/:orderId', async (req, res) => {
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
 
-    const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
     if (!products) return res.status(500).json({ error: 'Failed to load products' });
 
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -365,7 +436,7 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
 
-    const { data: products } = await supabase.from('products').select('id,name,pricing,addons');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
     if (!products) return res.status(500).json({ error: 'Failed to load products' });
 
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -390,17 +461,20 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
       let itemTotal = 0;
       let matchedRowLabel = null;
       let matchedProductName = null;
+      let matchedProductCategory = null;
       if (found && found.row && found.row.price != null) {
         itemTotal = Number(found.row.price) * qty;
         matchedRowLabel = found.row.label || found.row.set || null;
         matchedProductName = found.product.name || null;
+        matchedProductCategory = found.product.category || null;
       } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
         const r = found.product.pricing.find(x => x.price != null);
         itemTotal = r ? Number(r.price) * qty : 0;
         matchedRowLabel = r ? (r.label || r.set || null) : null;
         matchedProductName = found.product.name || null;
+        matchedProductCategory = found.product.category || null;
       }
-      return { flower_type: itemFlower, qty, itemTotal, matchedProductName, matchedRowLabel };
+      return { flower_type: itemFlower, qty, itemTotal, matchedProductName, matchedRowLabel, matchedProductCategory };
     };
 
     const details = [];
@@ -411,7 +485,7 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
         const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
         recomputed += d.itemTotal || 0;
         details.push(d);
-        itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+        itemsArr.push({ flower_type: d.flower_type, quantity: d.qty, category: d.matchedProductCategory });
       }
     } else {
       const parts = String(order.flower_type || '').split(';').map(s => s.trim()).filter(Boolean);
@@ -422,12 +496,12 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
             const d = computeForDebug(m[1].trim(), Number(m[2]));
             recomputed += d.itemTotal || 0;
             details.push(d);
-            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty, category: d.matchedProductCategory });
           } else {
             const d = computeForDebug(p, 1);
             recomputed += d.itemTotal || 0;
             details.push(d);
-            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty });
+            itemsArr.push({ flower_type: d.flower_type, quantity: d.qty, category: d.matchedProductCategory });
           }
         }
       }
@@ -445,6 +519,32 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
           if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
         }
       }
+    }
+
+    // If the order was a rush order, attempt to apply per-category rush fees
+    try {
+      const rushFlag = String(order.rush || '').toLowerCase() === 'yes' || String(order.rush || '').toLowerCase() === 'true' || order.rush === true;
+      if (rushFlag) {
+        const { data: cats } = await supabase.from('categories').select('id,name,slug,rush_fee');
+        const feeMap = {};
+        (cats || []).forEach(c => {
+          const fee = Number(c.rush_fee) || 0;
+          const nameKey = String(c.name || '').trim().toLowerCase();
+          const slugKey = String(c.slug || '').trim().toLowerCase();
+          const idKey = c.id != null ? String(c.id).trim() : '';
+          if (nameKey) feeMap[nameKey] = fee;
+          if (slugKey) feeMap[slugKey] = fee;
+          if (idKey) feeMap[idKey] = fee;
+        });
+        // apply fees
+        for (const it of itemsArr) {
+          const key = String(it.category || '').trim().toLowerCase();
+          const fee = feeMap[key] || 0;
+          if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
+        }
+      }
+    } catch (rfErr) {
+      console.warn('Failed to apply rush fees during recompute-update:', rfErr);
     }
 
     // update the order record with recomputed values (safe, minimal fields)
@@ -482,9 +582,10 @@ router.get('/products', async (req, res) => {
 });
 
 // Public categories list (no auth)
+// Include rush_fee so the public site can show/apply rush fees per category
 router.get('/categories', async (req, res) => {
   try {
-    const { data, error } = await supabase.from('categories').select('id,name,slug').order('name', { ascending: true });
+    const { data, error } = await supabase.from('categories').select('id,name,slug,rush_fee').order('name', { ascending: true });
     if (error) {
       console.error('Error fetching categories:', error);
       return res.status(500).json({ error: 'Failed to fetch categories' });

@@ -105,5 +105,15 @@ body {
     a:hover {
       text-decoration: underline;
     }
+      /* Reviews thumbnail shared styles (used on index and reviews pages) */
+      .review-card-row { display: flex; align-items: stretch; }
+      .review-thumb-wrap { flex: 0 0 70px; width: 70px; height: 70px; overflow: hidden; border-radius: 8px; margin-right: 12px; background: #fff; }
+      .review-thumb-wrap img.review-thumb { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
+      /* ensure card body flex rows align at the top */
+      .card-body.d-flex { align-items: flex-start; }
+      @media (max-width: 767px) {
+        .review-card-row { flex-direction: column; }
+        .review-thumb-wrap { width: 70px; height: 70px; margin-right: 1; margin-bottom: 12px; align-self: center; }
+      }
     
     

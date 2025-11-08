@@ -119,6 +119,99 @@ router.get('/orders', auth, async (req, res) => {
   }
 });
 
+// Admin: reports endpoint - aggregated sales by day (last 30 days) and month (last 12 months)
+router.get('/reports', auth, async (req, res) => {
+  try {
+    // allow optional date range filtering via ?from=YYYY-MM-DD&to=YYYY-MM-DD
+    const { from, to } = req.query || {};
+    const q = supabase.from('orders').select('order_id,name,total_fee,created_at,status').order('created_at', { ascending: true });
+    if (from) q.gte('created_at', new Date(from).toISOString());
+    else {
+      // default to last 12 months
+      const startMonths = new Date();
+      startMonths.setMonth(startMonths.getMonth() - 11);
+      q.gte('created_at', startMonths.toISOString());
+    }
+    if (to) q.lte('created_at', new Date(to).toISOString());
+
+    const { data: orders, error } = await q;
+    if (error) throw error;
+
+    // compute total revenue from delivered orders and return list of delivered orders
+    let total = 0;
+    const deliveredOrders = (orders || []).filter(o => String(o.status || '').toLowerCase() === 'delivered');
+    for (const o of deliveredOrders) {
+      total += Number(o.total_fee) || 0;
+    }
+    // return minimal fields for display
+    const rows = deliveredOrders.map(o => ({ order_id: o.order_id, name: o.name, total_fee: Number(o.total_fee) || 0, created_at: o.created_at }));
+    return res.json({ total_revenue: total, orders: rows });
+  } catch (err) {
+    console.error('reports error:', err);
+    return res.status(500).json({ error: 'Failed to compute reports' });
+  }
+});
+
+// Admin: debug preview of Messenger reply formatting for an order (dev/admin only)
+router.get('/debug/messenger-preview', auth, async (req, res) => {
+  try {
+    const { orderId } = req.query;
+    if (!orderId) return res.status(400).json({ error: 'orderId required' });
+    const { data: order, error } = await supabase.from('orders').select('*').eq('order_id', String(orderId)).single();
+    if (error || !order) return res.status(404).json({ error: 'Order not found' });
+
+    // replicate the message formatting used by the messenger handler
+    function toBold(s) {
+      if (s == null) return '';
+      const str = String(s);
+      let out = '';
+      for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        const code = ch.charCodeAt(0);
+        if (code >= 65 && code <= 90) { out += String.fromCodePoint(0x1D400 + (code - 65)); continue; }
+        if (code >= 97 && code <= 122) { out += String.fromCodePoint(0x1D41A + (code - 97)); continue; }
+        if (code >= 48 && code <= 57) { out += String.fromCodePoint(0x1D7CE + (code - 48)); continue; }
+        out += ch;
+      }
+      return out;
+    }
+
+    const parts = [];
+    parts.push('⋆˚✿˖° 𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');
+    parts.push('───────୨ৎ───────');
+    parts.push(`Order ID: ${toBold(order.order_id)}`);
+    if (order.status) parts.push(`Status: ${toBold(String(order.status || ''))}`);
+    if (order.name) parts.push(`Customer: ${toBold(order.name)}`);
+    // items formatting: prefer items array or flower_type/quantity
+    let itemsText = '';
+    try {
+      let types = order.items && Array.isArray(order.items) ? order.items.map(i => i.flower_type) : order.flower_type;
+      let qtys = order.items && Array.isArray(order.items) ? order.items.map(i => i.quantity) : order.quantity;
+      if (typeof types === 'string' && types.trim().startsWith('[')) types = JSON.parse(types);
+      if (typeof qtys === 'string' && qtys.trim().startsWith('[')) qtys = JSON.parse(qtys);
+      if (typeof types === 'string') types = types.split(',').map(s=>s.trim());
+      if (typeof qtys === 'string') qtys = qtys.split(',').map(s=>s.trim());
+      if (!Array.isArray(types)) types = [types];
+      if (!Array.isArray(qtys)) qtys = [qtys];
+      if (types.length > 1) {
+        const lines = types.map((t,i)=> `• ${toBold(t)} × ${toBold(Number(qtys[i]||qtys[0]||1))}`);
+        itemsText = `Items:\n${lines.join('\n')}`;
+      } else {
+        itemsText = `Items: ${toBold(types[0])} × ${toBold(Number(qtys[0]||1))}`;
+      }
+    } catch (e) {
+      itemsText = `Items: ${toBold(order.flower_type)}`;
+    }
+    parts.push(itemsText);
+    if (typeof order.total_fee !== 'undefined') parts.push(`Total: ₱${toBold(Number(order.total_fee).toLocaleString())}`);
+    const reply = parts.join('\n');
+    return res.json({ reply, order: { order_id: order.order_id } });
+  } catch (err) {
+    console.error('debug preview error', err);
+    return res.status(500).json({ error: 'Failed to build preview' });
+  }
+});
+
 // Admin: list all products (protected)
 router.get('/products', auth, async (req, res) => {
   try {
@@ -137,7 +230,7 @@ router.get('/products', auth, async (req, res) => {
 // Admin: categories CRUD (protected)
 router.get('/categories', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase.from('categories').select('id,name,slug').order('name', { ascending: true });
+    const { data, error } = await supabase.from('categories').select('id,name,slug,rush_fee').order('name', { ascending: true });
     if (error) throw error;
     res.json(data || []);
   } catch (error) {
@@ -151,7 +244,9 @@ router.post('/categories', auth, async (req, res) => {
     const { name } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
     const slug = String(name).trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
-    const { data, error } = await supabase.from('categories').insert([{ name: String(name).trim(), slug }]).select('id,name,slug');
+    const record = { name: String(name).trim(), slug };
+    if (req.body.rush_fee !== undefined) record.rush_fee = Number(req.body.rush_fee) || 0;
+    const { data, error } = await supabase.from('categories').insert([record]).select('id,name,slug,rush_fee');
     if (error) {
       console.error('Error creating category:', error);
       return res.status(500).json({ error: 'Failed to create category' });
@@ -173,7 +268,10 @@ router.patch('/categories/:id', auth, async (req, res) => {
       updates.name = String(name).trim();
       updates.slug = String(name).trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '');
     }
-    const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select('id,name,slug');
+    if (req.body.rush_fee !== undefined) {
+      updates.rush_fee = Number(req.body.rush_fee) || 0;
+    }
+  const { data, error } = await supabase.from('categories').update(updates).eq('id', id).select('id,name,slug,rush_fee');
     if (error) throw error;
     res.json(data[0]);
   } catch (error) {
@@ -198,41 +296,83 @@ router.delete('/categories/:id', auth, async (req, res) => {
 router.patch('/orders/:orderId', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ error: 'Status is required' });
+    const updates = {};
+    // Allow updating common order fields safely
+    const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items'];
+    for (const k of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, k)) {
+        updates[k] = req.body[k];
+      }
     }
 
-    // Fetch existing order to get previous status and customer email
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No editable fields provided' });
+    }
+
+    // Fetch existing order for side-effects (emails) and to compute previous status
     const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
-    if (fetchErr) {
+    if (fetchErr && fetchErr.code !== 'PGRST116') {
       console.error('Failed to fetch order before update:', fetchErr);
     }
     const previousStatus = existing ? existing.status : null;
 
-    const { error } = await supabase
+    const { data: updatedRows, error } = await supabase
       .from('orders')
-      .update({ status })
-      .eq('order_id', orderId);
+      .update(updates)
+      .eq('order_id', orderId)
+      .select();
     if (error) throw error;
+    
+      // Audit log: record the update
+      try {
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin';
+        const audit = {
+          order_id: orderId,
+          admin_email: adminEmail,
+          action: 'update',
+          changes: updates,
+        };
+        await supabase.from('order_audits').insert([audit]);
+      } catch (auditErr) {
+        console.warn('Failed to write order audit:', auditErr);
+      }
 
-    // After successful update, send status-change email (best-effort)
+    // If status changed, send a status update email (best-effort)
     try {
-      if (existing && existing.email) {
-        const { data: updated } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+      const updated = (updatedRows && updatedRows[0]) || null;
+      if (updated && previousStatus !== updated.status && updated.email) {
         const templates = require('../lib/email-templates');
-        const mail = templates.statusUpdateTemplate(updated, previousStatus);
         const mailer = require('../lib/mailer');
-        await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+        // If the new status is Delivered, send a friendly delivered/thank-you email
+        if (String(updated.status || '').toLowerCase() === 'delivered') {
+          const mail = templates.deliveredTemplate(updated);
+          await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+        } else {
+          const mail = templates.statusUpdateTemplate(updated, previousStatus);
+          await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+        }
       }
     } catch (mailErr) {
-      console.error('Failed to send status update email:', mailErr);
+      console.error('Failed to send status update/delivered email:', mailErr);
     }
 
-    res.json({ message: 'Status updated successfully' });
+    res.json({ message: 'Order updated successfully', updated: (updatedRows && updatedRows[0]) || null });
   } catch (error) {
-    console.error('Error updating status:', error);
-    res.status(500).json({ error: 'Failed to update status' });
+    console.error('Error updating order:', error);
+    res.status(500).json({ error: 'Failed to update order' });
+  }
+});
+
+// Get audit history for an order
+router.get('/orders/:orderId/audits', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { data, error } = await supabase.from('order_audits').select('*').eq('order_id', orderId).order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error('Failed to fetch audits:', err);
+    res.status(500).json({ error: 'Failed to fetch audit history' });
   }
 });
 
@@ -250,6 +390,15 @@ router.delete('/orders/:orderId', auth, async (req, res) => {
       throw error;
     }
     console.log('Supabase delete success:', data);
+    // Audit log: record deletion with snapshot
+    try {
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin';
+      const snapshot = (data && data[0]) || null;
+      const audit = { order_id: orderId, admin_email: adminEmail, action: 'delete', snapshot };
+      await supabase.from('order_audits').insert([audit]);
+    } catch (auditErr) {
+      console.warn('Failed to write delete audit:', auditErr);
+    }
     res.json({ message: 'Order deleted successfully' });
   } catch (error) {
     console.error('Error deleting order:', error);

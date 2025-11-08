@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (flowerSelect) {
-    flowerSelect.addEventListener('change', onFlowerTypeChange);
+    flowerSelect.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); });
   }
   // Always load products so dynamic item selects can be populated even when
   // the legacy single `flowerSelect` is not present (we now support multi-item orders).
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (r.set) parts.push(String(r.set));
           if (r.price != null) parts.push('\u20B1' + Number(r.price));
           const text = `${code}${parts.length ? ' - ' + parts.join(' - ') : ''}`;
-          groups[cat].push({ code, text });
+          groups[cat].push({ code, text, productId: p.id });
         });
       }
     });
@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const opt = document.createElement('option');
         opt.value = it.code;
         opt.textContent = it.text;
+        if (it.productId) opt.dataset.productId = it.productId;
         og.appendChild(opt);
       });
       selectEl.appendChild(og);
@@ -236,10 +237,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectEl = row.querySelector('.item-flower');
     populateItemSelect(selectEl);
     // attach change handler so addons preview updates when item selection changes
-    try { selectEl.addEventListener('change', onFlowerTypeChange); } catch (e) {}
+    try { selectEl.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); }); } catch (e) {}
     row.querySelector('.remove-item').addEventListener('click', () => {
       if (itemsContainer.children.length <= 1) return; // keep at least one
       row.remove();
+      // update rush fee when item removed
+      computeRushFee();
     });
     return row;
   }
@@ -255,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialSelects = itemsContainer.querySelectorAll('.item-flower');
     initialSelects.forEach(s => {
       populateItemSelect(s);
-      try { s.addEventListener('change', onFlowerTypeChange); } catch (e) {}
+      try { s.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); }); } catch (e) {}
     });
   })();
 
@@ -263,6 +266,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const idx = itemsContainer.children.length;
     const newRow = createItemRow(idx);
     itemsContainer.appendChild(newRow);
+    // recompute rush fee when new item added
+    computeRushFee();
+  });
+
+  // --- Rush fee calculation and UI update ---
+  let _categoriesCache = null; // name -> rush_fee
+  async function loadCategoriesForRush() {
+    try {
+      const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const cats = await res.json();
+      // Build a fee map keyed by lowercased name, slug and id so lookups
+      // succeed whether product.category stores a name, a slug or an id.
+      _categoriesCache = {};
+      (cats || []).forEach(c => {
+        const fee = Number(c.rush_fee) || 0;
+        const nameKey = String(c.name || '').trim().toLowerCase();
+        const slugKey = String(c.slug || '').trim().toLowerCase();
+        const idKey = c.id != null ? String(c.id).trim() : '';
+        if (nameKey) _categoriesCache[nameKey] = fee;
+        if (slugKey) _categoriesCache[slugKey] = fee;
+        if (idKey) _categoriesCache[idKey] = fee;
+      });
+    } catch (err) {
+      console.warn('Failed to load categories for rush fee calculation', err);
+      _categoriesCache = {};
+    }
+  }
+
+  function computeRushFee() {
+    try {
+      if (!_categoriesCache) return;
+      const itemRows = itemsContainer.querySelectorAll('.order-item');
+      let totalRush = 0;
+      itemRows.forEach(row => {
+        const select = row.querySelector('.item-flower');
+        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+        const opt = select && select.selectedOptions && select.selectedOptions[0];
+        const productId = opt && opt.dataset && opt.dataset.productId;
+        if (!productId) return;
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const cat = prod && prod.category ? String(prod.category).trim() : '';
+        const key = String(cat || '').trim().toLowerCase();
+        const fee = _categoriesCache[key] || 0;
+        if (fee) totalRush += fee * qty;
+      });
+      const rushSelect = inquiryForm.querySelector('select[name="rush"]');
+      if (rushSelect) {
+        const yesOpt = rushSelect.querySelector('option[value="Yes"]');
+        if (yesOpt) {
+          yesOpt.textContent = `Yes - Rush Fee: ₱${Number(totalRush).toLocaleString()}`;
+        }
+      }
+    } catch (err) { console.warn('computeRushFee error', err); }
+  }
+
+  // load categories and compute initial value
+  loadCategoriesForRush().then(() => computeRushFee()).catch(() => {});
+
+  // recompute when quantity inputs change
+  itemsContainer.addEventListener('input', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) computeRushFee();
   });
 
   // --- end auto-fetch logic ---

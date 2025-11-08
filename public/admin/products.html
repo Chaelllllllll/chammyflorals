@@ -27,6 +27,7 @@
           <li class="nav-item"><a class="nav-link active" href="/admin/products.html">Products</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/orders-delivered.html">Delivered Orders</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
           <li class="nav-item ms-2"><button class="btn btn-pink btn-sm" id="logoutButton">Logout</button></li>
         </ul>
       </div>
@@ -218,7 +219,10 @@
         </div>
         <div class="modal-body">
           <div class="mb-3 d-flex gap-2">
-            <input id="manageNewCategoryName" class="form-control form-control-sm" placeholder="New category name">
+            <div class="d-flex gap-2 w-100">
+              <input id="manageNewCategoryName" class="form-control form-control-sm" placeholder="New category name">
+              <input id="manageCategoryRushFee" class="form-control form-control-sm" type="number" min="0" step="0.01" placeholder="Rush fee (₱)">
+            </div>
             <button id="manageSaveCategoryBtn" class="btn btn-sm btn-pink">Add</button>
           </div>
           <div id="categoriesList" class="list-group"></div>
@@ -256,13 +260,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    // enable tooltips
-    document.addEventListener('DOMContentLoaded', function () {
-      var t = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-      t.forEach(function (el) { new bootstrap.Tooltip(el); });
-    });
-  </script>
   <script src="/js/admin-products.js"></script>
 </body>
 </html>

@@ -91,6 +91,7 @@ function applyOrderFilters() {
       <td><a href="${order.fb_link}" target="_blank">${order.fb_link}</a></td>
       <td>
         <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
+        <button class="btn btn-sm btn-success ms-1 edit-order-button" data-order-id="${order.order_id}">Edit</button>
       </td>
     </tr>
   `).join('');
@@ -100,6 +101,14 @@ function applyOrderFilters() {
     button.addEventListener('click', (e) => {
       const orderId = e.target.dataset.orderId;
       viewDetails(orderId);
+    });
+  });
+
+  // wire edit buttons
+  document.querySelectorAll('.edit-order-button').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const orderId = e.target.dataset.orderId;
+      openEditModal(orderId);
     });
   });
 }
@@ -128,9 +137,173 @@ function viewDetails(orderId) {
   `;
 
   const deleteButton = document.getElementById('deleteOrderButton');
-  deleteButton.dataset.orderId = orderId;
+  if (deleteButton) deleteButton.dataset.orderId = orderId;
   const changeStatusButton = document.getElementById('changeStatusButton');
-  changeStatusButton.dataset.orderId = orderId;
+  if (changeStatusButton) changeStatusButton.dataset.orderId = orderId;
+
+  // ensure footer shows the default Close button for details view
+  if (typeof resetDetailsModalFooter === 'function') resetDetailsModalFooter();
+  const detailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
+  detailsModal.show();
+}
+
+// Ensure that when showing details (not editing) the modal footer contains the default Close button
+function resetDetailsModalFooter() {
+  const modalFooter = document.querySelector('#orderDetailsModal .modal-footer');
+  if (modalFooter) {
+    modalFooter.innerHTML = `<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>`;
+  }
+}
+
+function openEditModal(orderId) {
+  const order = window.ordersData.find(o => o.order_id === orderId);
+  if (!order) { showErrorModal('Order not found'); return; }
+  // Populate a simple edit form inside the details modal
+  const modalContent = document.getElementById('orderDetailsContent');
+  modalContent.innerHTML = `
+    <form id="editOrderForm">
+      <div class="mb-2"><label class="form-label">Order ID</label><input class="form-control" name="order_id" value="${order.order_id}" readonly></div>
+      <div class="mb-2"><label class="form-label">Name</label><input class="form-control" name="name" value="${order.name || ''}"></div>
+      <div class="mb-2"><label class="form-label">Email</label><input class="form-control" name="email" value="${order.email || ''}"></div>
+      <div class="mb-2"><label class="form-label">Flower Type</label><input class="form-control" name="flower_type" value="${order.flower_type || ''}"></div>
+      <div class="mb-2"><label class="form-label">Quantity</label><input type="number" class="form-control" name="quantity" value="${order.quantity || 1}"></div>
+      <div class="mb-2"><label class="form-label">Add-ons (comma separated)</label><input class="form-control" name="addons" value="${(order.addons && order.addons.join(', ')) || ''}"></div>
+      <div class="mb-2"><label class="form-label">Message</label><textarea class="form-control" name="message">${order.message || ''}</textarea></div>
+      <div class="mb-2"><label class="form-label">Rush</label><select class="form-select" name="rush"><option ${order.rush==='No'?'selected':''}>No</option><option ${order.rush==='Yes'?'selected':''}>Yes</option></select></div>
+      <div class="mb-2"><label class="form-label">Total Fee</label><input type="number" step="0.01" class="form-control" name="total_fee" value="${order.total_fee || 0}"></div>
+  <div class="mb-2"><label class="form-label">Status</label><select class="form-select" name="status"><option>Pending</option><option>Processing</option><option>To Receive</option><option>Cancelled</option></select></div>
+      
+    </form>
+  `;
+
+  // move action buttons to the modal footer so they are always visible
+  const modalFooter = document.querySelector('#orderDetailsModal .modal-footer');
+  if (modalFooter) {
+    modalFooter.innerHTML = `
+      <div class="me-auto">
+        <button type="button" class="btn btn-outline-danger" id="editDeleteButton">Delete</button>
+      </div>
+      <div>
+        <button type="button" class="btn btn-success me-2" id="paymentButton">Payment</button>
+        <button type="button" class="btn btn-pink" id="editSaveButton">Save</button>
+      </div>
+    `;
+  }
+
+  const editForm = document.getElementById('editOrderForm');
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(editForm);
+    const payload = {};
+    formData.forEach((v,k)=>{ payload[k]=v; });
+    // convert addons back to array
+    if (payload.addons) payload.addons = payload.addons.split(',').map(s=>s.trim()).filter(Boolean);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const resp = await fetch(`/api/admin/orders/${orderId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload) });
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || 'Failed to update order');
+      showSuccessModal(result.message || 'Order updated');
+      // refresh list
+      loadOrders();
+      bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal')).hide();
+    } catch (err) {
+      showErrorModal(err && err.message ? err.message : 'Failed to save');
+    }
+  });
+
+  // wire delete inside edit modal
+  const editDeleteBtn = document.getElementById('editDeleteButton');
+  if (editDeleteBtn) {
+    editDeleteBtn.addEventListener('click', (e) => {
+      const confirmButton = document.getElementById('confirmDeleteButton');
+      confirmButton.dataset.orderId = orderId;
+      const confirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+      confirmModal.show();
+    });
+  }
+
+  // wire save button in footer to submit the edit form
+  const editSaveBtn = document.getElementById('editSaveButton');
+  if (editSaveBtn && editForm) {
+    editSaveBtn.addEventListener('click', () => {
+      if (typeof editForm.requestSubmit === 'function') {
+        editForm.requestSubmit();
+      } else {
+        // fallback
+        editForm.dispatchEvent(new Event('submit', { cancelable: true }));
+      }
+    });
+  }
+
+  // wire payment button: open cashier modal and allow delivering the order
+  const paymentBtn = document.getElementById('paymentButton');
+  if (paymentBtn) {
+    paymentBtn.addEventListener('click', () => {
+      const cashierModalEl = document.getElementById('cashierModal');
+      const totalEl = document.getElementById('cashierOrderTotal');
+      const amtInput = document.getElementById('cashierAmountReceived');
+      const changeEl = document.getElementById('cashierChange');
+      const deliverBtn = document.getElementById('cashierConfirmButton');
+
+      totalEl.textContent = `₱${Number(order.total_fee || 0).toLocaleString()}`;
+      amtInput.value = '';
+      changeEl.textContent = `₱0`;
+      // disable deliver until amount entered
+      if (deliverBtn) deliverBtn.disabled = true;
+
+      const onInput = () => {
+        const received = parseFloat(amtInput.value);
+        const ok = amtInput.value !== '' && !Number.isNaN(received);
+        if (deliverBtn) deliverBtn.disabled = !ok;
+        const change = (Number.isNaN(received) ? 0 : received) - (Number(order.total_fee) || 0);
+        changeEl.textContent = `₱${(change < 0 ? 0 : change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      };
+
+      amtInput.removeEventListener('input', onInput);
+      amtInput.addEventListener('input', onInput);
+
+      const cashierModal = new bootstrap.Modal(cashierModalEl);
+
+      const onDeliver = async () => {
+        if (!deliverBtn) return;
+        deliverBtn.disabled = true;
+        try {
+          const token = localStorage.getItem('adminToken');
+          const received = parseFloat(amtInput.value) || 0;
+          const payload = { status: 'Delivered' };
+          payload.message = `${order.message || ''}\n\n[Received: ₱${received.toFixed(2)}]`;
+          const response = await fetch(`/api/admin/orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(payload),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Failed to mark delivered');
+          showSuccessModal(result.message || 'Order marked as Delivered');
+          cashierModal.hide();
+          loadOrders();
+          try { bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal')).hide(); } catch (e) {}
+        } catch (err) {
+          showErrorModal(err && err.message ? err.message : 'Failed to mark delivered');
+        } finally {
+          try { deliverBtn.removeEventListener('click', onDeliver); } catch (e) {}
+          try { amtInput.removeEventListener('input', onInput); } catch (e) {}
+          if (deliverBtn) deliverBtn.disabled = false;
+        }
+      };
+
+      if (deliverBtn) deliverBtn.addEventListener('click', onDeliver);
+      cashierModalEl.addEventListener('hidden.bs.modal', () => {
+        try { if (deliverBtn) deliverBtn.removeEventListener('click', onDeliver); } catch (e) {}
+        try { amtInput.removeEventListener('input', onInput); } catch (e) {}
+      }, { once: true });
+
+      cashierModal.show();
+    });
+  }
+
+  // View Audit removed: audit UI and client fetch removed per request.
 
   const detailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   detailsModal.show();
@@ -140,8 +313,9 @@ async function changeStatus(orderId) {
   const token = localStorage.getItem('adminToken');
   const status = document.getElementById('orderStatus').value;
   try {
-  console.log('Sending PATCH for order:', orderId, 'Status:', status);
-  const response = await fetch(`/api/admin/orders/${orderId}`, {
+    // Simple status update (Delivered should be handled via Payment flow in the order details)
+    console.log('Sending PATCH for order:', orderId, 'Status:', status);
+    const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -231,32 +405,39 @@ function logout() {
 }
 
 // Event listeners
-document.getElementById('logoutButton').addEventListener('click', logout);
-document.getElementById('deleteOrderButton').addEventListener('click', (e) => {
-  const orderId = e.target.dataset.orderId;
-  const confirmButton = document.getElementById('confirmDeleteButton');
-  confirmButton.dataset.orderId = orderId;
-  const confirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-  confirmModal.show();
-});
-document.getElementById('confirmDeleteButton').addEventListener('click', (e) => {
-  const orderId = e.target.dataset.orderId;
-  deleteOrder(orderId);
-});
-document.getElementById('changeStatusButton').addEventListener('click', (e) => {
-  const orderId = e.target.dataset.orderId;
-  const statusForm = document.getElementById('changeStatusForm');
-  const statusSelect = document.getElementById('orderStatus');
-  statusSelect.value = ''; // Reset dropdown
-  statusForm.dataset.orderId = orderId;
-  const statusModal = new bootstrap.Modal(document.getElementById('changeStatusModal'));
-  statusModal.show();
-});
-document.getElementById('changeStatusForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const orderId = e.target.dataset.orderId;
-  changeStatus(orderId);
-});
+const logoutBtn = document.getElementById('logoutButton');
+if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+// delete confirm button (shared) - guard existence
+const confirmDeleteBtn = document.getElementById('confirmDeleteButton');
+if (confirmDeleteBtn) {
+  confirmDeleteBtn.addEventListener('click', (e) => {
+    const orderId = e.target.dataset.orderId;
+    deleteOrder(orderId);
+  });
+}
+
+// guard: change status elements may have been removed from the details modal; wire only if present
+const changeStatusBtn = document.getElementById('changeStatusButton');
+if (changeStatusBtn) {
+  changeStatusBtn.addEventListener('click', (e) => {
+    const orderId = e.target.dataset.orderId;
+    const statusForm = document.getElementById('changeStatusForm');
+    const statusSelect = document.getElementById('orderStatus');
+    if (statusSelect) statusSelect.value = '';
+    if (statusForm) statusForm.dataset.orderId = orderId;
+    const statusModal = new bootstrap.Modal(document.getElementById('changeStatusModal'));
+    statusModal.show();
+  });
+}
+const changeStatusForm = document.getElementById('changeStatusForm');
+if (changeStatusForm) {
+  changeStatusForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const orderId = e.target.dataset.orderId;
+    changeStatus(orderId);
+  });
+}
 
 // Focus management for accessibility
 document.getElementById('errorModal').addEventListener('hidden.bs.modal', () => {

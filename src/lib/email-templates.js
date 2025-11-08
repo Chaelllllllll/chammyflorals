@@ -49,4 +49,27 @@ function statusUpdateTemplate(order, previousStatus) {
   return { subject: `Chammy Florals - Order ${order.order_id} is now ${order.status}`, html };
 }
 
-module.exports = { orderConfirmationTemplate, statusUpdateTemplate };
+function deliveredTemplate(order) {
+  const addons = Array.isArray(order.addons) && order.addons.length ? order.addons.join(', ') : 'None';
+  const html = `
+    <div style="font-family: Arial, sans-serif; color: #333;">
+      <h2 style="color:#ff69b4">Thank you — your order has been delivered!</h2>
+      <p>Hi ${escapeHtml(order.name)},</p>
+      <p>We're happy to let you know that your order <strong>${escapeHtml(order.order_id)}</strong> has been delivered.</p>
+      <ul>
+        <li><strong>Order ID:</strong> ${escapeHtml(order.order_id)}</li>
+        <li><strong>Flower Type:</strong> ${escapeHtml(order.flower_type)}</li>
+        <li><strong>Quantity:</strong> ${escapeHtml(String(order.quantity))}</li>
+        <li><strong>Add-ons:</strong> ${escapeHtml(addons)}</li>
+        <li><strong>Total Paid:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
+      </ul>
+      <p>Thank you for choosing Chammy Florals. We hope our flowers made the moment special!</p>
+      <p style="font-size:0.9em;color:#666">If you have feedback, please reply to this email — we'd love to hear from you.</p>
+      <hr />
+      <p style="font-size:0.8em;color:#999">Chammy Florals</p>
+    </div>
+  `;
+  return { subject: `Chammy Florals - Order Delivered (${order.order_id})`, html };
+}
+
+module.exports = { orderConfirmationTemplate, statusUpdateTemplate, deliveredTemplate };

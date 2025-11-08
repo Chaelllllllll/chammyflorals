@@ -198,12 +198,16 @@ async function handleTrackRequest(psid, orderId) {
     // Compute total quantity
     totalQuantity = qtys.reduce((sum, q) => sum + Number(q || 0), 0);
 
-    // Multi-line if more than one item
+    // Multi-line if more than one item: show bullet list with per-item quantity
     if (types.length > 1) {
-      const lines = types.map(t => `${toBold(t)}`);
+      const lines = types.map((t, i) => {
+        const q = Number((qtys[i] !== undefined && qtys[i] !== null) ? qtys[i] : (qtys[0] || 1)) || 1;
+        return `• ${toBold(t)} × ${toBold(q)}`;
+      });
       itemsText = `Items:\n${lines.join('\n')}`;
     } else {
-      itemsText = `Items: ${toBold(types[0])}`;
+      const q = totalQuantity || (Number(qtys[0] || 1) || 1);
+      itemsText = `Items: ${toBold(types[0])} × ${toBold(q)}`;
     }
 
   } catch (e) {
