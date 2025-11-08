@@ -113,15 +113,16 @@ async function handleTrackRequest(psid, orderId) {
       return sendMessage(psid, `Sorry, I couldn't find an order with ID ${orderId}.`);
     }
 
-    const lines = [];
-    lines.push(`Order ${data.order_id}`);
-    if (data.status) lines.push(`Status: ${data.status}`);
-    if (data.name) lines.push(`Name: ${data.name}`);
-    if (data.flower_type) lines.push(`Items: ${data.flower_type} x${data.quantity || 1}`);
-    if (typeof data.total_fee !== 'undefined') lines.push(`Total: ₱${data.total_fee}`);
-    if (data.created_at) lines.push(`Ordered: ${new Date(data.created_at).toLocaleString()}`);
-
-    const reply = lines.join('\n');
+  // Build a concise, professional order summary for messaging
+  const parts = [];
+  parts.push('Chammy Florals — Order Status');
+  parts.push('------------------------------');
+  parts.push(`Order ID: ${data.order_id}`);
+  if (data.status) parts.push(`Status: ${data.status}`);
+  if (data.name) parts.push(`Customer: ${data.name}`);
+  if (data.flower_type) parts.push(`Items: ${data.flower_type} × ${data.quantity || 1}`);
+  if (typeof data.total_fee !== 'undefined') parts.push(`Total: ₱${Number(data.total_fee).toLocaleString()}`);
+  const reply = parts.join('\n');
     const sendRes = await sendMessage(psid, reply);
     try { console.log('Messenger: sendMessage response:', JSON.stringify(sendRes).slice(0,500)); } catch (e) {}
   } catch (err) {
@@ -129,5 +130,64 @@ async function handleTrackRequest(psid, orderId) {
     await sendMessage(psid, 'Sorry, something went wrong while fetching your order. Please try again later.');
   }
 }
+
+// Helper: persistent menu payload for FB Messenger
+function persistentMenuPayload() {
+  return {
+    persistent_menu: [
+      {
+        locale: 'default',
+        composer_input_disabled: false,
+        call_to_actions: [
+          {
+            type: 'postback',
+            title: 'Track Order',
+            payload: 'TRACK_ORDER'
+          },
+          {
+            type: 'web_url',
+            title: 'View Catalog',
+            url: process.env.SITE_BASE_URL || 'https://your-site.example/',
+            webview_height_ratio: 'full'
+          }
+        ]
+      }
+    ]
+  };
+}
+
+// GET returns the payload/instructions. POST attempts to set it using PAGE_TOKEN.
+router.get('/setup-persistent-menu', (req, res) => {
+  return res.json({
+    note: 'This endpoint shows the persistent menu payload. To install it, POST to this URL with ?token=ADMIN_SETUP_TOKEN (env) or run the Graph API call manually as documented below.',
+    payload: persistentMenuPayload(),
+    manualCurl: `curl -X POST "https://graph.facebook.com/v16.0/me/messenger_profile?access_token=${PAGE_TOKEN}" -H 'Content-Type: application/json' -d '${JSON.stringify(persistentMenuPayload())}'`
+  });
+});
+
+router.post('/setup-persistent-menu', express.json(), async (req, res) => {
+  const adminToken = process.env.ADMIN_SETUP_TOKEN || '';
+  const provided = (req.query.token || req.body.token || '');
+  if (adminToken && adminToken !== provided) {
+    return res.status(403).json({ error: 'Invalid setup token' });
+  }
+  if (!PAGE_TOKEN) {
+    return res.status(500).json({ error: 'FB_PAGE_ACCESS_TOKEN not configured. See README for instructions.' });
+  }
+  try {
+    const payload = persistentMenuPayload();
+    const resp = await fetch(`https://graph.facebook.com/v16.0/me/messenger_profile?access_token=${encodeURIComponent(PAGE_TOKEN)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await resp.json().catch(() => null);
+    if (!resp.ok) return res.status(resp.status).json({ error: 'Graph API error', details: json });
+    return res.json({ ok: true, result: json });
+  } catch (err) {
+    console.error('setup-persistent-menu error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to call Graph API' });
+  }
+});
 
 module.exports = router;
