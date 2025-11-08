@@ -366,6 +366,32 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // If URL contains ?orderId=..., open the track modal, fill the input and auto-submit
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const urlOrderId = params.get('orderId') || params.get('order_id') || params.get('id');
+    if (urlOrderId) {
+      const orderInput = document.getElementById('orderId');
+      const trackModalEl = document.getElementById('trackModal');
+      if (orderInput) {
+        orderInput.value = urlOrderId;
+      }
+      if (trackModalEl) {
+        try {
+          const modal = new bootstrap.Modal(trackModalEl);
+          modal.show();
+        } catch (e) { /* ignore */ }
+      }
+      // submit the form programmatically after a short delay to allow modal to render
+      setTimeout(() => {
+        try {
+          if (typeof trackForm.requestSubmit === 'function') trackForm.requestSubmit();
+          else trackForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        } catch (e) { console.warn('Auto-submit track form failed', e); }
+      }, 400);
+    }
+  } catch (e) { /* ignore parsing errors */ }
+
   trackForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const orderId = document.getElementById('orderId').value;

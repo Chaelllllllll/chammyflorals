@@ -137,8 +137,9 @@ async function handleTrackRequest(psid, orderId) {
 
   // Build a Button Template with a View button linking to the public track page for this order
   try {
-    const base = process.env.SITE_BASE_URL || 'https://your-site.example';
-    const trackUrl = `${base.replace(/\/$/, '')}/track.html?orderId=${encodeURIComponent(String(data.order_id))}`;
+  const base = process.env.SITE_BASE_URL || 'https://your-site.example';
+  // Redirect to homepage and open the track modal with orderId param so the site auto-tracks
+  const trackUrl = `${base.replace(/\/$/, '')}/?orderId=${encodeURIComponent(String(data.order_id))}`;
     const messageObj = {
       attachment: {
         type: 'template',
