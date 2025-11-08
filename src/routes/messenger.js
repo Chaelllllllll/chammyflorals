@@ -190,4 +190,17 @@ router.post('/setup-persistent-menu', express.json(), async (req, res) => {
   }
 });
 
+// GET current persistent_menu from Graph API for debugging/verification
+router.get('/check-persistent-menu', async (req, res) => {
+  if (!PAGE_TOKEN) return res.status(500).json({ error: 'FB_PAGE_ACCESS_TOKEN not configured' });
+  try {
+    const resp = await fetch(`https://graph.facebook.com/v16.0/me/messenger_profile?fields=persistent_menu&access_token=${encodeURIComponent(PAGE_TOKEN)}`);
+    const json = await resp.json().catch(() => null);
+    return res.json({ ok: resp.ok, status: resp.status, result: json });
+  } catch (err) {
+    console.error('check-persistent-menu error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to query Graph API' });
+  }
+});
+
 module.exports = router;
