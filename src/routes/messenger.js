@@ -59,12 +59,9 @@ router.post('/webhook', express.json(), async (req, res) => {
           // Quick trigger words
           if (/^track\b/i.test(trimmed) || /^status\b/i.test(trimmed)) {
             sessions.set(sender, 'awaitingOrderId');
-            await sendMessage(sender, 'Sure — please send me your Order ID (e.g. ABC12345).');
+            await sendMessage(sender, 'Sure — please send me your Tracking ID (e.g. ABC12345).');
             continue;
           }
-
-          // Default help message
-          await sendMessage(sender, 'Hi — to track an order, type "Track" or use the Track Order button.');
         }
       }
       return res.sendStatus(200);
@@ -115,7 +112,7 @@ async function handleTrackRequest(psid, orderId) {
 
   // Build a concise, professional order summary for messaging
   const parts = [];
-  parts.push('Chammy Florals — Order Status');
+  parts.push('Order Status');
   parts.push('------------------------------');
   parts.push(`Order ID: ${data.order_id}`);
   if (data.status) parts.push(`Status: ${data.status}`);
