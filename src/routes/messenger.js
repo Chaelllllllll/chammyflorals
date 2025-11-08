@@ -50,13 +50,12 @@ router.post('/webhook', express.json(), async (req, res) => {
 
           // detect quick_reply payload/title if present
           const quickPayload = event.message && event.message.quick_reply && event.message.quick_reply.payload;
-          const hasQuick = !!(event.message && event.message.quick_reply);
 
           const state = sessions.get(sender);
           if (state === 'awaitingOrderId') {
             // Robustly treat quick-reply taps (or the 'Enter Order ID' text) as prompts
             // (some clients/platforms may omit payloads or vary the text)
-            if (quickPayload === 'TRACK_ORDER_PROMPT' || hasQuick || /^enter order id\b/i.test(trimmed)) {
+            if (quickPayload === 'TRACK_ORDER_PROMPT' || /^enter order id\b/i.test(trimmed)) {
               await sendMessage(sender, 'Please type your Order ID (for example: ABC12345) and I will look it up.');
               // keep session waiting
               continue;
@@ -71,13 +70,9 @@ router.post('/webhook', express.json(), async (req, res) => {
           // Quick trigger words -> send a quick-reply prompt and set session state
           if (/^track\b/i.test(trimmed) || /^status\b/i.test(trimmed)) {
             sessions.set(sender, 'awaitingOrderId');
-            const quick = {
-              text: 'Sure — please enter your Order ID (e.g. ABC12345).',
-              quick_replies: [
-                { content_type: 'text', title: 'Enter Order ID', payload: 'TRACK_ORDER_PROMPT' }
-              ]
-            };
-            await sendMessage(sender, quick);
+            // send a neutral prompt without a quick-reply button to avoid clients sending the
+            // quick-reply title as the message text when tapped
+            await sendMessage(sender, 'Sure — please type your Order ID (e.g. ABC12345) and I will look it up.');
             continue;
           }
         }
