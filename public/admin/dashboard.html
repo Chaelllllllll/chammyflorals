@@ -38,10 +38,9 @@
   <div class="container mt-5 pt-5">
     <div class="card shadow-sm">
       <div class="card-body">
-        <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 gap-2">
+  <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
           <h2 class="card-title mb-0">Orders</h2>
           <div class="d-flex gap-2 w-100 w-md-auto align-items-center">
-            <input id="ordersSearch" class="form-control form-control-sm" placeholder="Search by Order ID, name or email">
             <!-- Mobile notifications: bell dropdown showing statuses and counts -->
             <div class="dropdown d-md-none ms-2">
               <button id="notifToggleMobile" class="btn btn-primary btn-sm notif-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
@@ -60,12 +59,16 @@
           </div>
         </div>
         <!-- Status badges moved above the orders list so they're always visible horizontally -->
-        <div class="mb-3 ">
+        <div class="mb-3">
           <div id="statusBadges" class="d-flex gap-1 flex-wrap justify-content-end w-100" role="toolbar" aria-label="Order status filters">
             <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All <span class="status-count" id="countAll" data-bs-toggle="tooltip" title="0">0</span></button>
             <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
             <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
             <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
+          </div>
+          <div class="d-flex justify-content-end mb-2 mt-2">
+            <!-- Search input moved above orders table for better layout -->
+            <input id="ordersSearch" class="form-control form-control-sm search-input-right" placeholder="Search by Order ID, name or email">
           </div>
         </div>
         <div class="table-responsive">
@@ -81,6 +84,21 @@
             </thead>
             <tbody id="ordersTable"></tbody>
           </table>
+        </div>
+        <!-- Rows per page selector and Pagination controls for orders -->
+        <div class="d-flex justify-content-between align-items-center mt-2">
+          <div class="rows-per-page d-flex align-items-center">
+            <label for="ordersPerPageSelect" class="me-2 mb-0 small text-muted">Rows per page</label>
+            <select id="ordersPerPageSelect" class="form-select form-select-sm" style="width:80px;">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+          </div>
+          <nav aria-label="Orders pagination">
+            <ul class="pagination mb-0" id="ordersPagination"></ul>
+          </nav>
         </div>
       </div>
     </div>

@@ -37,8 +37,11 @@ async function loadOrders() {
     if (response.ok) {
       // keep full orders data in window for detail lookups and filtering
       window.ordersData = orders || [];
-        // initialize filters UI and status badges
+        // pagination defaults
+        window.ordersPerPage = 10;
+        window.currentPage = 1;
         window.orderStatusFilter = '';
+        // initialize filters UI and status badges
         setupOrderFilters();
         updateStatusCounts();
         // render initial view (not-delivered)
@@ -55,7 +58,19 @@ async function loadOrders() {
 function setupOrderFilters() {
   const search = document.getElementById('ordersSearch');
   if (search) {
-    search.addEventListener('input', () => applyOrderFilters());
+    search.addEventListener('input', () => { window.currentPage = 1; applyOrderFilters(); });
+  }
+  // rows-per-page selector
+  const perPageSel = document.getElementById('ordersPerPageSelect');
+  if (perPageSel) {
+    // initialize selector value
+    perPageSel.value = String(window.ordersPerPage || 10);
+    perPageSel.addEventListener('change', () => {
+      const v = Number(perPageSel.value) || 10;
+      window.ordersPerPage = v;
+      window.currentPage = 1;
+      applyOrderFilters();
+    });
   }
   // setup status badges (replaces status dropdown)
   setupStatusBadges();
@@ -79,6 +94,122 @@ function setupOrderFilters() {
       });
     });
   }
+}
+
+function renderPagination(totalPages) {
+  const container = document.getElementById('ordersPagination');
+  if (!container) return;
+  container.innerHTML = '';
+  if (totalPages <= 1) return;
+  const createPageItem = (p, label = null, active = false, disabled = false) => {
+    const li = document.createElement('li');
+    li.className = 'page-item' + (active ? ' active' : '') + (disabled ? ' disabled' : '');
+    const a = document.createElement('a');
+    a.className = 'page-link';
+    a.href = '#';
+    a.dataset.page = p;
+    a.innerText = label || String(p);
+    li.appendChild(a);
+    return li;
+  };
+
+  // previous
+  container.appendChild(createPageItem(Math.max(1, window.currentPage - 1), '‹', false, window.currentPage === 1));
+
+  // determine visible range (show up to 5 pages)
+  const maxVisible = 5;
+  let start = Math.max(1, window.currentPage - Math.floor(maxVisible / 2));
+  let end = Math.min(totalPages, start + maxVisible - 1);
+  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+
+  // first page and leading ellipsis
+  if (start > 1) {
+    container.appendChild(createPageItem(1, '1', window.currentPage === 1));
+    if (start > 2) {
+      const ell = document.createElement('li');
+      ell.className = 'page-item disabled';
+      const span = document.createElement('span');
+      span.className = 'page-link';
+      span.innerText = '…';
+      ell.appendChild(span);
+      container.appendChild(ell);
+    }
+  }
+
+  for (let p = start; p <= end; p++) {
+    container.appendChild(createPageItem(p, null, p === window.currentPage));
+  }
+
+  // trailing ellipsis and last page
+  if (end < totalPages) {
+    if (end < totalPages - 1) {
+      const ell2 = document.createElement('li');
+      ell2.className = 'page-item disabled';
+      const span2 = document.createElement('span');
+      span2.className = 'page-link';
+      span2.innerText = '…';
+      ell2.appendChild(span2);
+      container.appendChild(ell2);
+    }
+    container.appendChild(createPageItem(totalPages, String(totalPages), window.currentPage === totalPages));
+  }
+
+  // next
+  container.appendChild(createPageItem(Math.min(totalPages, window.currentPage + 1), '›', false, window.currentPage === totalPages));
+
+  // click handler
+  container.querySelectorAll('.page-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const p = Number(e.currentTarget.dataset.page || 1);
+      if (!p || p === window.currentPage) return;
+      window.currentPage = p;
+      applyOrderFilters();
+      // scroll table into view
+      const tableEl = document.querySelector('.table-responsive');
+      if (tableEl) tableEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+function renderOrdersPaged(list) {
+  const perPage = window.ordersPerPage || 8;
+  const total = list.length;
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  if (!window.currentPage || window.currentPage < 1) window.currentPage = 1;
+  if (window.currentPage > totalPages) window.currentPage = totalPages;
+  const start = (window.currentPage - 1) * perPage;
+  const pageItems = list.slice(start, start + perPage);
+
+  const tbody = document.getElementById('ordersTable');
+  if (!pageItems.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">No matching orders</td></tr>';
+  } else {
+    tbody.innerHTML = pageItems.map(order => `
+      <tr data-order-id="${order.order_id}">
+        <td>${order.order_id}</td>
+        <td>${order.name}</td>
+        <td>${order.email}</td>
+        <td><a href="${order.fb_link}" target="_blank">${order.fb_link}</a></td>
+        <td>
+          <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
+          <button class="btn btn-sm btn-success ms-1 edit-order-button" data-order-id="${order.order_id}">Edit</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // wire buttons
+  document.querySelectorAll('.details-button').forEach(button => {
+    button.addEventListener('click', (e) => viewDetails(e.currentTarget.dataset.orderId));
+  });
+  document.querySelectorAll('.edit-order-button').forEach(button => {
+    button.addEventListener('click', (e) => openEditModal(e.currentTarget.dataset.orderId));
+  });
+
+  // update counts and pagination
+  try { updateStatusCounts(); } catch (e) {}
+  renderPagination(totalPages);
 }
 
 function setupStatusBadges() {
@@ -164,42 +295,8 @@ function applyOrderFilters() {
     });
   }
 
-  const tbody = document.getElementById('ordersTable');
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center">No matching orders</td></tr>';
-    return;
-  }
-  tbody.innerHTML = list.map(order => `
-    <tr data-order-id="${order.order_id}">
-      <td>${order.order_id}</td>
-      <td>${order.name}</td>
-      <td>${order.email}</td>
-      <td><a href="${order.fb_link}" target="_blank">${order.fb_link}</a></td>
-      <td>
-        <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
-        <button class="btn btn-sm btn-success ms-1 edit-order-button" data-order-id="${order.order_id}">Edit</button>
-      </td>
-    </tr>
-  `).join('');
-
-  // wire detail buttons
-  document.querySelectorAll('.details-button').forEach(button => {
-    button.addEventListener('click', (e) => {
-      const orderId = e.target.dataset.orderId;
-      viewDetails(orderId);
-    });
-  });
-
-  // wire edit buttons
-  document.querySelectorAll('.edit-order-button').forEach(button => {
-    button.addEventListener('click', (e) => {
-      const orderId = e.target.dataset.orderId;
-      openEditModal(orderId);
-    });
-  });
-
-  // update status counts after rendering list (counts reflect current data)
-  try { updateStatusCounts(); } catch (e) { /* ignore */ }
+  // render paged results
+  renderOrdersPaged(list);
 }
 
 function viewDetails(orderId) {

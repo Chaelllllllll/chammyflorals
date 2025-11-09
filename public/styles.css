@@ -98,6 +98,22 @@ body {
     .table th, .table td {
       text-align: center;
     }
+    /* Keep action buttons inline on small screens instead of stretching/full-width */
+    .table td > .btn {
+      display: inline-flex;
+      width: auto;
+      white-space: nowrap;
+      vertical-align: middle;
+      margin-bottom: 0;
+    }
+    .table td .btn + .btn {
+      margin-left: .4rem;
+    }
+    @media (max-width: 480px) {
+      /* ensure action buttons remain compact and side-by-side on narrow viewports */
+      .table td > .btn { display: inline-flex; width: auto; }
+      .table td .btn + .btn { margin-left: .35rem; }
+    }
     /* Status badge style: refined professional look */
     :root{
       --badge-bg: #0d6efd; /* primary */
@@ -213,6 +229,24 @@ body {
       /* make the search input shrink to allow dropdown/bell to sit next to it */
       .d-flex > #ordersSearch { flex: 1 1 160px; min-width: 120px; }
     }
+    /* Right-aligned search above orders table: 50% width on desktop, full-width on small screens */
+    .search-input-right {
+      width: 40%;
+      max-width: 720px;
+    }
+    @media (max-width: 768px) {
+      .search-input-right { width: 100%; }
+    }
+    /* Small-screen icon replacement for action buttons */
+    .btn-icon { display: none; vertical-align: middle; }
+    .btn-label { display: inline; }
+    @media (max-width: 576px) {
+      .btn-label { display: none; }
+      .btn-icon { display: inline-block; width: 16px; height: 16px; }
+      /* slightly tighten button padding on very small screens */
+      .table td > .btn { padding: .28rem .5rem; font-size: .85rem; }
+    }
+    .rows-per-page .form-select { min-width: 72px; }
     a {
       color: #d63384;
       text-decoration: none;
