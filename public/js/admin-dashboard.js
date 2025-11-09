@@ -440,9 +440,12 @@ function openEditModal(orderId) {
 
       const onInput = () => {
         const received = parseFloat(amtInput.value);
-        const ok = amtInput.value !== '' && !Number.isNaN(received);
-        if (deliverBtn) deliverBtn.disabled = !ok;
-        const change = (Number.isNaN(received) ? 0 : received) - (Number(order.total_fee) || 0);
+        const total = Number(order.total_fee) || 0;
+        const validNumber = amtInput.value !== '' && !Number.isNaN(received);
+        // Only enable deliver when a valid number is entered AND it's >= total fee
+        const sufficient = validNumber && (received >= total);
+        if (deliverBtn) deliverBtn.disabled = !sufficient;
+        const change = validNumber ? (received - total) : 0;
         changeEl.textContent = `₱${(change < 0 ? 0 : change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       };
 
@@ -457,12 +460,13 @@ function openEditModal(orderId) {
         try {
           const token = localStorage.getItem('adminToken');
           const received = parseFloat(amtInput.value) || 0;
-          const payload = { status: 'Delivered' };
-          payload.message = `${order.message || ''}\n\n[Received: ₱${received.toFixed(2)}]`;
-          const response = await fetch(`/api/admin/orders/${orderId}`, {
-            method: 'PATCH',
+          // send a deliver request that marks the order Delivered and sends the delivered email
+          const receiverNameInput = document.getElementById('cashierReceiverName');
+          const receiverName = receiverNameInput ? (receiverNameInput.value || '').trim() : '';
+          const response = await fetch(`/api/admin/orders/${orderId}/deliver`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ received, receiverName }),
           });
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Failed to mark delivered');

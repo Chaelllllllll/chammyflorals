@@ -63,6 +63,16 @@ function deliveredTemplate(order) {
         <li><strong>Add-ons:</strong> ${escapeHtml(addons)}</li>
         <li><strong>Total Paid:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
       </ul>
+      ${order.message ? `<div style="margin-top:10px;padding:10px;background:#fff6f9;border-radius:6px;color:#333"><strong>Delivery notes:</strong><div style="margin-top:6px">${escapeHtml(order.message)}</div></div>` : ''}
+      ${typeof order.payment_received !== 'undefined' || order.receiver_name ? `
+        <div style="margin-top:10px;padding:10px;background:#f8f9fa;border-radius:6px;color:#333">
+          <strong>Payment details</strong>
+          <div style="margin-top:6px">
+            ${typeof order.payment_received !== 'undefined' ? `<div>Amount received: ₱${escapeHtml(String(Number(order.payment_received).toFixed(2)))}</div>` : ''}
+            ${order.receiver_name ? `<div>Receiver: ${escapeHtml(order.receiver_name)}</div>` : ''}
+          </div>
+        </div>
+      ` : ''}
       <p>Thank you for choosing Chammy Florals. We hope our flowers made the moment special!</p>
       <p style="font-size:0.9em;color:#666">If you have feedback, please reply to this email — we'd love to hear from you.</p>
       <hr />

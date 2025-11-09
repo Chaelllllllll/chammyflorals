@@ -363,6 +363,43 @@ router.patch('/orders/:orderId', auth, async (req, res) => {
   }
 });
 
+// Mark order as delivered and send delivered email without persisting transient delivery data
+router.post('/orders/:orderId/deliver', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { received, receiverName } = req.body || {};
+    // Fetch existing order
+    const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Order not found' });
+
+    // Update status only (do not persist receiverName or payment_received)
+    const { data: updatedRows, error: updateErr } = await supabase.from('orders').update({ status: 'Delivered' }).eq('order_id', orderId).select();
+    if (updateErr) throw updateErr;
+    const updated = (updatedRows && updatedRows[0]) || existing;
+
+    // Send delivered email including transient payment/receiver info (best-effort)
+    try {
+      const templates = require('../lib/email-templates');
+      const mailer = require('../lib/mailer');
+      // Build a shallow copy that includes transient fields for email rendering only
+      const emailOrder = Object.assign({}, updated);
+      if (typeof received !== 'undefined') emailOrder.payment_received = Number(received);
+      if (receiverName) emailOrder.receiver_name = String(receiverName);
+      if (emailOrder && emailOrder.email) {
+        const mail = templates.deliveredTemplate(emailOrder);
+        await mailer.sendMail({ to: emailOrder.email, subject: mail.subject, html: mail.html });
+      }
+    } catch (mailErr) {
+      console.error('Failed to send delivered email (transient):', mailErr);
+    }
+
+    res.json({ message: 'Order marked as Delivered', updated: updated });
+  } catch (err) {
+    console.error('deliver endpoint error:', err);
+    res.status(500).json({ error: 'Failed to mark delivered' });
+  }
+});
+
 // Get audit history for an order
 router.get('/orders/:orderId/audits', auth, async (req, res) => {
   try {
