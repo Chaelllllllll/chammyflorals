@@ -407,6 +407,25 @@ body {
       .report-card .d-flex.flex-column.flex-md-row { gap: 1rem; }
     }
 
+/* Order Summary / Total row styles: keep label on the left and amount on the right
+   without wrapping. Make the divider subtle and consistent with card styling. */
+.report-card .summary-row { border-top: 1px solid rgba(16,24,40,0.06); padding-top: .75rem; }
+/* Make the Total row a true two-column flex: label (left) and amount (right).
+  Label is allowed to shrink and truncate, amount stays fixed and right-aligned. */
+.report-card .summary-inner { display: flex !important; justify-content: space-between; align-items: center; gap: .5rem; width: 100%; }
+.report-card .summary-label { color: #6c6c6c; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.report-card .summary-amount { white-space: nowrap; flex: 0 0 auto; margin-left: 12px; text-align: right; margin-left: auto; }
+
+/* Ensure the summary-row spans the full content width (fixes short divider issue) */
+.report-card .summary-row { display: block; width: 100%; box-sizing: border-box; }
+
+@media (max-width: 420px) {
+  /* On very narrow devices keep the same two-column behaviour but allow the label
+    to take most of the space and force the amount to remain visible on the right. */
+  .report-card .summary-label { font-size: 0.95rem; }
+  .report-card .summary-amount { font-size: 1.05rem; text-align: right;}
+}
+
 /* Reviews thumbnails: ensure cards rendered by JS (card.review-card .card-body.d-flex)
    have a right gap when laid out as a row, and stack/center on narrow screens. */
 .card.review-card .card-body.d-flex .review-thumb-wrap {
