@@ -39,16 +39,33 @@
     <div class="card shadow-sm">
       <div class="card-body">
         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 gap-2">
-          <h2 class="card-title mb-0">Orders List</h2>
-          <div class="d-flex gap-2 w-100 w-md-auto">
+          <h2 class="card-title mb-0">Orders</h2>
+          <div class="d-flex gap-2 w-100 w-md-auto align-items-center">
             <input id="ordersSearch" class="form-control form-control-sm" placeholder="Search by Order ID, name or email">
-            <select id="ordersFilterStatus" class="form-select form-select-sm">
-              <option value="">All statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Processing">Processing</option>
-              <option value="To Receive">To Receive</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            <!-- Mobile notifications: bell dropdown showing statuses and counts -->
+            <div class="dropdown d-md-none ms-2">
+              <button id="notifToggleMobile" class="btn btn-primary btn-sm notif-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z"/>
+                </svg>
+                <span id="notifTotal" class="notif-badge" aria-hidden="true">0</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notifToggleMobile">
+                <li><button class="dropdown-item status-dropdown-item" data-status=""><span>All</span> <span class="badge bg-secondary ms-2" id="ddCountAll">0</span></button></li>
+                <li><button class="dropdown-item status-dropdown-item" data-status="Pending"><span>Pending</span> <span class="badge bg-warning text-dark ms-2" id="ddCountPending">0</span></button></li>
+                <li><button class="dropdown-item status-dropdown-item" data-status="Processing"><span>Processing</span> <span class="badge bg-primary ms-2" id="ddCountProcessing">0</span></button></li>
+                <li><button class="dropdown-item status-dropdown-item" data-status="To Receive"><span>To Receive</span> <span class="badge bg-success ms-2" id="ddCountToReceive">0</span></button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <!-- Status badges moved above the orders list so they're always visible horizontally -->
+        <div class="mb-3 ">
+          <div id="statusBadges" class="d-flex gap-1 flex-wrap justify-content-end w-100" role="toolbar" aria-label="Order status filters">
+            <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All <span class="status-count" id="countAll" data-bs-toggle="tooltip" title="0">0</span></button>
+            <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
+            <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
+            <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
           </div>
         </div>
         <div class="table-responsive">

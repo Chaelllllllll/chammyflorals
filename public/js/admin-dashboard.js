@@ -37,10 +37,12 @@ async function loadOrders() {
     if (response.ok) {
       // keep full orders data in window for detail lookups and filtering
       window.ordersData = orders || [];
-      // initialize filters UI
-      setupOrderFilters();
-      // render initial view (not-delivered)
-      applyOrderFilters();
+        // initialize filters UI and status badges
+        window.orderStatusFilter = '';
+        setupOrderFilters();
+        updateStatusCounts();
+        // render initial view (not-delivered)
+        applyOrderFilters();
     } else {
       showErrorModal(orders.error || 'Failed to load orders');
     }
@@ -52,19 +54,103 @@ async function loadOrders() {
 
 function setupOrderFilters() {
   const search = document.getElementById('ordersSearch');
-  const status = document.getElementById('ordersFilterStatus');
   if (search) {
     search.addEventListener('input', () => applyOrderFilters());
   }
-  if (status) {
-    status.addEventListener('change', () => applyOrderFilters());
+  // setup status badges (replaces status dropdown)
+  setupStatusBadges();
+  // wire mobile dropdown items (if present)
+  const ddItems = document.querySelectorAll('.status-dropdown-item');
+  if (ddItems && ddItems.length) {
+    ddItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        const status = item.dataset.status || '';
+        window.orderStatusFilter = status;
+        // update desktop badge states
+        const container = document.getElementById('statusBadges');
+        if (container) {
+          container.querySelectorAll('.status-badge').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+          const match = container.querySelector(`.status-badge[data-status="${status}"]`);
+          if (match) { match.classList.add('active'); match.setAttribute('aria-pressed', 'true'); }
+        }
+        applyOrderFilters();
+        // hide dropdown (Bootstrap handles, but ensure state)
+        try { bootstrap.Dropdown.getInstance(document.getElementById('notifToggleMobile'))?.hide(); } catch (err) {}
+      });
+    });
   }
+}
+
+function setupStatusBadges() {
+  const container = document.getElementById('statusBadges');
+  if (!container) return;
+  container.querySelectorAll('.status-badge').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      // set aria-pressed and visual active state
+      container.querySelectorAll('.status-badge').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      // save filter and reapply
+      window.orderStatusFilter = btn.dataset.status || '';
+      applyOrderFilters();
+    });
+  });
+  // initialize bootstrap tooltips on the count elements (if bootstrap available)
+  try {
+    container.querySelectorAll('.status-count').forEach(el => {
+      if (el.getAttribute('data-bs-toggle') === 'tooltip') {
+        // dispose existing tooltip if any
+        const existing = bootstrap.Tooltip.getInstance(el);
+        if (existing) existing.dispose();
+        new bootstrap.Tooltip(el, { placement: 'top' });
+      }
+    });
+  } catch (e) { /* bootstrap not available or tooltips already removed */ }
+}
+
+function updateStatusCounts() {
+  const all = window.ordersData || [];
+  // count only non-delivered orders as the table shows not-delivered by default
+  const filtered = all.filter(o => String((o.status || '')).toLowerCase() !== 'delivered');
+  const counts = { All: filtered.length, Pending: 0, Processing: 0, 'To Receive': 0 };
+  filtered.forEach(o => {
+    const s = String(o.status || '');
+    if (s in counts) counts[s] = (counts[s] || 0) + 1;
+  });
+  // update DOM and set full count on title for tooltip/accessibility
+  const fmt = (n) => (typeof n === 'number' && n > 99) ? '99+' : String(n);
+  const setText = (id, n) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const display = fmt(n);
+    el.textContent = display;
+    // set exact value as title so tooltip shows full number when truncated
+    el.setAttribute('title', String(n));
+    // refresh tooltip if present
+    try {
+      const tt = bootstrap.Tooltip.getInstance(el);
+      if (tt) {
+        tt.dispose();
+        new bootstrap.Tooltip(el, { placement: 'top' });
+      }
+    } catch (e) { /* ignore if bootstrap missing */ }
+  };
+  setText('countAll', counts.All);
+  setText('countPending', counts.Pending);
+  setText('countProcessing', counts.Processing);
+  setText('countToReceive', counts['To Receive']);
+  // update mobile dropdown counts and bell total if present
+  try { document.getElementById('ddCountAll').textContent = fmt(counts.All); } catch (e) {}
+  try { document.getElementById('ddCountPending').textContent = fmt(counts.Pending); } catch (e) {}
+  try { document.getElementById('ddCountProcessing').textContent = fmt(counts.Processing); } catch (e) {}
+  try { document.getElementById('ddCountToReceive').textContent = fmt(counts['To Receive']); } catch (e) {}
+  try { document.getElementById('notifTotal').textContent = fmt(counts.All); } catch (e) {}
 }
 
 function applyOrderFilters() {
   const all = window.ordersData || [];
   const searchVal = (document.getElementById('ordersSearch')?.value || '').trim().toLowerCase();
-  const statusVal = (document.getElementById('ordersFilterStatus')?.value || '').trim();
+  const statusVal = (window.orderStatusFilter || '').trim();
   // start with not-delivered
   let list = all.filter(o => String((o.status || '')).toLowerCase() !== 'delivered');
   if (statusVal) {
@@ -111,6 +197,9 @@ function applyOrderFilters() {
       openEditModal(orderId);
     });
   });
+
+  // update status counts after rendering list (counts reflect current data)
+  try { updateStatusCounts(); } catch (e) { /* ignore */ }
 }
 
 function viewDetails(orderId) {
