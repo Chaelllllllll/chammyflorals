@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const flowerSelect = inquiryForm.querySelector('select[name="flower_type"]');
   const addonsContainer = document.getElementById('addonsContainer');
   const defaultAddonsHtml = addonsContainer ? addonsContainer.innerHTML : '';
+  const addonsWrapper = addonsContainer ? addonsContainer.parentElement : null;
+  // hide addons section by default until a product with addons is selected
+  try { if (addonsWrapper) addonsWrapper.style.display = 'none'; } catch (e) {}
   let _productsCache = null;
 
   // Load products once and populate flower type select dynamically
@@ -98,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function onFlowerTypeChange(e) {
     const code = (e.target.value || '').trim();
     if (!code) {
-      // restore defaults
-      if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml;
+      // hide addons area when no product selected
+      try { if (addonsWrapper) addonsWrapper.style.display = 'none'; else if (addonsContainer) addonsContainer.innerHTML = ''; } catch (e) {}
       return;
     }
 
@@ -126,8 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
   if (!match) {
-        // no product match: keep default addons
-        if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml;
+        // no product match: hide addons
+        try { if (addonsWrapper) addonsWrapper.style.display = 'none'; else if (addonsContainer) addonsContainer.innerHTML = ''; } catch (e) {}
         return;
       }
 
@@ -164,14 +167,15 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<div class="form-check"><input type="checkbox" name="addons[]" value="${value}" class="form-check-input"><label class="form-check-label">${escapeHtml(label)}${price ? ` - ${price}` : ''}</label></div>`;
           }).join('');
           addonsContainer.innerHTML = html;
+          try { if (addonsWrapper) addonsWrapper.style.display = ''; } catch (e) {}
         } else {
-          // no product-specific addons: restore default list
-          addonsContainer.innerHTML = defaultAddonsHtml;
+          // no product-specific addons: hide the addons wrapper
+          try { if (addonsWrapper) { addonsWrapper.style.display = 'none'; addonsContainer.innerHTML = ''; } else { addonsContainer.innerHTML = ''; } } catch (e) {}
         }
       }
     } catch (err) {
       console.error('Failed to fetch product info for inquiry:', err);
-      if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml;
+      try { if (addonsWrapper) addonsWrapper.style.display = 'none'; else if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml; } catch (e) {}
     }
   }
 
@@ -228,8 +232,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'order-item d-flex gap-2 align-items-start mb-2';
     row.innerHTML = `
-      <select class="form-select item-flower" name="flower_type_${index}" required>
+      <select class="form-select item-flower" name="flower_type_${index}" required style="min-width:220px;">
         <option value="">Select Flower Type</option>
+      </select>
+      <select class="form-select item-color" name="color_${index}" style="width:180px;" aria-label="Color selection">
+        <option value="">Select Color</option>
       </select>
       <input type="number" class="form-control item-quantity" name="quantity_${index}" min="1" value="1" required style="width:110px;">
       <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="height:38px;">&times;</button>
@@ -237,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectEl = row.querySelector('.item-flower');
     populateItemSelect(selectEl);
     // attach change handler so addons preview updates when item selection changes
-    try { selectEl.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); }); } catch (e) {}
+    try { selectEl.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); populateColorSelectForRow(row); }); } catch (e) {}
     row.querySelector('.remove-item').addEventListener('click', () => {
       if (itemsContainer.children.length <= 1) return; // keep at least one
       row.remove();
@@ -245,6 +252,42 @@ document.addEventListener('DOMContentLoaded', () => {
       computeRushFee();
     });
     return row;
+  }
+
+  function populateColorSelectForRow(row) {
+    try {
+      const select = row.querySelector('.item-flower');
+      const colorSelect = row.querySelector('.item-color');
+      if (!select || !colorSelect) return;
+      const opt = select.selectedOptions && select.selectedOptions[0];
+      const productId = opt && opt.dataset && opt.dataset.productId;
+      // clear
+      colorSelect.innerHTML = '<option value="">Select Color</option>';
+      if (!productId || !_productsCache) return;
+      const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+      if (!prod || !Array.isArray(prod.colors) || !prod.colors.length) return;
+      prod.colors.forEach(c => {
+        let value = c.value || c.hex || c.color || '';
+        // normalize rgb(...) to hex
+        if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
+          const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+          if (m) {
+            const r = Math.max(0, Math.min(255, Number(m[1]||0)));
+            const g = Math.max(0, Math.min(255, Number(m[2]||0)));
+            const b = Math.max(0, Math.min(255, Number(m[3]||0)));
+            value = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+          }
+        }
+        const name = c.name || value || '';
+        const optEl = document.createElement('option');
+        optEl.value = value;
+        // Use a colored bullet in the option and color the bullet by setting option text color.
+        optEl.textContent = `● ${name}`;
+        if (value) optEl.style.color = value;
+        optEl.dataset.colorName = name;
+        colorSelect.appendChild(optEl);
+      });
+    } catch (err) { console.warn('populateColorSelectForRow error', err); }
   }
 
   // ensure initial item has select options populated after products load
@@ -258,7 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialSelects = itemsContainer.querySelectorAll('.item-flower');
     initialSelects.forEach(s => {
       populateItemSelect(s);
-      try { s.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); }); } catch (e) {}
+      try { s.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); populateColorSelectForRow(s.closest('.order-item')); }); } catch (e) {}
+      // populate color select for existing rows
+      const row = s.closest('.order-item');
+      if (row) populateColorSelectForRow(row);
     });
   })();
 
@@ -354,8 +400,13 @@ document.addEventListener('DOMContentLoaded', () => {
     itemRows.forEach((row, i) => {
       const flower = row.querySelector('.item-flower').value;
       const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+      const colorEl = row.querySelector('.item-color');
+      const colorValue = colorEl ? (colorEl.value || '') : '';
+      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
       if (!flower) return;
-      items.push({ flower_type: flower, quantity: qty });
+      const itemObj = { flower_type: flower, quantity: qty };
+      if (colorValue) itemObj.color = { name: colorName, value: colorValue };
+      items.push(itemObj);
     });
     if (!items.length) {
       alert('Please add at least one item to your order');
@@ -467,17 +518,64 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = await response.json();
 
       if (response.ok) {
+        // display a nicer card with a status badge and a simple progress indicator
+        const status = String(result.status || 'Pending');
+        const statusClass = (s) => {
+          switch ((s||'').toLowerCase()) {
+            case 'pending': return 'bg-warning text-dark';
+            case 'processing': return 'bg-primary text-white';
+            case 'to receive': return 'bg-success text-white';
+            case 'delivered': return 'bg-success text-white';
+            case 'cancelled': return 'bg-secondary text-white';
+            default: return 'bg-light text-dark';
+          }
+        };
+
+        // compute progress steps
+        const steps = ['Pending','Processing','To Receive','Delivered'];
+        const activeIndex = steps.findIndex(s => s.toLowerCase() === status.toLowerCase());
+
+        // render steps in a wrapping flex container to avoid overflow on small screens
+        const stepsHtml = steps.map((s,i)=>{
+          const active = i <= activeIndex;
+          return `<div class="d-flex align-items-center">
+            <div class="rounded-circle d-inline-flex justify-content-center align-items-center me-2" style="width:28px;height:28px;${active? 'background:#ff99bb;color:#fff;': 'background:#eee;color:#666;'}">${i+1}</div>
+            <div class="small">${escapeHtml(s)}</div>
+          </div>`;
+        }).join('');
+
         trackResult.innerHTML = `
-          <div class="alert alert-success">
-            <h5>Order Details</h5>
-            <p><strong>Order ID:</strong> ${result.orderId}</p>
-            <p><strong>Name:</strong> ${result.name}</p>
-            <p><strong>Flower Type:</strong> ${result.flower_type}</p>
-            <p><strong>Quantity:</strong> ${result.quantity}</p>
-            <p><strong>Add-ons:</strong> ${result.addons?.length ? result.addons.join(', ') : 'None'}</p>
-            <p><strong>Total Fee:</strong> ₱${result.total_fee}</p>
-            <p><strong>Status:</strong> ${result.status}</p>
-            <p><strong>Order Date:</strong> ${new Date(result.created_at).toLocaleDateString()}</p>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 class="card-title mb-0">Order ${escapeHtml(result.orderId || '')}</h5>
+                  <div class="small text-muted">${escapeHtml(result.name || '')} · ${new Date(result.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="text-end">
+                  <span class="badge ${statusClass(status)} rounded-pill">${escapeHtml(status)}</span>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="small text-muted">Items</div>
+                <div class="mt-2">
+                  <div>${escapeHtml(result.flower_type || '')}</div>
+                  <div class="small text-muted">Quantity: ${escapeHtml(String(result.quantity || '1'))}</div>
+                  <div class="small text-muted">Add-ons: ${result.addons?.length ? escapeHtml(result.addons.join(', ')) : 'None'}</div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <div class="small text-muted">Total Fee</div>
+                <div class="h5">₱${escapeHtml(String(result.total_fee || '0'))}</div>
+              </div>
+
+              <div class="mb-3">
+                <div class="small text-muted mb-2">Order Progress</div>
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                  ${stepsHtml}
+                </div>
+              </div>
+            </div>
           </div>
         `;
       } else {

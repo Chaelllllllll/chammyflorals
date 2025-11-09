@@ -31,13 +31,26 @@ async function renderPageReviews() {
 
     if (!reviews.length) {
       container.innerHTML = '<div class="p-4 text-center text-muted">No reviews yet. Be the first to add one!</div>';
+      // update hero counts
+      try { document.getElementById('reviewsCount').textContent = '0 reviews'; } catch (e) {}
+      try { document.getElementById('reviewsAvg').textContent = '—'; } catch (e) {}
       return;
     }
 
     // sort newest first
     const sorted = reviews.slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+    // update hero summary (count & average)
+    try {
+      const countEl = document.getElementById('reviewsCount');
+      const avgEl = document.getElementById('reviewsAvg');
+      const total = sorted.length;
+      const avg = (sorted.reduce((s, x) => s + (Number(x.stars) || 0), 0) / Math.max(1, total));
+      if (countEl) countEl.textContent = `${total} review${total>1?'s':''}`;
+      if (avgEl) avgEl.textContent = `${Number(avg.toFixed(1))}`;
+    } catch (e) {}
+
     container.innerHTML = sorted.map(r => `
-      <div class="card mb-3 shadow-sm">
+      <div class="card review-card mb-3">
         <div class="card-body d-flex p-3">
           ${r.image_url ? `
             <div class="review-thumb-wrap">
@@ -48,9 +61,9 @@ async function renderPageReviews() {
             <div class="d-flex justify-content-between align-items-start mb-2">
               <div>
                 <strong>${escapeHtml(r.name || 'Customer')}</strong>
-                <div class="small text-muted">${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
+                <div class="review-meta">Order ${escapeHtml(r.order_id || r.orderId || '')} · ${new Date(r.created_at || r.createdAt).toLocaleDateString()}</div>
               </div>
-              <div class="text-warning fs-5">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+              <div class="stars fs-5">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
             </div>
             <p class="mb-0">${escapeHtml(r.message)}</p>
           </div>

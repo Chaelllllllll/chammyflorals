@@ -9,39 +9,116 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-  <!-- Responsive Navbar -->
+<body class="admin-page">
   <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
-        <div class="fw-bold">Chammy Florals</div>
-      </a>
+  <div class="container-fluid d-flex justify-content-between align-items-center">
+    
+    <!-- Brand -->
+    <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
+      <div class="fw-bold">Chammy Florals</div>
+    </a>
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+    <!-- MOBILE: Notification + Hamburger buttons grouped -->
+    <div class="d-flex align-items-center d-lg-none">
+      <button id="globalNotifBtnMobile"
+        class="btn btn-pink btn-sm me-2 p-1 position-relative"
+        title="Notifications (mobile)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+          fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z" />
+        </svg>
+        <span id="globalNotifCountMobile"
+          class="badge bg-danger rounded-pill position-absolute"
+          style="top:-6px;right:-6px;display:none;">0</span>
       </button>
 
-      <div class="collapse navbar-collapse" id="adminNav">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/orders-delivered.html">Delivered Orders</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
-          <li class="nav-item ms-2"><button class="btn btn-pink btn-sm" id="logoutButton">Logout</button></li>
-        </ul>
-      </div>
+      <!-- Hamburger -->
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+        data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false"
+        aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
     </div>
-  </nav>
+
+    <!-- NAV LINKS -->
+    <div class="collapse navbar-collapse" id="adminNav">
+  <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+  <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
+  <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
+  <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
+  <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
+
+        <!-- DESKTOP: Notifications + Logout -->
+        <li class="nav-item ms-2 d-flex align-items-center">
+          <button id="globalNotifBtn"
+            class="btn btn-pink btn-sm me-2 position-relative d-none d-md-inline-block"
+            title="Notifications">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+              fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z" />
+            </svg>
+            <span id="globalNotifCount"
+              class="badge bg-danger rounded-pill position-absolute"
+              style="top:-6px;right:-6px;display:none;">0</span>
+          </button>
+
+          <button class="btn btn-pink btn-sm" id="logoutButton">Logout</button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
 
   <!-- Main Content -->
-  <div class="container mt-5 pt-5">
+  <div class="container pt-5">
+    <!-- Quick metrics -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="card p-3 text-center">
+          <div class="h6 mb-1 text-muted">Total Orders</div>
+          <div id="metricTotalOrders" class="fs-5 fw-bold">0</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card p-3 text-center">
+          <div class="h6 mb-1 text-muted">Pending</div>
+          <div id="metricPending" class="fs-5 fw-bold text-warning">0</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card p-3 text-center">
+          <div class="h6 mb-1 text-muted">Processing</div>
+          <div id="metricProcessing" class="fs-5 fw-bold text-primary">0</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card p-3 text-center">
+          <div class="h6 mb-1 text-muted">To Receive</div>
+          <div id="metricToReceive" class="fs-5 fw-bold text-success">0</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card shadow-sm">
       <div class="card-body">
-  <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
-          <h2 class="card-title mb-0">Orders</h2>
-          <div class="d-flex gap-2 w-100 w-md-auto align-items-center">
-            <!-- Mobile notifications: bell dropdown showing statuses and counts -->
+        <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+          <div>
+            <h2 class="card-title mb-0">Orders</h2>
+            <div class="small text-muted">Manage and search customer orders.</div>
+          </div>
+          <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
+            <!-- Desktop: status pills (right aligned) -->
+            <div id="statusBadges" class="d-flex gap-1 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
+              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All <span class="status-count" id="countAll" data-bs-toggle="tooltip" title="0">0</span></button>
+              <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
+              <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
+              <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
+            </div>
+
+            <!-- Mobile notifications: bell dropdown showing statuses and counts (kept for small screens) -->
             <div class="dropdown d-md-none ms-2">
               <button id="notifToggleMobile" class="btn btn-primary btn-sm notif-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
@@ -58,21 +135,14 @@
             </div>
           </div>
         </div>
-        <!-- Status badges moved above the orders list so they're always visible horizontally -->
         <div class="mb-3">
-          <div id="statusBadges" class="d-flex gap-1 flex-wrap justify-content-end w-100" role="toolbar" aria-label="Order status filters">
-            <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All <span class="status-count" id="countAll" data-bs-toggle="tooltip" title="0">0</span></button>
-            <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
-            <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
-            <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
-          </div>
           <div class="d-flex justify-content-end mb-2 mt-2">
             <!-- Search input moved above orders table for better layout -->
             <input id="ordersSearch" class="form-control form-control-sm search-input-right" placeholder="Search by Order ID, name or email">
           </div>
         </div>
-        <div class="table-responsive">
-          <table class="table minimalist-table">
+          <div class="table-responsive">
+          <table class="table minimalist-table admin-table">
             <thead>
               <tr>
                 <th>Order ID</th>
@@ -204,6 +274,26 @@
     </div>
   </div>
 
+  <!-- Notifications Modal (new orders) -->
+  <div class="modal fade" id="notificationsModal" tabindex="-1" aria-labelledby="notificationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="notificationsModalLabel">New Orders</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="notificationsModalBody">
+          <div id="notificationsList" class="list-group">
+            <!-- JS populates recent new order notifications here -->
+          </div>
+          </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Error Modal -->
   <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -220,6 +310,24 @@
         </div>
       </div>
     </div>
+        <!-- Order Items / Addons Modal placeholder removed from here to ensure it's a top-level modal inserted near the end of the document -->
+  </div>
+
+  <!-- Toast container for new-order toasts -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="notifToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+      <div class="toast-header">
+        <strong class="me-auto">New Orders</strong>
+        <small class="text-muted" id="notifToastTime">just now</small>
+        <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="notifToastBody">
+        You have new orders.
+        <div class="mt-2 pt-1">
+          <button id="notifToastView" type="button" class="btn btn-sm btn-primary">View</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Success Modal -->
@@ -232,6 +340,42 @@
         </div>
         <div class="modal-body" id="successModalContent">
           <!-- Success message will be populated here -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Items / Addons Modal (reusable) -->
+  <div class="modal fade" id="orderItemsModal" tabindex="-1" aria-labelledby="orderItemsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="orderItemsModalLabel">Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="orderItemsModalBody">
+          <!-- populated dynamically with a simple table -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Add-ons Modal (separate from items modal) -->
+  <div class="modal fade" id="orderAddonsModal" tabindex="-1" aria-labelledby="orderAddonsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="orderAddonsModalLabel">Add-ons</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="orderAddonsModalBody">
+          <!-- populated dynamically with add-ons list or checkboxes (in edit mode) -->
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>

@@ -6,6 +6,9 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
 const router = express.Router();
+const fs = require('fs');
+const path = require('path');
+const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state.json');
 
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
 
@@ -119,6 +122,97 @@ router.get('/orders', auth, async (req, res) => {
   }
 });
 
+// Notifications: list recent new orders since a timestamp or since last viewed
+router.get('/notifications', auth, async (req, res) => {
+  try {
+    let since = req.query.since;
+    // If client didn't provide `since`, try to read server-side lastViewed state
+    if (!since) {
+      try {
+        if (fs.existsSync(NOTIF_STATE_FILE)) {
+          const raw = fs.readFileSync(NOTIF_STATE_FILE, 'utf8');
+          const obj = raw ? JSON.parse(raw) : {};
+          if (obj && obj.lastViewed) since = obj.lastViewed;
+          // ensure viewed array exists
+          if (!obj.viewed) obj.viewed = [];
+          // attach obj to request for downstream filtering convenience
+          req._notifState = obj;
+        }
+      } catch (e) {
+        console.warn('Failed to read notification state file:', e && e.message);
+      }
+    }
+
+    // Default to the last 24 hours if no timestamp available
+    if (!since) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      since = d.toISOString();
+    }
+
+    // Query orders created after `since` and which are not yet Delivered
+    const { data, error } = await supabase
+      .from('orders')
+      .select('order_id,name,total_fee,created_at,status,flower_type')
+      .gt('created_at', since)
+      .not('status', 'eq', 'Delivered')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    const state = req._notifState || (fs.existsSync(NOTIF_STATE_FILE) ? JSON.parse(fs.readFileSync(NOTIF_STATE_FILE, 'utf8') || '{}') : {});
+    const viewedSet = new Set((state && state.viewed && Array.isArray(state.viewed)) ? state.viewed : []);
+    const filtered = (data || []).filter(o => !viewedSet.has(o.order_id));
+    res.json({ notifications: filtered, since });
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// Mark notifications as viewed. If body.orderId is provided mark that specific
+// order as viewed; otherwise update lastViewed timestamp (mark all up to now).
+router.post('/notifications/markViewed', auth, async (req, res) => {
+  try {
+    const { orderId } = req.body || {};
+    const dir = path.dirname(NOTIF_STATE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    let state = { lastViewed: null, viewed: [] };
+    try {
+      if (fs.existsSync(NOTIF_STATE_FILE)) {
+        const raw = fs.readFileSync(NOTIF_STATE_FILE, 'utf8') || '{}';
+        state = Object.assign(state, JSON.parse(raw));
+        if (!Array.isArray(state.viewed)) state.viewed = [];
+      }
+    } catch (readErr) {
+      console.warn('Failed to read notification state file (markViewed):', readErr && readErr.message);
+    }
+
+    if (orderId) {
+      // add single order id to viewed list (avoid duplicates)
+      if (!state.viewed.includes(orderId)) state.viewed.push(orderId);
+      try {
+        fs.writeFileSync(NOTIF_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+      } catch (fsErr) {
+        console.warn('Failed to write notification state file (single):', fsErr && fsErr.message);
+      }
+      return res.json({ message: 'Notification marked viewed', orderId });
+    }
+
+    // otherwise, mark lastViewed timestamp to now (legacy behavior)
+    state.lastViewed = new Date().toISOString();
+    try {
+      fs.writeFileSync(NOTIF_STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    } catch (fsErr) {
+      console.warn('Failed to write notification state file (all):', fsErr && fsErr.message);
+    }
+    res.json({ message: 'Notifications marked viewed', lastViewed: state.lastViewed });
+  } catch (err) {
+    console.error('Error marking notifications viewed:', err);
+    res.status(500).json({ error: 'Failed to mark viewed' });
+  }
+});
+
 // Admin: reports endpoint - aggregated sales by day (last 30 days) and month (last 12 months)
 router.get('/reports', auth, async (req, res) => {
   try {
@@ -217,7 +311,7 @@ router.get('/products', auth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,image_path,category,pricing,addons,created_at')
+      .select('id,name,image_url,image_path,category,pricing,addons,colors,created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data || []);
@@ -479,9 +573,9 @@ router.delete('/reviews/:id', auth, async (req, res) => {
 // Create product
 router.post('/products', auth, async (req, res) => {
   try {
-    const { name, image_url, image_path, category, pricing, addons } = req.body;
+    const { name, image_url, image_path, category, pricing, addons, colors } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null };
+    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null };
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -496,10 +590,13 @@ router.post('/products', auth, async (req, res) => {
       }
     }
 
-    // Insert and explicitly request only known columns to avoid schema cache issues
+  // Insert and explicitly request only known columns to avoid schema cache issues
+  console.log('Admin: creating product with payload keys:', Object.keys(record));
+  console.log('Admin: creating product record (preview):', JSON.stringify(record).slice(0,1000));
     try {
-  const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,created_at');
+  const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,created_at');
       if (error) throw error;
+      console.log('Admin: insert result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       return res.json(data[0]);
     } catch (err) {
       console.error('Insert error, attempting minimal fallback:', err);
@@ -570,7 +667,7 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
 router.patch('/products/:id', auth, async (req, res) => {
   try {
   const { id } = req.params;
-  const { name, image_url, image_path, category, pricing, addons } = req.body;
+  const { name, image_url, image_path, category, pricing, addons, colors } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     
@@ -579,6 +676,7 @@ router.patch('/products/:id', auth, async (req, res) => {
     if (category !== undefined) updates.category = category;
     if (pricing !== undefined) updates.pricing = pricing;
     if (addons !== undefined) updates.addons = addons;
+  if (colors !== undefined) updates.colors = colors;
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -594,8 +692,11 @@ router.patch('/products/:id', auth, async (req, res) => {
     }
 
     try {
-      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,created_at');
+      console.log('Admin: updating product id=', id, 'updates keys:', Object.keys(updates));
+      console.log('Admin: updates preview:', JSON.stringify(updates).slice(0,1000));
+      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,created_at');
       if (error) throw error;
+      console.log('Admin: update result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       return res.json(data[0]);
     } catch (err) {
       console.error('Update error, attempting minimal fallback:', err);

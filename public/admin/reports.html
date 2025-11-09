@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="admin-page">
   <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
     <div class="container-fluid">
       <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
@@ -24,7 +24,6 @@
           <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/orders-delivered.html">Delivered Orders</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
           <li class="nav-item ms-2"><button class="btn btn-pink btn-sm" id="logoutButton">Logout</button></li>
         </ul>
@@ -33,51 +32,58 @@
   </nav>
 
   <main class="container my-5">
-    <div class="row mb-3">
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-              <div id="totalRevenue" class="fs-4 fw-bold mt-2">P0</div>
-            </div>
+    <div class="report-header mb-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
+        <div>
+          <h3 class="mb-1">Transactions</h3>
+          <div class="small text-muted">Overview of completed orders and revenue.</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <div class="kpi-card text-center">
+            <div class="kpi-label small text-muted">Total Revenue</div>
+            <div id="totalRevenue" class="kpi-value fs-4 fw-bold">₱0.00</div>
+          </div>
+          <div class="kpi-card text-center">
+            <div class="kpi-label small text-muted">Transactions</div>
+            <div id="totalTransactions" class="kpi-value fs-4 fw-bold">0</div>
+          </div>
+          <!-- Avg Order removed as requested -->
         </div>
       </div>
-      <div class="col-12">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div class="d-flex align-items-center gap-2">
-              <h5 class="mb-0">Transactions</h5>
-              <div class="input-group input-group-sm ms-3">
-                <span class="input-group-text">From</span>
-                <input type="date" id="reportsFrom" class="form-control">
-                <span class="input-group-text">To</span>
-                <input type="date" id="reportsTo" class="form-control">
-              </div>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-              <input id="reportsSearch" class="form-control form-control-sm w-auto" placeholder="Search by Order ID or customer">
-              <select id="reportsPageSize" class="form-select form-select-sm w-auto">
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <button class="btn btn-success btn-sm" id="exportCsvBtn">Export CSV</button>
-            </div>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-striped" id="reportsTable">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Price</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="reportsTbody"></tbody>
-            </table>
-              <div id="reportsPagination" class="mt-2"></div>
-          </div>
+    </div>
+
+    <div class="card p-3 report-card">
+      <div class="reports-toolbar d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-3">
+        <!-- Date filters removed (not required) -->
+        <div></div>
+
+        <div class="d-flex align-items-center gap-2">
+          <input id="reportsSearch" class="form-control form-control-sm" placeholder="Search by Order ID or customer">
+          <select id="reportsPageSize" class="form-select form-select-sm w-auto">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
         </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle admin-table" id="reportsTable">
+          <thead>
+            <tr>
+              <th class="text-start">Order ID</th>
+              <th>Customer</th>
+              <th>Date</th>
+              <th class="text-end">Amount (₱)</th>
+              <th class="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="reportsTbody"></tbody>
+        </table>
+        <nav aria-label="Reports pagination" class="mt-2">
+          <ul class="pagination justify-content-end mb-0" id="reportsPagination"></ul>
+        </nav>
       </div>
     </div>
   </main>

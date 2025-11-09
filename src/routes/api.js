@@ -236,11 +236,19 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
     // Include optional phone and structured items when provided by the client
     if (req.body.phone) orderData.phone = String(req.body.phone).trim();
     if (Array.isArray(req.body.items) && req.body.items.length) {
-      // sanitize items: { flower_type, quantity }
-      orderData.items = req.body.items.map(it => ({
-        flower_type: String(it.flower_type || it.flower || '').trim(),
-        quantity: parseInt(it.quantity || it.qty || 1) || 1,
-      }));
+      // sanitize items: { flower_type, quantity, optional color }
+      orderData.items = req.body.items.map(it => {
+        const flower_type = String(it.flower_type || it.flower || '').trim();
+        const quantity = parseInt(it.quantity || it.qty || 1) || 1;
+        const item = { flower_type, quantity };
+        if (it.color && (it.color.value || it.color.name)) {
+          // sanitize color fields
+          const colorName = String(it.color.name || '').replace(/<[^>]*>?/gm, '').trim();
+          const colorValue = String(it.color.value || it.color.hex || it.color.color || '').trim();
+          item.color = { name: colorName || null, value: colorValue || null };
+        }
+        return item;
+      });
       // also keep backward-compatible summary fields
       orderData.flower_type = orderData.items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
       orderData.quantity = orderData.items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
@@ -568,7 +576,7 @@ router.get('/products', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons')
+      .select('id,name,image_url,category,pricing,addons,colors')
       .order('id', { ascending: true });
     if (error) {
       console.error('Error fetching public products:', error);

@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="admin-page">
   <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
     <div class="container-fluid">
       <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
@@ -25,19 +25,21 @@
           <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
           <li class="nav-item"><a class="nav-link active" href="/admin/reviews.html">Reviews</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/orders-delivered.html">Delivered Orders</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
+          <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
           <li class="nav-item ms-2"><button class="btn btn-pink btn-sm" id="logoutButton">Logout</button></li>
         </ul>
       </div>
     </div>
   </nav>
 
-  <main class="container mt-5 pt-5">
+  <main class="container pt-5">
     <div class="card shadow-sm">
       <div class="card-body">
         <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-3 gap-2">
-          <h2 class="card-title mb-0">Customer Reviews</h2>
+          <div>
+            <h2 class="card-title mb-0">Customer Reviews</h2>
+            <div class="small text-muted">Moderate reviews.</div>
+          </div>
           <div class="d-flex gap-2 w-100 w-md-auto">
             <input id="reviewsSearch" class="form-control form-control-sm" placeholder="Search by Order ID, name or message">
             <select id="reviewsFilterStars" class="form-select form-select-sm">
@@ -52,7 +54,7 @@
         </div>
 
         <div class="table-responsive">
-          <table class="table table-sm align-middle">
+          <table class="table table-sm align-middle admin-table">
             <thead>
               <tr>
                 <th>ID</th>

@@ -16,7 +16,7 @@ async function loadProducts() {
     window._adminProducts = products || [];
     // populate category lists from products + stored categories, then render
     populateCategoryOptions(window._adminProducts);
-    applyProductFilters();
+  applyProductFilters();
     document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', onEdit));
     document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e)=> showDeleteModal(e.currentTarget.dataset.id)));
   } catch (err) {
@@ -368,6 +368,7 @@ function applyProductFilters() {
       <td style="width:120px"><img src="${p.image_url || '/flowers/addons.jfif'}" alt="img" class="product-thumb"></td>
       <td class="text-start">${escapeHtml(p.name)}<div class="small text-muted">${escapeHtml(p.description || '')}</div></td>
       <td>${escapeHtml(p.category || '')}</td>
+      <td>${renderColorsSmall(p)}</td>
       <td>
         <div class="d-flex gap-2 justify-content-center">
           <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Edit">
@@ -418,6 +419,18 @@ function renderPricingSmall(p) {
   return '<span class="text-muted">No pricing</span>';
 }
 
+function renderColorsSmall(p) {
+  if (p.colors && Array.isArray(p.colors) && p.colors.length) {
+    const colors = p.colors.slice(0,3).map(c => {
+      const v = escapeHtml(c.value || c.hex || c.color || '');
+      return `<span title="${escapeHtml(c.name||'')}" style="display:inline-block;width:16px;height:16px;border-radius:50%;background:${v};border:1px solid rgba(0,0,0,0.08);margin-right:4px;vertical-align:middle"></span>`;
+    }).join('');
+    const more = p.colors.length > 3 ? ` <small class="text-muted">+${p.colors.length-3}</small>` : '';
+    return `<div class="d-flex align-items-center justify-content-center">${colors}${more}</div>`;
+  }
+  return '<span class="text-muted">—</span>';
+}
+
 async function onEdit(e) {
   const id = (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id) || (e.target && e.target.dataset && e.target.dataset.id);
   try {
@@ -432,7 +445,7 @@ async function onEdit(e) {
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
     // fill pricing and addons editors
-    try { fillPricingInForm(p.pricing || [], p.addons || []); } catch (err) { console.warn('No pricing/addons to fill', err); }
+  try { fillPricingInForm(p.pricing || [], p.addons || [], p.colors || []); } catch (err) { console.warn('No pricing/addons/colors to fill', err); }
     new bootstrap.Modal(document.getElementById('productModal')).show();
   } catch (err) { showError(err.error || err.message || 'Failed to load product'); }
 }
@@ -466,7 +479,7 @@ document.getElementById('addProductBtn').addEventListener('click', () => {
   document.getElementById('imagePreview').src = '';
   document.getElementById('productCategory').value = '';
   // clear pricing and addons editors
-  try { fillPricingInForm([], []); } catch (e) { /* ignore */ }
+  try { fillPricingInForm([], [], []); } catch (e) { /* ignore */ }
   new bootstrap.Modal(document.getElementById('productModal')).show();
 });
 
@@ -490,8 +503,10 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     // include pricing and addons collected from the modal tables
   const pricing = readPricingFromForm();
     const addons = readAddonsFromForm();
+  const colors = readColorsFromForm();
     if (pricing && pricing.length) payload.pricing = pricing;
     if (addons && addons.length) payload.addons = addons;
+  if (colors && colors.length) payload.colors = colors;
     if (file) {
       // upload file via multipart endpoint to storage to avoid sending base64 in JSON
       const fd = new FormData();
@@ -574,11 +589,92 @@ function createAddonRow(row = {}) {
   return tr;
 }
 
+function createColorRow(row = {}) {
+  const tr = document.createElement('tr');
+  // normalize incoming color value to hex (#rrggbb) if possible
+  function normalizeColorVal(v) {
+    if (!v) return '';
+    v = String(v).trim();
+    // if already hex (# or 3/6 length), return standard 7-char hex
+    if (/^#([0-9a-fA-F]{3})$/.test(v)) {
+      // expand shorthand #abc -> #aabbcc
+      const parts = v.substring(1).split('');
+      return '#' + parts.map(c => c + c).join('').toLowerCase();
+    }
+    if (/^#([0-9a-fA-F]{6})$/.test(v)) return v.toLowerCase();
+    // rgb(...) or rgba(...)
+    const m = v.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+    if (m) {
+      const r = Math.max(0, Math.min(255, Number(m[1]||0)));
+      const g = Math.max(0, Math.min(255, Number(m[2]||0)));
+      const b = Math.max(0, Math.min(255, Number(m[3]||0)));
+      const hex = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+      return hex;
+    }
+    // fallback: return as-is
+    return v;
+  }
+  tr.innerHTML = `
+    ${(() => {
+      const raw = row.value || row.hex || row.color || '';
+      const hex = normalizeColorVal(raw) || '#ffffff';
+    return `<td><div style="width:36px;height:20px;border-radius:4px;border:1px solid #ddd;background:${escapeHtml(hex)}"></div></td>
+    <td><input class="form-control form-control-sm color-name" value="${escapeHtml(row.name||'')}" placeholder="Color name e.g. Blush"></td>
+    <td><input class="form-control form-control-sm color-code" value="${escapeHtml(row.code||hex)}" placeholder="#RRGGBB (auto)"></td>
+    <td><input class="form-control form-control-sm color-value" type="color" value="${escapeHtml(hex)}"></td>`;
+    })()}
+    <td><button type="button" class="btn btn-sm btn-outline-danger remove-color">✕</button></td>
+  `;
+  tr.querySelector('.remove-color').addEventListener('click', () => tr.remove());
+  // live update preview when color or name changes
+  const preview = tr.querySelector('td div');
+  const colorInput = tr.querySelector('.color-value');
+  const codeInput = tr.querySelector('.color-code');
+  colorInput.addEventListener('input', () => { preview.style.background = colorInput.value; });
+  // auto-copy hex value into Code column (readonly) so admin sees hex code for each color
+  colorInput.addEventListener('input', () => { try { if (codeInput) codeInput.value = colorInput.value.toLowerCase(); } catch (e) {} });
+  // when admin types a hex into the Code column, normalize and apply it to the color picker & preview
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      try {
+        let v = String(codeInput.value || '').trim();
+        // strip any non-hex/# characters
+        v = v.replace(/[^0-9a-fA-F#]/g, '');
+        if (v && !v.startsWith('#')) v = '#' + v;
+        // expand 3-digit hex to 6
+        const m3 = v.match(/^#([0-9a-fA-F]{3})$/);
+        if (m3) {
+          const parts = m3[1].split('');
+          v = '#' + parts.map(c => c + c).join('').toLowerCase();
+        }
+        // if 6-digit hex, normalize case
+        const m6 = v.match(/^#([0-9a-fA-F]{6})$/);
+        if (m6) {
+          v = '#' + m6[1].toLowerCase();
+          codeInput.value = v;
+          // apply to color input and preview
+          if (colorInput) {
+            colorInput.value = v;
+            preview.style.background = v;
+          }
+        } else {
+          // keep the user's partial input (without invalid chars)
+          codeInput.value = v;
+        }
+      } catch (err) { /* ignore invalid inputs */ }
+    });
+  }
+  return tr;
+}
+
 document.getElementById('addPricingRow').addEventListener('click', () => {
   document.querySelector('#pricingTable tbody').appendChild(createPricingRow());
 });
 document.getElementById('addAddonRow').addEventListener('click', () => {
   document.querySelector('#addonsTable tbody').appendChild(createAddonRow());
+});
+document.getElementById('addColorRow')?.addEventListener('click', () => {
+  document.querySelector('#colorsTable tbody').appendChild(createColorRow());
 });
 
 function readPricingFromForm() {
@@ -595,7 +691,16 @@ function readAddonsFromForm() {
   return rows.map(r => ({ label: r.querySelector('.addon-label').value.trim(), price: r.querySelector('.addon-price').value.trim() })).filter(x => x.label || x.price);
 }
 
-function fillPricingInForm(pricing = [], addons = []) {
+function readColorsFromForm() {
+  const rows = Array.from(document.querySelectorAll('#colorsTable tbody tr'));
+  return rows.map(r => ({
+    name: r.querySelector('.color-name').value.trim(),
+    code: (r.querySelector('.color-code') ? r.querySelector('.color-code').value.trim() : ''),
+    value: r.querySelector('.color-value').value.trim()
+  })).filter(x => x.name || x.value || x.code);
+}
+
+function fillPricingInForm(pricing = [], addons = [], colors = []) {
   const pbody = document.querySelector('#pricingTable tbody');
   pbody.innerHTML = '';
   pricing.forEach(r => pbody.appendChild(createPricingRow(r)));
@@ -603,6 +708,12 @@ function fillPricingInForm(pricing = [], addons = []) {
   const abody = document.querySelector('#addonsTable tbody');
   abody.innerHTML = '';
   addons.forEach(a => abody.appendChild(createAddonRow(a)));
+  // colors
+  const cbody = document.querySelector('#colorsTable tbody');
+  if (cbody) {
+    cbody.innerHTML = '';
+    (colors || []).forEach(c => cbody.appendChild(createColorRow(c)));
+  }
 }
 
 // When saving product, include pricing and addons as JSON

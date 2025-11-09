@@ -1,11 +1,8 @@
-async function loadReportsData(from, to) {
+async function loadReportsData() {
   const token = localStorage.getItem('adminToken');
   if (!token) return window.location.href = '/admin/login.html';
   try {
-    const qs = [];
-    if (from) qs.push('from=' + encodeURIComponent(from));
-    if (to) qs.push('to=' + encodeURIComponent(to));
-    const url = '/api/admin/reports' + (qs.length ? ('?' + qs.join('&')) : '');
+    const url = '/api/admin/reports';
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) throw new Error('Failed to fetch reports');
     const data = await resp.json();
@@ -18,7 +15,15 @@ async function loadReportsData(from, to) {
 }
 
 function formatPHP(n) {
-  try { return 'P' + Number(n).toLocaleString(); } catch (e) { return 'P0'; }
+  try {
+    // Format as Philippine Peso with two decimals, e.g. ₱1,234.00
+    const num = Number(n) || 0;
+    // Use locale formatting for Philippines if available
+    if (typeof Intl !== 'undefined' && Intl.NumberFormat) {
+      return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 2 }).format(num);
+    }
+    return '₱' + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } catch (e) { return '₱0.00'; }
 }
 
 function renderTable(orders) {
@@ -27,13 +32,18 @@ function renderTable(orders) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">No delivered orders</td></tr>';
     return;
   }
+  const dtf = (d) => {
+    try {
+      return new Intl.DateTimeFormat('en-PH', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(d));
+    } catch (e) { return new Date(d).toLocaleDateString(); }
+  };
   tbody.innerHTML = orders.map(o => `
     <tr data-order-id="${o.order_id || ''}">
-      <td>${o.order_id || '—'}</td>
+      <td class="text-start">${o.order_id || '—'}</td>
       <td>${o.name || '—'}</td>
-      <td>${o.created_at ? new Date(o.created_at).toLocaleDateString() : '—'}</td>
-      <td>${formatPHP(o.total_fee)}</td>
-      <td><button class="btn btn-sm btn-danger reports-delete" data-order-id="${o.order_id || ''}">Delete</button></td>
+      <td>${o.created_at ? dtf(o.created_at) : '—'}</td>
+      <td class="text-end">${formatPHP(o.total_fee)}</td>
+      <td class="actions"><button class="btn btn-sm btn-outline-danger reports-delete" data-order-id="${o.order_id || ''}">Delete</button></td>
     </tr>
   `).join('');
 
@@ -57,37 +67,36 @@ function renderPage(orders, page=1, pageSize=10) {
   renderTable(chunk);
   const pager = document.getElementById('reportsPagination');
   if (pager) {
-    pager.innerHTML = `
-      <div class="d-flex align-items-center justify-content-between">
-        <div class="small text-muted">Showing ${start+1}-${Math.min(start+chunk.length, total)} of ${total}</div>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary me-2" id="reportsPrev">Prev</button>
-          <span class="mx-2">Page ${p} / ${pages}</span>
-          <button class="btn btn-sm btn-outline-secondary ms-2" id="reportsNext">Next</button>
-        </div>
-      </div>
-    `;
-    document.getElementById('reportsPrev').addEventListener('click', () => {
-      if (p > 1) renderPage(orders, p-1, pageSize);
-    });
-    document.getElementById('reportsNext').addEventListener('click', () => {
-      if (p < pages) renderPage(orders, p+1, pageSize);
+    // build bootstrap pagination
+    let html = `<li class="page-item ${p===1?'disabled':''}"><button class="page-link" data-page="${p-1}" aria-label="Previous">&laquo;</button></li>`;
+    const visible = 5; // show up to 5 page buttons
+    const startPage = Math.max(1, Math.min(p - Math.floor(visible/2), pages - visible + 1));
+    const endPage = Math.min(pages, startPage + visible - 1);
+    for (let i = startPage; i <= endPage; i++) {
+      html += `<li class="page-item ${i===p?'active':''}"><button class="page-link" data-page="${i}">${i}</button></li>`;
+    }
+    html += `<li class="page-item ${p===pages?'disabled':''}"><button class="page-link" data-page="${p+1}" aria-label="Next">&raquo;</button></li>`;
+    pager.innerHTML = html;
+    pager.querySelectorAll('.page-link').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = Number(e.currentTarget.dataset.page || p);
+        if (!isNaN(target) && target >=1 && target <= pages) renderPage(orders, target, pageSize);
+      });
     });
   }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const fromInput = document.getElementById('reportsFrom');
-  const toInput = document.getElementById('reportsTo');
   const pageSizeSelect = document.getElementById('reportsPageSize');
-  const exportBtn = document.getElementById('exportCsvBtn');
 
-  const fromVal = fromInput ? fromInput.value : '';
-  const toVal = toInput ? toInput.value : '';
-  const data = await loadReportsData(fromVal, toVal);
+  const data = await loadReportsData();
   if (!data) return;
   const totalEl = document.getElementById('totalRevenue');
   totalEl.textContent = formatPHP(data.total_revenue || 0);
+  // populate KPI numbers
+  const totalTxEl = document.getElementById('totalTransactions');
+  const ordersList = (data.orders || []);
+  if (totalTxEl) totalTxEl.textContent = String(ordersList.length || 0);
   // keep a local copy for search/filter
   window.reportsOrders = (data.orders || []).slice().sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
   const pageSize = pageSizeSelect ? Number(pageSizeSelect.value) || 10 : 10;
@@ -102,27 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderPage(filtered, 1, ps);
     });
   }
-  // date filters
-  if (fromInput) {
-    fromInput.addEventListener('change', async () => {
-      const data2 = await loadReportsData(fromInput.value, toInput ? toInput.value : '');
-      if (!data2) return;
-      document.getElementById('totalRevenue').textContent = formatPHP(data2.total_revenue || 0);
-      window.reportsOrders = (data2.orders || []).slice().sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
-      const ps = pageSizeSelect ? Number(pageSizeSelect.value) || 10 : 10;
-      renderPage(window.reportsOrders, 1, ps);
-    });
-  }
-  if (toInput) {
-    toInput.addEventListener('change', async () => {
-      const data2 = await loadReportsData(fromInput ? fromInput.value : '', toInput.value);
-      if (!data2) return;
-      document.getElementById('totalRevenue').textContent = formatPHP(data2.total_revenue || 0);
-      window.reportsOrders = (data2.orders || []).slice().sort((a,b)=> new Date(b.created_at)-new Date(a.created_at));
-      const ps = pageSizeSelect ? Number(pageSizeSelect.value) || 10 : 10;
-      renderPage(window.reportsOrders, 1, ps);
-    });
-  }
+  // removed date filters (not used)
   // page size change
   if (pageSizeSelect) {
     pageSizeSelect.addEventListener('change', () => {
@@ -130,31 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderPage(window.reportsOrders, 1, ps);
     });
   }
-  // export CSV
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
-      const rows = window.reportsOrders || [];
-      if (!rows.length) return alert('No orders to export');
-      const headers = ['order_id','name','created_at','total_fee'];
-      const csv = [headers.join(',')].concat(rows.map(r => {
-        return [
-          '"' + (r.order_id || '') + '"',
-          '"' + (r.name || '') + '"',
-          '"' + (r.created_at || '') + '"',
-          (r.total_fee || 0)
-        ].join(',');
-      })).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'orders-report.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
-  }
+  // export buttons removed as requested
   // confirm delete button (present from dashboard.html shared modal)
   const confirmBtn = document.getElementById('confirmDeleteButton');
   if (confirmBtn) {

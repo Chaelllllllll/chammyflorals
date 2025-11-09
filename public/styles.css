@@ -3,12 +3,33 @@ body {
       color: #5a4a4a;
       font-family: 'Poppins', sans-serif;
     }
+    /* Admin navbar: cleaner, professional appearance */
     .navbar {
-      background-color: #ffcce1;
+      background-color: #ffffff; /* crisp white */
+      border-bottom: 1px solid rgba(16,24,40,0.06);
+      padding-top: .6rem;
+      padding-bottom: .6rem;
     }
     .navbar-brand {
-      font-weight: bold;
-      color: #5a3b4e !important;
+      font-weight: 700;
+      color: #3a2b33 !important;
+      letter-spacing: .2px;
+    }
+    .navbar .nav-link {
+      color: #5b4952 !important;
+      padding: .45rem .6rem;
+      font-weight: 600;
+      opacity: .92;
+    }
+    .navbar .nav-link:hover { color: #d63384 !important; opacity: 1; }
+    .navbar .nav-link.active {
+      color: #ff6f9b !important;
+      background: rgba(255,111,155,0.06);
+      border-radius: 8px;
+    }
+    /* compact navbar brand for small screens */
+    @media (max-width: 576px) {
+      .navbar-brand { font-size: 0.98rem; }
     }
     .section-title {
       color: #d63384;
@@ -42,6 +63,15 @@ body {
     }
     .btn-pink:hover {
       background-color: #ff5588;
+    }
+    .text-pink { color: #ff6f9b !important; }
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border: 1px solid #ff6f9b;
+      background: transparent;
+    }
+    .btn-outline-pink:hover {
+      background: rgba(255,111,155,0.08);
     }
     footer {
       background-color: #ffcce1;
@@ -265,4 +295,113 @@ body {
         .review-thumb-wrap { width: 70px; height: 70px; margin-right: 1; margin-bottom: 12px; align-self: center; }
       }
     
+      /* Admin page refinements */
+      .admin-page .card-title { font-size: 1.1rem; font-weight: 700; }
+      .admin-page .small.text-muted { color: #6c6c6c; }
+      /* compact table on small screens: reduce padding and allow action buttons to wrap */
+      @media (max-width: 576px) {
+        .table td, .table th { padding: .45rem .5rem; font-size: .9rem; }
+        .table-responsive { overflow-x: auto; }
+        .table td > .d-flex { gap: .35rem; }
+      }
+      /* metric cards */
+      .metric-card { border-radius: 10px; padding: 12px; background: linear-gradient(180deg,#fff,#fffafc); }
+      .metric-card .h6 { color: #6c6c6c; }
+      /* Admin table refinements: professional, compact, readable */
+      .admin-page .admin-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        background: transparent;
+        width: 100%;
+      }
+  .admin-page .table-responsive { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .admin-page .admin-table thead th {
+        background: linear-gradient(180deg, #ffffff, #fff6f9);
+        border-bottom: 1px solid rgba(16,24,40,0.06);
+        color: #5b4952;
+        font-weight: 700;
+        font-size: .9rem;
+        text-transform: none;
+      }
+      .admin-page .admin-table tbody tr {
+        background: #fffafc;
+        transition: background .12s ease, transform .06s ease;
+      }
+      .admin-page .admin-table tbody tr:nth-of-type(odd) { background: #fff6f8; }
+      .admin-page .admin-table tbody tr:hover {
+        background: #fff1f6;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(15,23,42,0.04);
+      }
+      .admin-page .admin-table td, .admin-page .admin-table th {
+        padding: .6rem .75rem;
+        vertical-align: middle;
+        color: #4f3f45;
+      }
+      /* Actions column: keep compact and right-aligned */
+      .admin-page .admin-table td.actions, .admin-page .admin-table th.actions { text-align: center; white-space: nowrap; }
+      /* Keep table layout on small screens but allow horizontal scrolling
+         We prefer a scrollable table (consistent layout) rather than converting to stacked cards. */
+      @media (max-width: 768px) {
+        .admin-page .admin-table thead { display: table-header-group; }
+        .admin-page .admin-table tbody tr { display: table-row; }
+        .admin-page .admin-table tbody td { display: table-cell; padding: .45rem .6rem; border-bottom: none; }
+        .admin-page .admin-table th, .admin-page .admin-table td { white-space: nowrap; }
+        /* Slightly reduce padding for compactness on small screens */
+        .admin-page .admin-table td, .admin-page .admin-table th { padding: .45rem .5rem; font-size: .92rem; }
+        /* Ensure the responsive wrapper allows scrolling and shows a subtle scrollbar on desktops */
+        .admin-page .table-responsive { overflow-x: auto; }
+      }
+
+      /* Reports page specific toolbar and metric styles */
+  .report-header h3 { font-size: 1.25rem; font-weight: 700; color: #222; }
+  .reports-toolbar { gap: .5rem; }
+  .reports-toolbar .form-control, .reports-toolbar .form-select { min-width: 160px; }
+  /* KPI cards */
+  .kpi-card { min-width: 140px; padding: 10px 14px; border-radius: 8px; background: linear-gradient(180deg,#fff,#fbfbfc); border: 1px solid rgba(16,24,40,0.04); }
+  .report-header .kpi-card { flex: 1 1 140px; }
+  .kpi-label { color: #6c6c6c; font-weight: 600; }
+  .kpi-value { color: #ff6f9b; }
+  /* Report card: clean white surface with subtle border for a corporate look */
+  .report-card { background: #ffffff; border: 1px solid rgba(16,24,40,0.06); box-shadow: 0 6px 20px rgba(15,23,42,0.04); }
+  /* Primary export button: conservative business blue */
+  #exportBtnPrimary { background: linear-gradient(180deg,#0d6efd,#0b5ed7); color: #fff; border: none; }
+  #exportBtnPrimary:hover { filter: brightness(.96); }
+  .reports-toolbar .btn-sm { min-height: 34px; }
+  .fa-download { font-size: .9rem; }
+  /* Table header refinement */
+  .admin-page .admin-table thead th { background: #ffffff; border-bottom: 1px solid rgba(16,24,40,0.06); }
+  .admin-page .admin-table tbody td { color: #333; }
+  .admin-page .admin-table tbody tr:hover { transform: none; box-shadow: 0 6px 18px rgba(15,23,42,0.03); background: #fffafc; }
+  /* Pagination tweaks */
+  .pagination .page-link { color: #ff6f9b; }
+  .pagination .page-item.active .page-link { background: #ff6f9b; border-color: #ff6f9b; }
+      @media (max-width: 768px) {
+        .reports-toolbar { flex-direction: column; align-items: stretch; }
+        .report-header .d-flex { width: 100%; justify-content: space-between; }
+        .report-header .kpi-card { width: 100%; }
+        .reports-toolbar .d-flex { width: 100%; justify-content: space-between; }
+        .reports-toolbar .form-control { width: 100%; }
+      }
+
+    /* Order success specific tweaks: make action buttons full width on small screens */
+    @media (max-width: 576px) {
+      .report-card .btn { width: 100%; }
+      .report-card .btn + .btn { margin-top: .5rem; }
+    }
+    /* Ensure the Order Success action column does not force horizontal overflow
+       and becomes full-width on small screens. Keep a comfortable min-width on
+       medium+ screens for nicer layout. */
+    .order-actions { min-width: 200px; }
+    @media (max-width: 768px) {
+      /* allow action column to shrink and wrap on narrow tablets */
+      .order-actions { min-width: 160px; }
+    }
+    @media (max-width: 576px) {
+      .order-actions { min-width: 0 !important; width: 100%; }
+      /* ensure action buttons stretch full width and spacing is clear */
+      .order-actions .btn { width: 100%; }
+      .order-actions .btn + .btn { margin-top: .5rem; }
+      .report-card .d-flex.flex-column.flex-md-row { gap: 1rem; }
+    }
     
