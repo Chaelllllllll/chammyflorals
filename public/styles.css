@@ -292,7 +292,9 @@ body {
       .card-body.d-flex { align-items: flex-start; }
       @media (max-width: 767px) {
         .review-card-row { flex-direction: column; }
-        .review-thumb-wrap { width: 70px; height: 70px; margin-right: 1; margin-bottom: 12px; align-self: center; }
+        /* on narrow screens ensure the thumbnail keeps reasonable spacing from the text
+           (the original `margin-right: 1` was missing units and had no effect) */
+        .review-thumb-wrap { width: 70px; height: 70px; margin-right: 12px; margin-bottom: 12px; align-self: center; }
       }
     
       /* Admin page refinements */
@@ -404,4 +406,30 @@ body {
       .order-actions .btn + .btn { margin-top: .5rem; }
       .report-card .d-flex.flex-column.flex-md-row { gap: 1rem; }
     }
+
+/* Reviews thumbnails: ensure cards rendered by JS (card.review-card .card-body.d-flex)
+   have a right gap when laid out as a row, and stack/center on narrow screens. */
+.card.review-card .card-body.d-flex .review-thumb-wrap {
+  margin-right: 12px;
+  flex: 0 0 auto;
+}
+@media (max-width: 767px) {
+  /* Keep the thumbnail before the details on narrow screens by allowing the
+     flex row to wrap instead of forcing column. Left-align the thumb and give
+     the content room to shrink/grow. */
+  .card.review-card .card-body.d-flex {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .card.review-card .card-body.d-flex .review-thumb-wrap {
+    width: 72px !important;
+    height: 72px !important;
+    margin: 0 12px 10px 0; /* keep it to the left of details */
+    align-self: flex-start;
+  }
+  .card.review-card .card-body.d-flex .flex-grow-1 {
+    flex: 1 1 0%;
+    min-width: 0; /* allow overflow handling and proper text wrapping */
+  }
+}
     
