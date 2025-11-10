@@ -814,9 +814,18 @@ function openOrderAddonsModal(order, editable = false) {
     // object: prefer {label,name,value}
     try {
       if (typeof a === 'object') {
-        if (a.label) return String(a.label);
-        if (a.name) return String(a.name);
-        if (a.value) return String(a.value);
+        // If addon object has a label and possibly a price, construct the
+        // same display string the public form uses so comparisons match.
+        const label = a.label || a.name || a.value || '';
+        if (label) {
+          // append price if present so the final string equals what the
+          // customer-side checkbox value contained (e.g. "Card - ₱50").
+          const price = (typeof a.price !== 'undefined' && a.price !== null) ? Number(a.price) : null;
+          if (!Number.isNaN(price) && price !== null) {
+            return String(label) + ' - ₱' + Number(price).toLocaleString();
+          }
+          return String(label);
+        }
         // if object has a toString that isn't [object Object], use it
         const ts = a.toString && a.toString();
         if (ts && ts !== '[object Object]') return ts;
