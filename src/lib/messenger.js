@@ -132,7 +132,7 @@ async function notifyCustomer(order) {
     lines.push(`Order ID: ${id}`);
     lines.push(`Status: ${status}`);
     if (total) lines.push(`Total: ${total}`);
-    if (trackUrl) lines.push(`View: ${trackUrl}`);
+    if (trackUrl) lines.push(`\nInfo: ${trackUrl}`);
     const text = lines.join('\n');
     return await sendToPsid(psid, text);
   } catch (err) {
