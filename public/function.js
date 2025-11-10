@@ -230,19 +230,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function createItemRow(index) {
     const row = document.createElement('div');
-    row.className = 'order-item d-flex gap-2 align-items-start mb-2';
+    row.className = 'order-item mb-2';
     row.innerHTML = `
-      <select class="form-select item-flower" name="flower_type_${index}" required style="min-width:220px;">
-        <option value="">Select Flower Type</option>
-      </select>
-      <select class="form-select item-color" name="color_${index}" style="width:180px;" aria-label="Color selection">
-        <option value="">Select Color</option>
-      </select>
-      <input type="number" class="form-control item-quantity" name="quantity_${index}" min="1" value="1" required style="width:110px;">
-      <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="height:38px;">&times;</button>
+      <div class="item-controls d-flex align-items-center gap-2 w-100">
+        <select class="form-select item-flower" name="flower_type_${index}" required>
+          <option value="">Select Flower Type</option>
+        </select>
+        <select class="form-select item-color" name="color_${index}" aria-label="Color selection">
+          <option value="">Select Color</option>
+        </select>
+        <input type="number" class="form-control item-quantity" name="quantity_${index}" min="1" value="1" required>
+        <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
+      </div>
     `;
     const selectEl = row.querySelector('.item-flower');
-    populateItemSelect(selectEl);
+  populateItemSelect(selectEl);
+    // ensure color select is populated shortly after creation (handles async product cache)
+    setTimeout(() => {
+      try { populateColorSelectForRow(row); } catch (e) {}
+      try {
+        // if options not yet present because products cache was empty, attempt populate again
+        if (selectEl && selectEl.options && selectEl.options.length <= 1 && typeof loadProductsForInquiry === 'function') {
+          loadProductsForInquiry().then(() => populateItemSelect(selectEl)).catch(() => {});
+        }
+      } catch (e) {}
+    }, 40);
     // attach change handler so addons preview updates when item selection changes
     try { selectEl.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); populateColorSelectForRow(row); }); } catch (e) {}
     row.querySelector('.remove-item').addEventListener('click', () => {
@@ -387,6 +399,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Build data object explicitly to support multiple items
     const data = {};
     const form = e.target;
+
+    // run HTML5 validation (form has `novalidate` so we invoke reportValidity manually)
+    try {
+      if (typeof form.reportValidity === 'function') {
+        if (!form.reportValidity()) return; // user will see which fields are missing/invalid
+      } else if (!form.checkValidity || !form.checkValidity()) {
+        return;
+      }
+    } catch (valErr) { /* ignore validation errors and continue; we'll still validate required fields below */ }
     data.user_name = form.querySelector('input[name="user_name"]').value;
     data.user_email = form.querySelector('input[name="user_email"]').value;
     data.fb_link = form.querySelector('input[name="fb_link"]').value;
@@ -418,6 +439,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // For backwards-compatibility keep flower_type and quantity as summary
     data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
     data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
+    // Include client-side timestamps so orders can preserve user's local time
+    try {
+      const now = new Date();
+      // UTC ISO (legacy/canonical)
+      data.created_at = now.toISOString();
+      // human-friendly local string for visibility
+      data.created_at_local = now.toLocaleString();
+      // numeric offset in minutes (local -> UTC)
+      data.tz_offset_minutes = now.getTimezoneOffset();
+      // local ISO-like value (YYYY-MM-DDTHH:MM:SS) — this reflects the user's OS local time
+      const pad = (n) => String(n).padStart(2, '0');
+      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    } catch (e) { /* ignore */ }
 
     try {
       // show loading state

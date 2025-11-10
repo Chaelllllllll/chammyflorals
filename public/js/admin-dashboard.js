@@ -193,9 +193,11 @@ function renderOrdersPaged(list) {
         <td>${order.name}</td>
         <td>${order.email}</td>
         <td><a href="${order.fb_link}" target="_blank">${order.fb_link}</a></td>
-        <td>
-          <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
-          <button class="btn btn-sm btn-success ms-1 edit-order-button" data-order-id="${order.order_id}">Edit</button>
+        <td class="actions">
+          <div class="d-flex justify-content-end align-items-center" style="gap:.5rem;">
+            <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
+            <button class="btn btn-sm btn-success edit-order-button" data-order-id="${order.order_id}">Edit</button>
+          </div>
         </td>
       </tr>
     `).join('');
@@ -212,6 +214,35 @@ function renderOrdersPaged(list) {
   // update counts and pagination
   try { updateStatusCounts(); } catch (e) {}
   renderPagination(totalPages);
+}
+
+// Robust datetime formatter: accepts numbers (seconds or ms) or ISO strings
+function formatDateTime(v) {
+  if (v == null) return '';
+  try {
+    let d;
+    if (typeof v === 'number') {
+      d = new Date(v > 1e12 ? v : v * 1000);
+    } else if (typeof v === 'string' && /^\d+$/.test(v.trim())) {
+      const n = Number(v.trim());
+      d = new Date(n > 1e12 ? n : n * 1000);
+    } else {
+      d = new Date(v);
+    }
+    if (isNaN(d.getTime())) return String(v);
+    return d.toLocaleString();
+  } catch (e) { return String(v); }
+}
+
+// Convert ISO/Date-ish value to a value suitable for <input type="datetime-local"> (local time)
+function toDateTimeLocal(v) {
+  if (v == null) return '';
+  try {
+    const d = new Date(v);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) { return ''; }
 }
 
 function setupStatusBadges() {
@@ -318,6 +349,15 @@ function applyOrderFilters() {
     });
   }
 
+  // sort by order date/time: newest first (descending)
+  try {
+    list.sort((a, b) => {
+      const ta = new Date(a.created_at || a.createdAt || 0).getTime() || 0;
+      const tb = new Date(b.created_at || b.createdAt || 0).getTime() || 0;
+      return tb - ta; // newest first
+    });
+  } catch (e) { /* if dates invalid, leave original order */ }
+
   // render paged results
   renderOrdersPaged(list);
 }
@@ -362,20 +402,25 @@ function viewDetails(orderId) {
   }
   const hasAddonsAvailable = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || orderHasProductsWithAddons(order);
 
+  // compute total quantity (sum of items when available)
+  const totalQty = (order.items && Array.isArray(order.items) && order.items.length)
+    ? order.items.reduce((s, it) => s + (Number(it.quantity || it.qty || 1) || 0), 0)
+    : (Number(order.quantity) || 0);
+
   modalContent.innerHTML = `
     <p><strong>Order ID:</strong> ${order.order_id}</p>
     <p><strong>Name:</strong> ${order.name}</p>
     <p><strong>Email:</strong> ${order.email}</p>
     <p><strong>Facebook Link:</strong> <a href="${order.fb_link}" target="_blank">${order.fb_link}</a></p>
   <p><strong>Flower Type:</strong> ${escapeHtml(order.flower_type || '')} ${hasAnyItems ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-items-btn" data-order-id="${order.order_id}">View</button>` : ''}</p>
-    <p><strong>Quantity:</strong> ${escapeHtml(String(order.quantity || ''))}</p>
+    <p><strong>Quantity:</strong> ${escapeHtml(String(totalQty))}</p>
     <!-- Inline items and color details intentionally omitted; use the View button to open the Items modal -->
   <p><strong>Add-ons:</strong> ${order.addons?.length ? escapeHtml(order.addons.join(', ')) : 'None'} ${hasAddonsAvailable ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-addons-btn" data-order-id="${order.order_id}">View</button>` : ''}</p>
     <p><strong>Message:</strong> ${escapeHtml(order.message || 'Not provided')}</p>
     <p><strong>Rush Order:</strong> ${escapeHtml(order.rush || '')}</p>
     <p><strong>Total Fee:</strong> ₱${escapeHtml(String(order.total_fee || '0'))}</p>
     <p><strong>Status:</strong> ${escapeHtml(order.status || '')}</p>
-    <p><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</p>
+    <p><strong>Order Date:</strong> ${escapeHtml(formatDateTime(order.created_at || order.createdAt || Date.now()))}</p>
   `;
 
   // wire the view items buttons inside the details view (if any)
@@ -658,11 +703,45 @@ function openOrderItemsModal(order, editable = false) {
           const editItemsInput = document.getElementById('editItemsJson');
           if (editItemsInput) editItemsInput.value = JSON.stringify(newItems);
 
-          // update in-memory ordersData
+          // update in-memory ordersData and also update top-level flower_type and quantity
           if (order && window.ordersData) {
             const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
-            if (idx !== -1) window.ordersData[idx].items = newItems;
+            if (idx !== -1) {
+              window.ordersData[idx].items = newItems;
+              // compute a sensible top-level flower_type summary
+              if (Array.isArray(newItems) && newItems.length === 1) {
+                window.ordersData[idx].flower_type = newItems[0].flower_type || '';
+              } else if (Array.isArray(newItems) && newItems.length > 1) {
+                window.ordersData[idx].flower_type = newItems.map(it => `${it.flower_type || ''}${it.quantity ? ' x' + it.quantity : ''}`).join('; ');
+              } else {
+                window.ordersData[idx].flower_type = '';
+              }
+              // update top-level quantity as the sum of item quantities
+              const totalQty = (newItems || []).reduce((s,it) => s + (Number(it.quantity || it.qty || 1) || 0), 0);
+              window.ordersData[idx].quantity = totalQty;
+              // reflect changes in the current `order` reference as well
+              try { order.items = newItems; order.flower_type = window.ordersData[idx].flower_type; order.quantity = totalQty; } catch (e) {}
+            }
           }
+
+          // update any open edit form inputs so they reflect the saved values immediately
+          try {
+            const editFormFlower = document.querySelector('#orderDetailsContent input[name="flower_type"]');
+            const editFormQty = document.querySelector('#orderDetailsContent input[name="quantity"]');
+            if (editFormFlower) editFormFlower.value = window.ordersData?.find(o=>o.order_id===order.order_id)?.flower_type || '';
+            if (editFormQty) editFormQty.value = String(window.ordersData?.find(o=>o.order_id===order.order_id)?.quantity || '0');
+            // also update the hidden editItemsJson if present (again)
+            const hidden = document.getElementById('editItemsJson'); if (hidden) hidden.value = JSON.stringify(newItems);
+          } catch (e) { /* ignore */ }
+
+          // If the readonly details modal is open, re-render it so the admin sees edits immediately
+          try {
+            const modalEl = document.getElementById('orderDetailsModal');
+            if (modalEl) {
+              // re-render the details modal with the updated `order` data
+              try { showOrderDetails(order); } catch (e) { /* ignore */ }
+            }
+          } catch (e) { /* ignore */ }
 
           try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { console.warn(e); }
         });
@@ -821,6 +900,9 @@ function openEditModal(orderId) {
   // Populate a simple edit form inside the details modal
   const modalContent = document.getElementById('orderDetailsContent');
   const hasAnyItems = order.items && Array.isArray(order.items) && order.items.length >= 1;
+  const totalQty = (order.items && Array.isArray(order.items) && order.items.length)
+    ? order.items.reduce((s, it) => s + (Number(it.quantity || it.qty || 1) || 0), 0)
+    : (Number(order.quantity) || 1);
   // detect whether any of the order's items map to products that have add-ons
   const hasAddonsAvailable = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || (function() {
     try {
@@ -854,7 +936,7 @@ function openEditModal(orderId) {
           ${hasAnyItems ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-items-btn" data-order-id="${order.order_id}">View</button>` : ''}
         </div>
       </div>
-      <div class="mb-2"><label class="form-label">Quantity</label><input type="number" class="form-control" name="quantity" value="${order.quantity || 1}"></div>
+  <div class="mb-2"><label class="form-label">Quantity</label><input type="number" class="form-control" name="quantity" value="${totalQty}"></div>
       <div class="mb-2"><label class="form-label">Add-ons (comma separated)</label>
         <div class="d-flex align-items-start">
           <input class="form-control" name="addons" value="${(order.addons && order.addons.join(', ')) || ''}" readonly>
@@ -872,6 +954,9 @@ function openEditModal(orderId) {
           <option ${order.status==='To Receive' ? 'selected' : ''}>To Receive</option>
           <option ${order.status==='Cancelled' ? 'selected' : ''}>Cancelled</option>
         </select>
+      </div>
+      <div class="mb-2"><label class="form-label">Order Date</label>
+        <input type="datetime-local" class="form-control" name="created_at" value="${escapeHtml(toDateTimeLocal(order.created_at || order.createdAt || Date.now()))}">
       </div>
       
     </form>

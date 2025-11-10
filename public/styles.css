@@ -426,6 +426,58 @@ body {
   .report-card .summary-amount { font-size: 1.05rem; text-align: right;}
 }
 
+/* Order form item row layout: keep fields aligned and prevent selects from stretching
+   to full width inside the row. Provide sensible defaults and responsive behavior. */
+.order-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.order-item .item-flower {
+  flex: 1 1 0%; /* allow the flower select to take remaining space */
+  min-width: 0;
+}
+.order-item .item-color {
+  flex: 0 0 160px;
+  min-width: 100px;
+}
+.order-item .item-quantity {
+  flex: 0 0 90px;
+  min-width: 60px;
+}
+.order-item .remove-item {
+  flex: 0 0 38px;
+}
+/* Prevent Bootstrap's .form-select/.form-control from forcing 100% width inside order-item */
+.order-item .form-select,
+.order-item .form-control {
+  width: auto !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure the controls inside an item stay on a single line where possible */
+.order-item .item-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.6rem;
+  align-items: center;
+  width: 100%;
+}
+.order-item .item-flower { overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 576px) {
+  /* On very small screens, keep the flower select full-width and keep the
+     color + quantity + remove button on a single row when possible */
+  .order-item { align-items: center; }
+  .order-item .item-controls { width: 100%; }
+  .order-item .item-flower { flex: 1 1 60%; min-width: 0; }
+  .order-item .item-color { flex: 0 0 28%; }
+  .order-item .item-quantity { flex: 0 0 70px; }
+  .order-item .remove-item { flex: 0 0 38px; }
+}
+
 /* Reviews thumbnails: ensure cards rendered by JS (card.review-card .card-body.d-flex)
    have a right gap when laid out as a row, and stack/center on narrow screens. */
 .card.review-card .card-body.d-flex .review-thumb-wrap {

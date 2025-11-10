@@ -122,6 +122,20 @@ router.get('/orders', auth, async (req, res) => {
   }
 });
 
+// Get a single order by order_id (protected)
+router.get('/orders/:orderId', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) return res.status(400).json({ error: 'orderId is required' });
+    const { data, error } = await supabase.from('orders').select('*').eq('order_id', String(orderId)).single();
+    if (error || !data) return res.status(404).json({ error: 'Order not found' });
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching order:', err);
+    res.status(500).json({ error: 'Failed to fetch order' });
+  }
+});
+
 // Notifications: list recent new orders since a timestamp or since last viewed
 router.get('/notifications', auth, async (req, res) => {
   try {
@@ -392,7 +406,7 @@ router.patch('/orders/:orderId', auth, async (req, res) => {
     const { orderId } = req.params;
     const updates = {};
     // Allow updating common order fields safely
-    const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items'];
+  const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at'];
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) {
         updates[k] = req.body[k];
@@ -409,6 +423,14 @@ router.patch('/orders/:orderId', auth, async (req, res) => {
       console.error('Failed to fetch order before update:', fetchErr);
     }
     const previousStatus = existing ? existing.status : null;
+
+    // If admin provided created_at, store it as-provided (we prefer saving the admin/client local datetime string)
+    if (updates.created_at) {
+      try {
+        // coerce to string and trim
+        updates.created_at = String(updates.created_at).trim();
+      } catch (e) { /* ignore */ }
+    }
 
     const { data: updatedRows, error } = await supabase
       .from('orders')

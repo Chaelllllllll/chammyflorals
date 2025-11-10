@@ -191,15 +191,17 @@
             <label class="form-label">Items</label>
             <div id="itemsContainer">
               <!-- Single item row template -->
-              <div class="order-item d-flex gap-2 align-items-start mb-2">
-                <select class="form-select item-flower" name="flower_type_0" required>
-                  <option value="">Select Flower Type</option>
-                </select>
-                <select class="form-select item-color" name="color_0" style="width:180px;" aria-label="Color selection">
-                  <option value="">Select Color</option>
-                </select>
-                <input type="number" class="form-control item-quantity" name="quantity_0" min="1" value="1" required style="width:110px;">
-                <button type="button" class="btn btn-outline-danger btn-sm remove-item" style="height:38px;">&times;</button>
+              <div class="order-item mb-2">
+                <div class="item-controls d-flex align-items-center gap-2 w-100">
+                  <select class="form-select item-flower" name="flower_type_0" required>
+                    <option value="">Select Flower Type</option>
+                  </select>
+                  <select class="form-select item-color" name="color_0" aria-label="Color selection">
+                    <option value="">Select Color</option>
+                  </select>
+                  <input type="number" class="form-control item-quantity" name="quantity_0" min="1" value="1" required>
+                  <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
+                </div>
               </div>
             </div>
             <div class="mt-2">

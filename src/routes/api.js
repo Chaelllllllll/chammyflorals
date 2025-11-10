@@ -233,6 +233,33 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       rush,
       total_fee: totalFee,
     };
+    // Prefer client's local ISO datetime when provided (reflects user's OS time exactly)
+    try {
+      if (req.body.created_at_local_iso) {
+        // If tz offset provided, append it to create an ISO with offset so DB stores the exact local time
+        const localIso = String(req.body.created_at_local_iso || '').trim();
+        let offsetStr = '';
+        if (typeof req.body.tz_offset_minutes !== 'undefined') {
+          const tz = Number(req.body.tz_offset_minutes);
+          if (!Number.isNaN(tz)) {
+            // tz is minutes to add to local to get UTC (Date.getTimezoneOffset()), usually negative for UTC+ zones
+            const totalMinutes = Math.abs(Math.floor(tz));
+            const sign = tz <= 0 ? '+' : '-';
+            const pad = (n) => String(n).padStart(2, '0');
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            offsetStr = sign + pad(h) + ':' + pad(m);
+          }
+        }
+        orderData.created_at = localIso + (offsetStr || '');
+      } else if (req.body.created_at) {
+        const cd = new Date(req.body.created_at);
+        if (!isNaN(cd.getTime())) orderData.created_at = cd.toISOString();
+        else orderData.created_at = new Date().toISOString();
+      } else {
+        orderData.created_at = new Date().toISOString();
+      }
+    } catch (e) { try { orderData.created_at = new Date().toISOString(); } catch (ee) {} }
     // Include optional phone and structured items when provided by the client
     if (req.body.phone) orderData.phone = String(req.body.phone).trim();
     if (Array.isArray(req.body.items) && req.body.items.length) {
@@ -253,7 +280,9 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       orderData.flower_type = orderData.items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
       orderData.quantity = orderData.items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
     }
-  console.log('Inserting order:', { order_id: orderId, name: orderData.name });
+  // Only store canonical created_at (constructed from client local ISO+offset when provided).
+  // Do not persist auxiliary client-local fields (created_at_local_iso, created_at_local, tz_offset_minutes) — keep DB minimal per request.
+  console.log('Inserting order:', { order_id: orderId, name: orderData.name, created_at: orderData.created_at });
 
     const { data, error } = await supabase.from('orders').insert([orderData]).select();
     if (error) {
@@ -270,7 +299,7 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       console.error('Failed to send confirmation email:', mailErr);
     }
 
-    // Post a minimal notification to Discord (avoid leaking customer email)
+  // Post a minimal notification to Discord (avoid leaking customer email)
     try {
       const embed = {
         embeds: [{
@@ -300,10 +329,108 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       console.warn('Failed to notify Discord webhook:', discordErr && discordErr.message ? discordErr.message : discordErr);
     }
 
+    // Notify admins via Facebook Messenger (if configured)
+    try {
+      const messenger = require('../lib/messenger');
+      // prefer the inserted row data if available
+      const inserted = (data && Array.isArray(data) && data[0]) ? data[0] : orderData;
+      const mres = await messenger.notifyAdmins(inserted);
+      if (mres && mres.ok === false) console.log('Messenger notify skipped or failed:', mres);
+      else if (mres && mres.results) console.log('Messenger notify results:', mres.results);
+    } catch (mErr) {
+      console.warn('Failed to send messenger notifications:', mErr && mErr.message ? mErr.message : mErr);
+    }
+
   res.json({ message: 'Inquiry sent successfully!', orderId });
   } catch (error) {
     console.error('Inquiry error:', error);
     res.status(500).json({ error: 'Failed to process inquiry' });
+  }
+});
+
+// Facebook Messenger webhook for capturing PSIDs and messages
+// GET used for verification, POST receives events
+router.get('/messenger/webhook', async (req, res) => {
+  try {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    const expected = process.env.FB_WEBHOOK_VERIFY_TOKEN || process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN;
+    if (mode === 'subscribe' && token && expected && token === expected) {
+      console.log('Messenger webhook verified');
+      return res.status(200).send(challenge || 'OK');
+    }
+    return res.status(403).send('Forbidden');
+  } catch (err) {
+    console.error('Webhook verify error', err);
+    res.status(500).send('Error');
+  }
+});
+
+router.post('/messenger/webhook', async (req, res) => {
+  try {
+    const body = req.body || {};
+    // Acknowledge quickly
+    res.status(200).send('EVENT_RECEIVED');
+
+    if (!body.object || body.object !== 'page' || !Array.isArray(body.entry)) return;
+
+    const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+    const fs = require('fs');
+    const path = require('path');
+    const storagePath = path.join(__dirname, '..', 'data', 'messenger_admins.json');
+
+    for (const entry of body.entry) {
+      const changes = entry.messaging || entry.changes || [];
+      for (const ev of changes) {
+        // message or postback events
+        const sender = ev.sender && ev.sender.id ? ev.sender.id : (ev.from && ev.from.id ? ev.from.id : null);
+        if (!sender) continue;
+
+        // fetch user's name via Graph API if possible
+        let displayName = '';
+        try {
+          if (PAGE_TOKEN) {
+            const profileUrl = `https://graph.facebook.com/${encodeURIComponent(sender)}?fields=first_name,last_name,profile_pic&access_token=${encodeURIComponent(PAGE_TOKEN)}`;
+            const profResp = await fetch(profileUrl);
+            if (profResp && profResp.ok) {
+              const prof = await profResp.json();
+              const fn = prof.first_name || '';
+              const ln = prof.last_name || '';
+              displayName = [fn, ln].filter(Boolean).join(' ').trim();
+            }
+          }
+        } catch (pfErr) {
+          console.warn('Failed to fetch messenger profile for', sender, pfErr && pfErr.message ? pfErr.message : pfErr);
+        }
+
+        // load existing list
+        let list = [];
+        try {
+          if (fs.existsSync(storagePath)) {
+            const raw = fs.readFileSync(storagePath, 'utf8') || '[]';
+            list = JSON.parse(raw);
+          }
+        } catch (rerr) { console.warn('Failed reading messenger_admins storage', rerr); list = []; }
+
+        const now = new Date().toISOString();
+        const existing = list.find(x => String(x.psid) === String(sender));
+        if (existing) {
+          existing.last_seen = now;
+          if (displayName) existing.name = displayName;
+        } else {
+          list.push({ psid: String(sender), name: displayName || null, created_at: now, last_seen: now });
+        }
+
+        try {
+          const dir = path.dirname(storagePath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(storagePath, JSON.stringify(list, null, 2), 'utf8');
+        } catch (werr) { console.warn('Failed writing messenger_admins storage', werr); }
+      }
+    }
+  } catch (err) {
+    console.error('Messenger webhook POST error', err);
   }
 });
 
@@ -328,6 +455,7 @@ router.get('/track/:orderId', async (req, res) => {
       addons: data.addons,
       total_fee: data.total_fee == null ? 0 : data.total_fee,
       status: data.status,
+      // Return only the stored created_at field (user requested: save just the date/time)
       created_at: data.created_at,
       items: data.items || null,
     });
