@@ -83,6 +83,16 @@ function formatColor(c) {
               window.location.href = target;
             };
             confirmBtn.addEventListener('click', onConfirm, { once: true });
+            // wire modal download button to trigger the main save/download handler
+            try {
+              const modalDownload = document.getElementById('trackModalDownload');
+              if (modalDownload) {
+                modalDownload.addEventListener('click', () => {
+                  const saveBtnInner = document.getElementById('saveOrderBtn');
+                  if (saveBtnInner) saveBtnInner.click();
+                });
+              }
+            } catch (e) { /* ignore */ }
           } catch (e) { /* ignore */ }
         }, 3000);
       }
