@@ -662,7 +662,7 @@ const crypto = require('crypto');
 // List admins (do not return password_hash)
 router.get('/admins', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase.from('admins').select('id,email,created_at').order('created_at', { ascending: false }).limit(200);
+    const { data, error } = await supabase.from('admins').select('id,email,psid,name,status,created_at').order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
     res.json({ admins: data || [] });
   } catch (err) {
@@ -686,6 +686,26 @@ router.post('/admins', auth, async (req, res) => {
   } catch (err) {
     console.error('Failed to create admin account:', err);
     res.status(500).json({ error: 'Failed to create admin account' });
+  }
+});
+
+// Update admin fields (name, psid, email, status)
+router.patch('/admins/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    const allowed = ['name','psid','email','status'];
+    const updates = {};
+    for (const k of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body, k)) updates[k] = req.body[k];
+    }
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
+    const { data, error } = await supabase.from('admins').update(updates).eq('id', id).select('id,email,psid,name,status,created_at');
+    if (error) throw error;
+    res.json({ ok: true, admin: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to update admin:', err);
+    res.status(500).json({ error: 'Failed to update admin' });
   }
 });
 

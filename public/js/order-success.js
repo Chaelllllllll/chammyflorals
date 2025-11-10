@@ -52,6 +52,16 @@ function formatColor(c) {
       // will auto-open and show the order details. There is no standalone track.html in /public.
       trackLink.href = `/?orderId=${encodeURIComponent(idForLink)}`;
     }
+    // wire messenger track info (link and chat guide)
+    const messengerCode = document.getElementById('os-messenger-code');
+    if (messengerCode) {
+      const idForCode = data.orderId || data.order_id || orderId;
+      messengerCode.textContent = `track ${idForCode}`;
+    }
+    const messengerLink = document.getElementById('os-messenger-link');
+    if (messengerLink) {
+      messengerLink.href = 'https://www.messenger.com/t/847673415097754';
+    }
     // wire save button in navbar (no footer should be included in the saved image)
     const saveBtn = document.getElementById('saveOrderBtn');
     if (saveBtn) {
