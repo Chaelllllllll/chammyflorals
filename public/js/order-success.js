@@ -62,6 +62,31 @@ function formatColor(c) {
     if (messengerLink) {
       messengerLink.href = 'https://www.messenger.com/t/847673415097754';
     }
+    // Show a track prompt modal after 3 seconds that instructs user to type the track command
+    try {
+      const idForCode = data.orderId || data.order_id || orderId;
+      const promptCodeEl = document.getElementById('trackPromptCode');
+      if (promptCodeEl) promptCodeEl.textContent = `track ${idForCode}`;
+      const confirmBtn = document.getElementById('trackPromptConfirm');
+      const modalEl = document.getElementById('trackPromptModal');
+      if (modalEl && confirmBtn) {
+        // show after 3 seconds
+        setTimeout(() => {
+          try {
+            const m = new bootstrap.Modal(modalEl);
+            m.show();
+            // wire confirm to redirect to messenger chat
+            const onConfirm = () => {
+              // use messenger link element if present, otherwise a hardcoded fallback
+              const target = (messengerLink && messengerLink.href) ? messengerLink.href : 'https://www.messenger.com/t/847673415097754';
+              // navigate
+              window.location.href = target;
+            };
+            confirmBtn.addEventListener('click', onConfirm, { once: true });
+          } catch (e) { /* ignore */ }
+        }, 3000);
+      }
+    } catch (modalErr) { console.warn('track prompt modal error', modalErr); }
     // wire save button in navbar (no footer should be included in the saved image)
     const saveBtn = document.getElementById('saveOrderBtn');
     if (saveBtn) {
