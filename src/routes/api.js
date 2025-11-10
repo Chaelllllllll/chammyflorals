@@ -426,7 +426,28 @@ router.post('/messenger/webhook', async (req, res) => {
           const dir = path.dirname(storagePath);
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(storagePath, JSON.stringify(list, null, 2), 'utf8');
-        } catch (werr) { console.warn('Failed writing messenger_admins storage', werr); }
+        } catch (werr) {
+          console.warn('Failed writing messenger_admins storage', werr);
+          // In serverless/read-only environments (EROFS) fallback to a DB-backed store if available
+          try {
+            if (werr && (werr.code === 'EROFS' || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
+              try {
+                const supabase = require('../config/supabase');
+                if (supabase) {
+                  // Try to upsert a messenger_admins record (table should be created manually in Supabase)
+                  const payload = list.map(item => ({ psid: String(item.psid), name: item.name || null, created_at: item.created_at, last_seen: item.last_seen }));
+                  // Use upsert if the table has a unique constraint on psid
+                  await supabase.from('messenger_admins').upsert(payload, { onConflict: ['psid'] });
+                  console.log('Persisted messenger admins to Supabase as fallback');
+                }
+              } catch (dbErr) {
+                console.warn('Failed to persist messenger_admins to Supabase fallback', dbErr && dbErr.message ? dbErr.message : dbErr);
+              }
+            }
+          } catch (ferr) {
+            console.warn('Fallback persistence error for messenger_admins', ferr && ferr.message ? ferr.message : ferr);
+          }
+        }
       }
     }
   } catch (err) {

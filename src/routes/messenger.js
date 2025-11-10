@@ -36,6 +36,21 @@ router.post('/webhook', express.json(), async (req, res) => {
           // Log PSID and try to fetch the sender's profile name (first_name, last_name) for debugging
           try {
             console.log('Messenger: received event from PSID=', sender);
+            // Immediately notify Discord (if configured) with PSID so you always see incoming senders.
+            try {
+              const discordUrl = process.env.DISCORD_WEBHOOK_URL;
+              if (discordUrl) {
+                const quickMsg = `Messenger event received - PSID: ${sender}`;
+                fetch(discordUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ content: quickMsg })
+                }).catch(dErr => console.warn('Discord webhook quick-post error:', dErr && dErr.message ? dErr.message : dErr));
+              }
+            } catch (dpostErr) {
+              console.warn('Error posting PSID to Discord webhook (quick):', dpostErr && dpostErr.message ? dpostErr.message : dpostErr);
+            }
+
             if (PAGE_TOKEN) {
               // Query Graph API to get the user's first/last name (requires a Page token)
               try {
@@ -46,7 +61,6 @@ router.post('/webhook', express.json(), async (req, res) => {
                 const name = [first, last].filter(Boolean).join(' ') || (profJson && profJson.name) || null;
                 if (name) {
                   console.log(`Messenger: PSID ${sender} resolved name: ${name}`);
-                  // If a Discord webhook is configured, forward the PSID+name there for quick visibility
                   try {
                     const discordUrl = process.env.DISCORD_WEBHOOK_URL;
                     if (discordUrl) {
@@ -55,8 +69,6 @@ router.post('/webhook', express.json(), async (req, res) => {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: msgText })
-                      }).then(r => {
-                        if (!r.ok) console.warn('Failed to POST to Discord webhook for PSID', sender, r.status);
                       }).catch(dErr => console.warn('Discord webhook send error:', dErr && dErr.message ? dErr.message : dErr));
                     }
                   } catch (dpostErr) {
