@@ -7,7 +7,8 @@ function safeString(v) {
 function buildMessageText(order) {
   const id = safeString(order.order_id || order.orderId || '');
   const name = safeString(order.name || '');
-  const fb = safeString(process.env.SITE_BASE_URL || order.fb_link || order.facebook || '');
+  // Prefer explicit customer facebook link stored on the order; fall back to SITE_BASE_URL
+  const fb = safeString(order.fb_link || order.facebook || process.env.SITE_BASE_URL || '');
   // Build items list
   let itemsList = [];
   if (Array.isArray(order.items) && order.items.length) {

@@ -40,7 +40,8 @@ router.post('/webhook', express.json(), async (req, res) => {
             try {
               const discordUrl = process.env.DISCORD_WEBHOOK_URL;
               if (discordUrl) {
-                const quickMsg = `Messenger event received - PSID: ${sender}`;
+                // Do not expose PSIDs in Discord notifications — send a generic event notice instead
+                const quickMsg = `Messenger event received`;
                 fetch(discordUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -64,7 +65,8 @@ router.post('/webhook', express.json(), async (req, res) => {
                   try {
                     const discordUrl = process.env.DISCORD_WEBHOOK_URL;
                     if (discordUrl) {
-                      const msgText = `Messenger event received - PSID: ${sender} | Name: ${name}`;
+                      // Avoid including PSID in Discord messages. Include resolved name only when available.
+                      const msgText = name ? `Messenger event received | Name: ${name}` : `Messenger event received`;
                       fetch(discordUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

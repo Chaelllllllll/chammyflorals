@@ -1,4 +1,7 @@
 // Form submission
+let pendingEmail = null;
+let pendingPassword = null;
+
 document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.target;
@@ -26,9 +29,38 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
     }
 
     if (response.ok) {
-      // Don't log tokens to console in production
-      localStorage.setItem('adminToken', result.token);
-      window.location.href = '/admin/dashboard.html';
+      // If server requires 2FA, show the 2FA input
+      if (result && result.twoFactorRequired) {
+        pendingEmail = email;
+        pendingPassword = password;
+        const twoBox = document.getElementById('twoFactorBox');
+        const twoMsg = document.getElementById('twoFactorMessage');
+          twoMsg.textContent = result.message || '2FA code sent to your Messenger.';
+          twoBox.style.display = 'block';
+          // disable login UI to avoid resubmits while code is pending
+          const loginBtn = document.querySelector('#adminLoginForm button[type="submit"]');
+          const emailInput = document.getElementById('adminEmail');
+          const passInput = document.getElementById('adminPassword');
+          const resendBtnEl = document.getElementById('admin2faResend');
+          if (loginBtn) loginBtn.disabled = true;
+          if (emailInput) emailInput.disabled = true;
+          if (passInput) passInput.disabled = true;
+          if (resendBtnEl) resendBtnEl.disabled = true;
+          // focus code input
+          const codeInput = document.getElementById('admin2faCode');
+          if (codeInput) codeInput.focus();
+          // start countdown if server provided remainingSeconds
+          const remaining = Number(result.remainingSeconds || 0);
+    startTwofaCountdown(remaining || 60);
+        return;
+      }
+      // Otherwise normal token response
+      if (result && result.token) {
+        localStorage.setItem('adminToken', result.token);
+        window.location.href = '/admin/dashboard.html';
+        return;
+      }
+      showErrorModal(result.error || 'Login failed');
     } else {
       showErrorModal(result.error || 'Login failed');
     }
@@ -63,6 +95,92 @@ function showErrorModal(message) {
   errorModalContent.textContent = message;
   const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
   errorModal.show();
+}
+
+// 2FA verify handler
+const verifyBtn = document.getElementById('admin2faVerify');
+if (verifyBtn) {
+  verifyBtn.addEventListener('click', async () => {
+    const code = document.getElementById('admin2faCode').value;
+    if (!pendingEmail) return showErrorModal('No pending login. Please submit your email and password first.');
+    if (!code || !/^[0-9]{6}$/.test(code)) return showErrorModal('Please enter the 6-digit code.');
+    try {
+      const resp = await fetch('/api/admin/login/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingEmail, code }),
+      });
+      const json = await resp.json();
+      if (resp.ok && json && json.token) {
+        localStorage.setItem('adminToken', json.token);
+        window.location.href = '/admin/dashboard.html';
+      } else {
+        showErrorModal(json.error || 'Invalid code');
+      }
+    } catch (err) {
+      console.error('2FA verify error:', err);
+      showErrorModal('Failed to verify code. Try again.');
+    }
+  });
+}
+
+// Resend 2FA (resubmits credentials stored in memory for convenience)
+const resendBtn = document.getElementById('admin2faResend');
+if (resendBtn) {
+  resendBtn.addEventListener('click', async () => {
+    if (!pendingEmail || !pendingPassword) return showErrorModal('No pending login to resend for.');
+    // prevent resending if countdown running
+    if (resendBtn.disabled) return showErrorModal('Please wait before requesting a new code.');
+    try {
+      const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, password: pendingPassword }) });
+      const j = await r.json();
+      const twoMsg = document.getElementById('twoFactorMessage');
+      if (r.ok && j && j.twoFactorRequired) {
+        twoMsg.textContent = j.message || 'Code resent.';
+        // restart countdown if server provided remainingSeconds
+        const rem = Number(j.remainingSeconds || 0);
+  startTwofaCountdown(rem || 60);
+      } else {
+        twoMsg.textContent = j.error || 'Failed to resend code.';
+      }
+    } catch (err) {
+      console.error('Resend error:', err);
+      showErrorModal('Failed to resend code.');
+    }
+  });
+}
+
+// Start/stop countdown UI for 2FA resend and re-enable login when expired
+let _twofaCountdownTimer = null;
+function startTwofaCountdown(seconds) {
+  // seconds: number of seconds remaining until resend allowed
+  clearInterval(_twofaCountdownTimer);
+  const loginBtn = document.querySelector('#adminLoginForm button[type="submit"]');
+  const emailInput = document.getElementById('adminEmail');
+  const passInput = document.getElementById('adminPassword');
+  const resendBtnEl = document.getElementById('admin2faResend');
+  const twoMsg = document.getElementById('twoFactorMessage');
+  let remaining = Number(seconds) || 0;
+  if (resendBtnEl) resendBtnEl.disabled = true;
+  if (loginBtn) loginBtn.disabled = true;
+  if (emailInput) emailInput.disabled = true;
+  if (passInput) passInput.disabled = true;
+  function tick() {
+    if (remaining <= 0) {
+      // re-enable UI
+      if (resendBtnEl) resendBtnEl.disabled = false;
+      if (loginBtn) loginBtn.disabled = false;
+      if (emailInput) emailInput.disabled = false;
+      if (passInput) passInput.disabled = false;
+      if (twoMsg) twoMsg.textContent = 'You can request a new code now.';
+      clearInterval(_twofaCountdownTimer);
+      _twofaCountdownTimer = null;
+      return;
+    }
+    if (twoMsg) twoMsg.textContent = `A code was sent. Please wait ${remaining} second${remaining === 1 ? '' : 's'} before requesting a new one.`;
+    remaining -= 1;
+  }
+  tick();
+  _twofaCountdownTimer = setInterval(tick, 1000);
 }
 
 // Check if already logged in

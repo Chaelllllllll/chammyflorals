@@ -18,21 +18,8 @@
       <div class="fw-bold">Chammy Florals</div>
     </a>
 
-    <!-- MOBILE: Notification + Hamburger buttons grouped -->
+    <!-- MOBILE: Hamburger only -->
     <div class="d-flex align-items-center d-lg-none">
-      <button id="globalNotifBtnMobile"
-        class="btn btn-pink btn-sm me-2 p-1 position-relative"
-        title="Notifications (mobile)">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-          fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
-          <path
-            d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z" />
-        </svg>
-        <span id="globalNotifCountMobile"
-          class="badge bg-danger rounded-pill position-absolute"
-          style="top:-6px;right:-6px;display:none;">0</span>
-      </button>
-
       <!-- Hamburger -->
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
         data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false"
@@ -51,21 +38,8 @@
   <li class="nav-item"><a class="nav-link" href="/admin/todo.html">To Do</a></li>
   <li class="nav-item"><a class="nav-link" href="/admin/admins.html">Admins</a></li>
 
-        <!-- DESKTOP: Notifications + Logout -->
+        <!-- DESKTOP: Logout only -->
         <li class="nav-item ms-2 d-flex align-items-center">
-          <button id="globalNotifBtn"
-            class="btn btn-pink btn-sm me-2 position-relative d-none d-md-inline-block"
-            title="Notifications">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-              fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
-              <path
-                d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z" />
-            </svg>
-            <span id="globalNotifCount"
-              class="badge bg-danger rounded-pill position-absolute"
-              style="top:-6px;right:-6px;display:none;">0</span>
-          </button>
-
           <button class="btn btn-pink btn-sm" id="logoutButton">Logout</button>
         </li>
       </ul>
@@ -120,21 +94,7 @@
               <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
             </div>
 
-            <!-- Mobile notifications: bell dropdown showing statuses and counts (kept for small screens) -->
-            <div class="dropdown d-md-none ms-2">
-              <button id="notifToggleMobile" class="btn btn-primary btn-sm notif-pill dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16" aria-hidden="true">
-                  <path d="M8 16a2 2 0 0 0 1.985-1.75H6.015A2 2 0 0 0 8 16zm.104-14a3 3 0 0 1 2.888 2.125A5.002 5.002 0 0 1 14 9c0 1.098.447 2.222 1 3H1c.553-.778 1-1.902 1-3a5.002 5.002 0 0 1 2.008-4.875A3 3 0 0 1 7.896 2z"/>
-                </svg>
-                <span id="notifTotal" class="notif-badge" aria-hidden="true">0</span>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notifToggleMobile">
-                <li><button class="dropdown-item status-dropdown-item" data-status=""><span>All</span> <span class="badge bg-secondary ms-2" id="ddCountAll">0</span></button></li>
-                <li><button class="dropdown-item status-dropdown-item" data-status="Pending"><span>Pending</span> <span class="badge bg-warning text-dark ms-2" id="ddCountPending">0</span></button></li>
-                <li><button class="dropdown-item status-dropdown-item" data-status="Processing"><span>Processing</span> <span class="badge bg-primary ms-2" id="ddCountProcessing">0</span></button></li>
-                <li><button class="dropdown-item status-dropdown-item" data-status="To Receive"><span>To Receive</span> <span class="badge bg-success ms-2" id="ddCountToReceive">0</span></button></li>
-              </ul>
-            </div>
+            <!-- Mobile: (notifications removed) -->
           </div>
         </div>
         <div class="mb-3">

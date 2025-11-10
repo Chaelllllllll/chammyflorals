@@ -8,8 +8,14 @@ const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploa
 const router = express.Router();
 const fs = require('fs');
 const messenger = require('../lib/messenger');
+const { setSession } = require('../lib/sessionStore');
 const path = require('path');
 const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state.json');
+
+// In-memory two-factor store: { email => { code, expires, token } }
+// NOTE: This is a simple in-memory store. In a multi-instance deployment you should
+// persist codes in a shared store (DB, Redis) to avoid losing codes between instances.
+const twofaStore = new Map();
 
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
 
@@ -101,16 +107,219 @@ router.post('/login', loginLimiter, async (req, res) => {
       }
     };
 
-    if (!safeEqual(email, process.env.ADMIN_EMAIL) || !safeEqual(password, process.env.ADMIN_PASSWORD)) {
-      console.log('Login failed for:', { email });
-      return res.status(401).json({ error: 'Invalid email or password' });
+    // Validate credentials against admins table (preferred) or fall back to
+    // environment variables for legacy single-admin setups.
+    const normEmail = String(email).trim().toLowerCase();
+    let psid = null;
+    let token = null;
+    try {
+      const { data: adminRow, error: adminErr } = await supabase.from('admins').select('id,email,password_hash,psid,status').eq('email', normEmail).limit(1).single();
+      if (!adminErr && adminRow && adminRow.email) {
+        // Admin row exists in DB; verify password_hash using scrypt
+        const ph = adminRow.password_hash || '';
+        if (!ph) {
+          console.log('Admin account has no password set:', { email });
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        const parts = String(ph).split('$');
+        if (parts.length !== 2) {
+          console.warn('Unsupported password hash format for admin:', email);
+          return res.status(500).json({ error: 'Server error verifying password' });
+        }
+        const salt = parts[0];
+        const stored = parts[1];
+        const derived = require('crypto').scryptSync(String(password), String(salt), 64).toString('hex');
+        if (!safeEqual(derived, stored)) {
+          console.log('Login failed for admin (db):', { email });
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        // password ok — use PSID from DB
+        psid = adminRow.psid || null;
+        token = Buffer.from(`${normEmail}:${password}`).toString('base64');
+      } else {
+        // No admin row found — fall back to legacy env var check
+        if (!safeEqual(normEmail, process.env.ADMIN_EMAIL) || !safeEqual(password, process.env.ADMIN_PASSWORD)) {
+          console.log('Login failed (env fallback) for:', { email });
+          return res.status(401).json({ error: 'Invalid email or password' });
+        }
+        token = Buffer.from(`${normEmail}:${password}`).toString('base64');
+        try {
+          const { data: adminRow2 } = await supabase.from('admins').select('psid').eq('email', normEmail).limit(1).single();
+          if (adminRow2 && adminRow2.psid) psid = String(adminRow2.psid);
+        } catch (dbErr) {
+          console.warn('Failed to lookup admin PSID (env fallback):', dbErr && dbErr.message ? dbErr.message : dbErr);
+        }
+      }
+    } catch (dbErr) {
+      console.warn('Failed to lookup admin in DB:', dbErr && dbErr.message ? dbErr.message : dbErr);
+      // As a last resort allow env check
+      if (!safeEqual(normEmail, process.env.ADMIN_EMAIL) || !safeEqual(password, process.env.ADMIN_PASSWORD)) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+      token = Buffer.from(`${normEmail}:${password}`).toString('base64');
     }
-    const token = Buffer.from(`${email}:${password}`).toString('base64');
-    console.log('Login successful for admin');
-    res.json({ token });
+
+    if (!psid) {
+      console.warn('No PSID found for admin to send 2FA code');
+      return res.status(500).json({ error: 'Unable to send 2FA code' });
+    }
+
+    // Check for existing unexpired 2FA code in DB (to avoid re-sending while user is typing)
+    try {
+      const { data: existingRow } = await supabase.from('admins').select('twofa_code,twofa_expires').eq('email', normEmail).limit(1).single();
+      if (existingRow && existingRow.twofa_code && existingRow.twofa_expires) {
+        const existingExpires = new Date(existingRow.twofa_expires).getTime();
+        if (Date.now() < existingExpires) {
+          const remaining = Math.ceil((existingExpires - Date.now()) / 1000);
+          // Ensure we also keep an in-memory fallback so client can verify timing
+          const mem = twofaStore.get(normEmail);
+          if (!mem || mem.expires < Date.now()) {
+            const expires = Date.now() + remaining * 1000;
+            twofaStore.set(normEmail, { code: String(existingRow.twofa_code), expires });
+            setTimeout(() => { if (twofaStore.has(normEmail)) twofaStore.delete(normEmail); }, Math.min(2 * 60 * 1000, remaining * 1000 + 1000));
+          }
+          return res.json({ twoFactorRequired: true, message: `A code has already been sent. Please wait ${remaining} seconds before requesting a new code.`, remainingSeconds: remaining });
+        }
+      }
+    } catch (chkErr) {
+      // if DB read fails, fall through and rely on in-memory check below
+      console.warn('Failed to check existing 2FA row (proceeding):', chkErr && chkErr.message ? chkErr.message : chkErr);
+    }
+
+    // Also check in-memory store to avoid duplicate sends in this process
+    const existingMem = twofaStore.get(normEmail);
+    if (existingMem && existingMem.expires && Date.now() < existingMem.expires) {
+      const remaining = Math.ceil((existingMem.expires - Date.now()) / 1000);
+      return res.json({ twoFactorRequired: true, message: `A code has already been sent. Please wait ${remaining} seconds before requesting a new code.`, remainingSeconds: remaining });
+    }
+
+  // Generate 6-digit code
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + (1 * 60 * 1000)).toISOString(); // 1 minute
+
+    // Try to persist code to DB for reliability across instances (do not store session token yet)
+    let persistedToDb = false;
+    let dbPersistError = null;
+    try {
+      // Try to update the admin row with the two-factor code
+      const { data: found, error: updErr } = await supabase.from('admins').update({ twofa_code: code, twofa_expires: expiresAt, twofa_token: null }).eq('email', normEmail).select('id').limit(1);
+      if (updErr) {
+        dbPersistError = updErr && updErr.message ? updErr.message : String(updErr);
+        console.warn('Supabase update error when persisting 2FA:', dbPersistError);
+        persistedToDb = false;
+      } else if (found && ((Array.isArray(found) && found.length > 0) || (found.id || found[0] || found.length === 1))) {
+        // update returned at least one row
+        persistedToDb = true;
+      } else {
+        // no rows returned — likely no matching admin row or insufficient permissions
+        persistedToDb = false;
+        dbPersistError = 'No rows updated (no matching admin row or insufficient permissions)';
+      }
+    } catch (dbUpdErr) {
+      dbPersistError = dbUpdErr && dbUpdErr.message ? dbUpdErr.message : String(dbUpdErr);
+      console.warn('Failed to persist 2FA code to DB (falling back to mem):', dbPersistError);
+      persistedToDb = false;
+    }
+
+  // Always set in-memory as fallback/redundancy (use normalized email as key)
+  const expires = Date.now() + (1 * 60 * 1000);
+  twofaStore.set(normEmail, { code, expires });
+  // schedule cleanup
+  setTimeout(() => { if (twofaStore.has(normEmail)) twofaStore.delete(normEmail); }, 2 * 60 * 1000);
+
+    // Send using messenger helper
+    try {
+  const sendResp = await messenger.sendToPsid(psid, `Your Chammy Florals admin login code is: ${code}\nIt will expire in 1 minute.`);
+      if (!sendResp || !sendResp.ok) {
+        console.warn('Failed to send 2FA message', sendResp);
+        // If send failed, attempt to clear DB-stored code
+        if (persistedToDb) {
+          try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null }).eq('email', normEmail); } catch (e) {}
+        }
+        return res.status(500).json({ error: 'Failed to send 2FA message' });
+      }
+    } catch (err) {
+      console.error('Messenger send error:', err && err.message ? err.message : err);
+      if (persistedToDb) {
+        try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null }).eq('email', normEmail); } catch (e) {}
+      }
+      return res.status(500).json({ error: 'Failed to send 2FA message' });
+    }
+
+  const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
+  const resp = { twoFactorRequired: true, message: '2FA code sent to your Messenger', remainingSeconds, persistedToDb };
+  if (process.env.DEBUG && dbPersistError) resp.dbError = dbPersistError;
+  return res.json(resp);
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to process login' });
+  }
+});
+
+// Verify 2FA code and issue token
+router.post('/login/verify', loginLimiter, async (req, res) => {
+  try {
+  const { email, code } = req.body || {};
+  if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
+  const normEmail = String(email).trim().toLowerCase();
+    // Prefer DB-stored code if available (persisted across instances). Fall back to in-memory.
+    try {
+      const { data: adminRow, error: adminErr } = await supabase.from('admins').select('twofa_code,twofa_expires,twofa_token').eq('email', normEmail).limit(1).single();
+      if (!adminErr && adminRow && adminRow.twofa_code) {
+        const dbCode = String(adminRow.twofa_code || '').trim();
+        const dbExpires = adminRow.twofa_expires ? new Date(adminRow.twofa_expires).getTime() : 0;
+        if (Date.now() > dbExpires) {
+          // clear expired
+          try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null }).eq('email', normEmail); } catch (e) {}
+          return res.status(400).json({ error: '2FA code expired' });
+        }
+        if (String(code).trim() !== dbCode) return res.status(401).json({ error: 'Invalid 2FA code' });
+        // clear used code and create a one-time session token (random) for the admin
+        const crypto = require('crypto');
+        const sessionToken = crypto.randomBytes(32).toString('hex');
+        const sessionExpiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(); // 8 hours
+        try {
+          await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null, session_token: sessionToken, session_expires: sessionExpiresAt }).eq('email', normEmail);
+        } catch (e) {
+          console.warn('Failed to persist session token to DB (best-effort):', e && e.message ? e.message : e);
+        }
+        // Always populate in-memory session store so the token is immediately usable
+        try { setSession(sessionToken, normEmail, new Date(sessionExpiresAt).getTime()); } catch (e) {}
+        const mem = twofaStore.get(normEmail); if (mem) twofaStore.delete(normEmail);
+        return res.json({ token: sessionToken });
+      }
+    } catch (dbErr) {
+      console.warn('Failed to read/verify 2FA from DB (falling back to memory):', dbErr && dbErr.message ? dbErr.message : dbErr);
+    }
+
+    // Fallback: check in-memory store
+    const rec = twofaStore.get(normEmail);
+    if (!rec) return res.status(400).json({ error: 'No pending 2FA request for this email' });
+    if (Date.now() > rec.expires) {
+      twofaStore.delete(normEmail);
+      return res.status(400).json({ error: '2FA code expired' });
+    }
+    if (String(code).trim() !== String(rec.code).trim()) return res.status(401).json({ error: 'Invalid 2FA code' });
+    // success — issue a secure session token, persist (best-effort), and clear store
+    twofaStore.delete(normEmail);
+    try {
+      const crypto = require('crypto');
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      const sessionExpiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(); // 8 hours
+      try {
+        await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null, session_token: sessionToken, session_expires: sessionExpiresAt }).eq('email', normEmail);
+      } catch (e) {
+        console.warn('Failed to persist session token to DB (fallback):', e && e.message ? e.message : e);
+      }
+      // populate in-memory session store so the token is usable immediately
+      try { setSession(sessionToken, normEmail, new Date(sessionExpiresAt).getTime()); } catch (e) {}
+      return res.json({ token: sessionToken });
+    } catch (e) {
+      return res.json({ token: null });
+    }
+  } catch (err) {
+    console.error('2FA verify error:', err);
+    return res.status(500).json({ error: 'Failed to verify 2FA code' });
   }
 });
 

@@ -1259,78 +1259,17 @@ function logout() {
 const logoutBtn = document.getElementById('logoutButton');
 if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-// Global notifications button wiring (supports desktop and mobile buttons)
-const globalNotifBtns = Array.from(document.querySelectorAll('#globalNotifBtn, #globalNotifBtnMobile'));
+// Notifications removed: replace with safe no-op implementations to avoid network calls
 async function fetchNotifications(since) {
-  const token = localStorage.getItem('adminToken');
-  try {
-    let url = '/api/admin/notifications';
-    if (since) url += `?since=${encodeURIComponent(since)}`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (!resp.ok) {
-      console.warn('Failed to fetch notifications', resp.status);
-      return { notifications: [], since: null };
-    }
-    const data = await resp.json();
-    return data || { notifications: [], since: null };
-  } catch (err) {
-    console.error('fetchNotifications error', err);
-    return { notifications: [], since: null };
-  }
+  return { notifications: [], since: null };
 }
 
 function renderNotificationsList(items) {
-  const list = document.getElementById('notificationsList');
-  if (!list) return;
-  list.innerHTML = '';
-  if (!items || !items.length) {
-    list.innerHTML = '<div class="list-group-item">No new orders</div>';
-    return;
-  }
-  for (const it of items) {
-    const created = it.created_at ? new Date(it.created_at).toLocaleString() : '';
-    const el = document.createElement('div');
-    el.className = 'list-group-item d-flex justify-content-between align-items-center';
-    el.innerHTML = `
-      <div>
-        <div class="fw-semibold">${escapeHtml(it.name || 'Anonymous')}</div>
-        <div class="small text-muted">Order ${escapeHtml(it.order_id)} · ${escapeHtml(it.flower_type || '')}</div>
-        <div class="small text-muted">${escapeHtml(created)}</div>
-      </div>
-      <div>
-        <button class="btn btn-sm btn-outline-primary notif-view-btn" data-order-id="${escapeHtml(it.order_id)}">View</button>
-      </div>
-    `;
-    list.appendChild(el);
-  }
-  // wire view buttons — mark individual notification viewed when clicked
-  list.querySelectorAll('.notif-view-btn').forEach(b => b.addEventListener('click', async (e) => {
-    const id = e.currentTarget.dataset.orderId;
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    try {
-      const token = localStorage.getItem('adminToken');
-      const resp = await fetch('/api/admin/notifications/markViewed', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ orderId: id })
-      });
-      if (!resp.ok) console.warn('Failed to mark notification viewed', resp.status);
-    } catch (err) {
-      console.error('Failed to mark notification viewed', err);
-    }
-    // refresh global badge count from server (server will exclude viewed id)
-    try { await refreshGlobalNotifCount(); } catch (e) { /* ignore */ }
-    // close notifications modal then open the order details
-    try { bootstrap.Modal.getInstance(document.getElementById('notificationsModal'))?.hide(); } catch (e) {}
-    viewDetails(id);
-  }));
+  // notifications removed; no-op
 }
 
 async function markNotificationsViewed() {
-  const token = localStorage.getItem('adminToken');
-  try {
-    const resp = await fetch('/api/admin/notifications/markViewed', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-    if (!resp.ok) console.warn('markViewed failed', resp.status);
-  } catch (err) { console.error('markNotificationsViewed error', err); }
+  // no-op
 }
 
 function escapeHtml(str) {
@@ -1338,6 +1277,10 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"'`]/g, function (s) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[s]; });
 }
 
+// Ensure the selector exists (notifications were removed from the navbar but some code
+// still references the collection). Create an empty array if none found so references
+// below won't throw.
+const globalNotifBtns = Array.from(document.querySelectorAll('#globalNotifBtn, #globalNotifBtnMobile'));
 if (globalNotifBtns && globalNotifBtns.length) {
   globalNotifBtns.forEach(btn => btn.addEventListener('click', async (e) => {
     // fetch notifications (server uses lastViewed if client doesn't send since)
@@ -1353,19 +1296,10 @@ if (globalNotifBtns && globalNotifBtns.length) {
 
 // refresh the global notifications count (run during load)
 async function refreshGlobalNotifCount() {
-  const badgeDesktop = document.getElementById('globalNotifCount');
-  const badgeMobile = document.getElementById('globalNotifCountMobile');
-  const data = await fetchNotifications();
-  const n = (data && data.notifications) ? data.notifications.length : 0;
-  const display = n > 99 ? '99+' : String(n);
-  if (badgeDesktop) {
-    if (n > 0) { badgeDesktop.textContent = display; badgeDesktop.style.display = 'inline-block'; }
-    else { badgeDesktop.style.display = 'none'; }
-  }
-  if (badgeMobile) {
-    if (n > 0) { badgeMobile.textContent = display; badgeMobile.style.display = 'inline-block'; }
-    else { badgeMobile.style.display = 'none'; }
-  }
+  // notifications removed — ensure any badge elements are hidden
+  try { const bd = document.getElementById('globalNotifCount'); if (bd) bd.style.display = 'none'; } catch (e) {}
+  try { const bm = document.getElementById('globalNotifCountMobile'); if (bm) bm.style.display = 'none'; } catch (e) {}
+  return { notifications: [], since: null };
 }
 
 // delete confirm button (shared) - guard existence
@@ -1425,62 +1359,13 @@ window._notifLastIds = new Set();
 window._notifPollingInterval = 15000; // 15s
 
 async function startNotificationsPolling() {
-  try {
-    // seed initial set
-    const data = await fetchNotifications();
-    const items = (data && data.notifications) || [];
-    window._notifLastIds = new Set(items.map(i => i.order_id));
-    // ensure badges reflect current state
-    try { await refreshGlobalNotifCount(); } catch (e) {}
-  } catch (e) { console.warn('Failed to seed notifications polling', e); }
-
-  setInterval(async () => {
-    try {
-      const data = await fetchNotifications();
-      const items = (data && data.notifications) || [];
-      // compute new IDs not in last set
-      const newItems = items.filter(i => !window._notifLastIds.has(i.order_id));
-      if (newItems && newItems.length) {
-        // show toast with count and first item
-        try { showNotifToast(newItems.length, newItems); } catch (e) { console.warn('showNotifToast error', e); }
-        // update orders listing so admin sees latest
-        try { loadOrders(); } catch (e) { /* ignore */ }
-      }
-      // refresh badge and update last ids
-      try { await refreshGlobalNotifCount(); } catch (e) {}
-      window._notifLastIds = new Set(items.map(i => i.order_id));
-    } catch (err) {
-      console.error('Notifications polling error', err);
-    }
-  }, window._notifPollingInterval);
+  // notifications removed — no-op
+  return;
 }
 
 function showNotifToast(count, items) {
-  const toastEl = document.getElementById('notifToast');
-  if (!toastEl) return;
-  const body = document.getElementById('notifToastBody');
-  const time = document.getElementById('notifToastTime');
-  const viewBtn = document.getElementById('notifToastView');
-  const first = items && items[0];
-  body.innerHTML = `<div>You have <strong>${count}</strong> new order${count>1?'s':''}.</div>`;
-  if (first) body.innerHTML += `<div class="small text-muted">Latest: ${escapeHtml(first.name||'Anonymous')} · ${escapeHtml(first.order_id)}</div>`;
-  body.innerHTML += `<div class="mt-2 pt-1"><button id="notifToastView" type="button" class="btn btn-sm btn-primary">View</button></div>`;
-  if (time) time.textContent = 'just now';
-  const toast = new bootstrap.Toast(toastEl);
-  toast.show();
-  // wire view button
-  const vb = document.getElementById('notifToastView');
-  if (vb) {
-    vb.addEventListener('click', () => {
-      // open notifications modal
-      const modal = new bootstrap.Modal(document.getElementById('notificationsModal'));
-      // pre-render list from items
-      renderNotificationsList(items);
-      modal.show();
-      try { toast.hide(); } catch (e) {}
-    }, { once: true });
-  }
+  // notifications removed — no-op
 }
 
-// Start polling after a short delay once page loads
-setTimeout(() => { try { startNotificationsPolling(); } catch (e) { console.warn(e); } }, 2000);
+// Start polling after a short delay once page loads (notifications disabled)
+// setTimeout(() => { try { startNotificationsPolling(); } catch (e) { console.warn(e); } }, 2000);
