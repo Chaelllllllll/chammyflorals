@@ -7,6 +7,7 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
 const router = express.Router();
 const fs = require('fs');
+const messenger = require('../lib/messenger');
 const path = require('path');
 const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state.json');
 
@@ -477,6 +478,16 @@ router.patch('/orders/:orderId', auth, async (req, res) => {
         } else {
           const mail = templates.statusUpdateTemplate(updated, previousStatus);
           await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+        }
+        // Also attempt to notify the customer via Messenger if they've linked their chat (best-effort)
+        try {
+          if (updated.messenger_psid || updated.customer_psid) {
+            const mres = await messenger.notifyCustomer(updated);
+            if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger', mres);
+            else console.log('Messenger: customer notification result', mres && mres.status);
+          }
+        } catch (mErr) {
+          console.warn('Failed to send messenger notification to customer:', mErr && mErr.message ? mErr.message : mErr);
         }
       }
     } catch (mailErr) {

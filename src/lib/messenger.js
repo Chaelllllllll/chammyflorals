@@ -100,4 +100,44 @@ async function notifyAdmins(order) {
   }
 }
 
-module.exports = { notifyAdmins };
+// Send a direct message to a single PSID (page sends). `message` can be string or message object
+async function sendToPsid(psid, message) {
+  try {
+    const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+    if (!token) return { ok: false, message: 'Missing FB token' };
+    const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
+    const payload = { recipient: { id: String(psid) }, message: (typeof message === 'string' ? { text: message } : message) };
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    let body = null;
+    try { body = await res.json(); } catch (e) { body = null; }
+    return { ok: res.ok, status: res.status, body };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+// Notify a single customer (order) about status change using their stored messenger_psid
+async function notifyCustomer(order) {
+  try {
+    if (!order) return { ok: false, message: 'No order provided' };
+    const psid = order.messenger_psid || order.customer_psid || order.messengerPsid || null;
+    if (!psid) return { ok: false, message: 'No customer PSID on order' };
+    const status = String(order.status || 'Updated');
+    const id = String(order.order_id || order.orderId || '');
+    const total = order.total_fee != null ? `₱${Number(order.total_fee).toLocaleString()}` : '';
+    const base = process.env.SITE_BASE_URL || '';
+    const trackUrl = base ? `${base.replace(/\/$/, '')}/?orderId=${encodeURIComponent(id)}` : undefined;
+    const lines = [];
+    lines.push(`⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°`);
+    lines.push(`Order ID: ${id}`);
+    lines.push(`Status: ${status}`);
+    if (total) lines.push(`Total: ${total}`);
+    if (trackUrl) lines.push(`View: ${trackUrl}`);
+    const text = lines.join('\n');
+    return await sendToPsid(psid, text);
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+module.exports = { notifyAdmins, sendToPsid, notifyCustomer };
