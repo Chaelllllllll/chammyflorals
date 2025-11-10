@@ -33,6 +33,32 @@ router.post('/webhook', express.json(), async (req, res) => {
           const sender = (event.sender && (event.sender.id || event.sender.user_id)) || (event.from && event.from.id);
           if (!sender) continue;
 
+          // Log PSID and try to fetch the sender's profile name (first_name, last_name) for debugging
+          try {
+            console.log('Messenger: received event from PSID=', sender);
+            if (PAGE_TOKEN) {
+              // Query Graph API to get the user's first/last name (requires a Page token)
+              try {
+                const profResp = await fetch(`https://graph.facebook.com/v16.0/${encodeURIComponent(sender)}?fields=first_name,last_name,name&access_token=${encodeURIComponent(PAGE_TOKEN)}`);
+                const profJson = await profResp.json().catch(() => null);
+                const first = profJson && (profJson.first_name || profJson.first);
+                const last = profJson && (profJson.last_name || profJson.last);
+                const name = [first, last].filter(Boolean).join(' ') || (profJson && profJson.name) || null;
+                if (name) {
+                  console.log(`Messenger: PSID ${sender} resolved name: ${name}`);
+                } else {
+                  console.log(`Messenger: PSID ${sender} - name not available from Graph API`, profJson);
+                }
+              } catch (pfErr) {
+                console.warn('Messenger: failed to fetch profile for PSID', sender, pfErr && pfErr.message ? pfErr.message : pfErr);
+              }
+            } else {
+              console.warn('Messenger: PAGE_TOKEN not configured; cannot fetch profile name for PSID', sender);
+            }
+          } catch (logErr) {
+            console.warn('Messenger: error logging PSID/profile:', logErr && logErr.message ? logErr.message : logErr);
+          }
+
           // Postback (e.g., button press)
           if (event.postback && event.postback.payload) {
             const payload = event.postback.payload;
