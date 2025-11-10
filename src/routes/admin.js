@@ -596,6 +596,131 @@ router.get('/reviews', auth, async (req, res) => {
   }
 });
 
+// --- Legacy messenger-specific admin endpoints (operate on unified `admins` table) ---
+// List messenger-capable admins (pending and approved)
+router.get('/admins/messenger', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('admins').select('*').order('created_at', { ascending: false }).limit(500);
+    if (error) throw error;
+    // Only include rows that have a PSID (these are messenger-capable records)
+    const messengerRows = (data || []).filter(r => r && r.psid);
+    const pending = messengerRows.filter(r => String(r.status || '').toLowerCase() !== 'approved');
+    const approved = messengerRows.filter(r => String(r.status || '').toLowerCase() === 'approved');
+    res.json({ pending, approved });
+  } catch (err) {
+    console.error('Failed to list messenger-capable admins:', err);
+    res.status(500).json({ error: 'Failed to list messenger admins' });
+  }
+});
+
+// Approve a messenger admin (by PSID)
+router.patch('/admins/messenger/:psid/approve', auth, async (req, res) => {
+  try {
+    const { psid } = req.params;
+    if (!psid) return res.status(400).json({ error: 'psid required' });
+    const { data, error } = await supabase.from('admins').update({ status: 'Approved', approved_at: new Date().toISOString() }).eq('psid', String(psid)).select();
+    if (error) throw error;
+    res.json({ ok: true, updated: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to approve messenger admin:', err);
+    res.status(500).json({ error: 'Failed to approve messenger admin' });
+  }
+});
+
+// Delete/reject a messenger admin (by PSID)
+router.delete('/admins/messenger/:psid', auth, async (req, res) => {
+  try {
+    const { psid } = req.params;
+    if (!psid) return res.status(400).json({ error: 'psid required' });
+    const { data, error } = await supabase.from('admins').delete().eq('psid', String(psid)).select();
+    if (error) throw error;
+    res.json({ ok: true, removed: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to delete messenger admin:', err);
+    res.status(500).json({ error: 'Failed to delete messenger admin' });
+  }
+});
+
+// Create or upsert a messenger-capable admin manually (psid)
+router.post('/admins/messenger', auth, async (req, res) => {
+  try {
+    const { psid, name, status } = req.body || {};
+    if (!psid) return res.status(400).json({ error: 'psid is required' });
+    const rec = { psid: String(psid), name: name || null, status: status || 'Approved', created_at: new Date().toISOString() };
+    const { data, error } = await supabase.from('admins').upsert([rec], { onConflict: ['psid'] }).select();
+    if (error) throw error;
+    res.json({ ok: true, result: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to create/upsert messenger admin (admins table):', err);
+    res.status(500).json({ error: 'Failed to create messenger admin' });
+  }
+});
+
+// --- Admin accounts management (email/password) ---
+const crypto = require('crypto');
+
+// List admins (do not return password_hash)
+router.get('/admins', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('admins').select('id,email,created_at').order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    res.json({ admins: data || [] });
+  } catch (err) {
+    console.error('Failed to list admins:', err);
+    res.status(500).json({ error: 'Failed to list admins' });
+  }
+});
+
+// Create an admin account (store salted scrypt password hash as salt$hash)
+router.post('/admins', auth, async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
+    const salt = crypto.randomBytes(16).toString('hex');
+    const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
+    const password_hash = `${salt}$${derived}`;
+    const record = { email: String(email).trim().toLowerCase(), password_hash };
+    const { data, error } = await supabase.from('admins').insert([record]).select('id,email,created_at');
+    if (error) throw error;
+    res.json({ ok: true, admin: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to create admin account:', err);
+    res.status(500).json({ error: 'Failed to create admin account' });
+  }
+});
+
+// Update admin password
+router.patch('/admins/:id/password', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body || {};
+    if (!id || !password) return res.status(400).json({ error: 'id and new password are required' });
+    const salt = crypto.randomBytes(16).toString('hex');
+    const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
+    const password_hash = `${salt}$${derived}`;
+    const { data, error } = await supabase.from('admins').update({ password_hash }).eq('id', id).select('id,email,created_at');
+    if (error) throw error;
+    res.json({ ok: true, admin: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to update admin password:', err);
+    res.status(500).json({ error: 'Failed to update admin password' });
+  }
+});
+
+// Delete admin account
+router.delete('/admins/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const { data, error } = await supabase.from('admins').delete().eq('id', id).select('id,email');
+    if (error) throw error;
+    res.json({ ok: true, removed: data && data[0] ? data[0] : null });
+  } catch (err) {
+    console.error('Failed to delete admin:', err);
+    res.status(500).json({ error: 'Failed to delete admin' });
+  }
+});
+
 // Admin: delete review by id (protected)
 router.delete('/reviews/:id', auth, async (req, res) => {
   try {

@@ -146,6 +146,46 @@ router.post('/webhook', express.json(), async (req, res) => {
             await sendMessage(sender, '🌻Kindly enter your 𝗢𝗿𝗱𝗲𝗿 𝗜𝗗/𝗧𝗿𝗮𝗰𝗸𝗶𝗻𝗴 𝗜𝗗 from your receipt so I can check your order status');
             continue;
           }
+
+          // Allow users to register as a messenger admin candidate by typing 'adminnotifyme'
+          // Their PSID will be persisted with status 'Not Approved' so a real admin can approve later.
+          if (/^adminnotifyme$/i.test(trimmed)) {
+            try {
+              const supabase = require('../config/supabase');
+              // Attempt to fetch a readable name if PAGE_TOKEN is available
+              let displayName = null;
+              if (PAGE_TOKEN) {
+                try {
+                  const profResp = await fetch(`https://graph.facebook.com/v16.0/${encodeURIComponent(sender)}?fields=first_name,last_name,name&access_token=${encodeURIComponent(PAGE_TOKEN)}`);
+                  const profJson = await profResp.json().catch(() => null);
+                  const first = profJson && (profJson.first_name || profJson.first);
+                  const last = profJson && (profJson.last_name || profJson.last);
+                  displayName = [first, last].filter(Boolean).join(' ') || (profJson && profJson.name) || null;
+                } catch (pfErr) {
+                  // ignore profile fetch failure - we still persist the PSID
+                }
+              }
+
+              const record = {
+                psid: String(sender),
+                name: displayName || null,
+                status: 'Not Approved',
+                created_at: new Date().toISOString()
+              };
+              try {
+                // upsert on psid into unified admins table
+                await supabase.from('admins').upsert([record], { onConflict: ['psid'] });
+                await sendMessage(sender, 'Thanks — your request to receive admin notifications has been recorded. An admin will review and approve your access.');
+              } catch (dbErr) {
+                console.warn('Failed to persist messenger admin request into admins table:', dbErr && dbErr.message ? dbErr.message : dbErr);
+                await sendMessage(sender, 'Thanks — I received your request but something went wrong while saving it. The team will review your request manually.');
+              }
+            } catch (err) {
+              console.error('adminnotifyme handler error:', err && err.message ? err.message : err);
+              try { await sendMessage(sender, 'Sorry — I could not process your request right now. Please try again later.'); } catch (e) {}
+            }
+            continue;
+          }
         }
       }
       return res.sendStatus(200);
