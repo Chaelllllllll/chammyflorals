@@ -13,7 +13,17 @@ const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
 
 // Try to ensure the storage bucket exists (best-effort). This uses the service key so it can create buckets.
+// Try to ensure the storage bucket exists (best-effort). This uses the service key so it can create buckets.
+// Guard this behavior in environments (like Vercel serverless) where outgoing fetch/TLS may fail
+// or where we don't have a Supabase service role key. Creating buckets on cold-starts is
+// unnecessary in production and can cause noisy errors (see StorageUnknownError/undici socket errors).
 (async () => {
+  // Require a Supabase service role key (or explicitly enabled env) before attempting to create buckets.
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ADMIN_KEY;
+  if (!svcKey) {
+    console.log('Skipping auto-create of Supabase storage bucket because no service role key is configured.');
+    return;
+  }
   try {
     const resp = await supabase.storage.createBucket(STORAGE_BUCKET, { public: true });
     if (resp.error) {
