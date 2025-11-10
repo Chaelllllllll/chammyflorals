@@ -46,6 +46,22 @@ router.post('/webhook', express.json(), async (req, res) => {
                 const name = [first, last].filter(Boolean).join(' ') || (profJson && profJson.name) || null;
                 if (name) {
                   console.log(`Messenger: PSID ${sender} resolved name: ${name}`);
+                  // If a Discord webhook is configured, forward the PSID+name there for quick visibility
+                  try {
+                    const discordUrl = process.env.DISCORD_WEBHOOK_URL;
+                    if (discordUrl) {
+                      const msgText = `Messenger event received - PSID: ${sender} | Name: ${name}`;
+                      fetch(discordUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: msgText })
+                      }).then(r => {
+                        if (!r.ok) console.warn('Failed to POST to Discord webhook for PSID', sender, r.status);
+                      }).catch(dErr => console.warn('Discord webhook send error:', dErr && dErr.message ? dErr.message : dErr));
+                    }
+                  } catch (dpostErr) {
+                    console.warn('Error attempting to post PSID to Discord webhook:', dpostErr && dpostErr.message ? dpostErr.message : dpostErr);
+                  }
                 } else {
                   console.log(`Messenger: PSID ${sender} - name not available from Graph API`, profJson);
                 }
