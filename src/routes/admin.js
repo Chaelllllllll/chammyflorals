@@ -229,7 +229,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     // Send using messenger helper
     try {
-  const sendResp = await messenger.sendToPsid(psid, `Your Chammy Florals admin login code is: ${code}\nIt will expire in 1 minute.`);
+  const sendResp = await messenger.sendToPsid(psid, `Your login code is: ${code}\nIt will expire in 1 minute.`);
       if (!sendResp || !sendResp.ok) {
         console.warn('Failed to send 2FA message', sendResp);
         // If send failed, attempt to clear DB-stored code
