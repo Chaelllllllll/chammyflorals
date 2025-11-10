@@ -740,6 +740,21 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
       console.error('Failed to send delivered email (transient):', mailErr);
     }
 
+    // Also attempt to notify the customer via Messenger (best-effort) when delivered
+    try {
+      if (updated && (updated.messenger_psid || updated.customer_psid)) {
+        // include transient fields so the message can reference payment/receiver info if needed
+        const notifyPayload = Object.assign({}, updated);
+        if (typeof received !== 'undefined') notifyPayload.payment_received = Number(received);
+        if (receiverName) notifyPayload.receiver_name = String(receiverName);
+        const mres = await messenger.notifyCustomer(notifyPayload);
+        if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger (deliver):', mres);
+        else console.log('Messenger: delivered notification result', mres && (mres.status || mres));
+      }
+    } catch (mErr) {
+      console.warn('Failed to send messenger notification to customer (deliver):', mErr && mErr.message ? mErr.message : mErr);
+    }
+
     res.json({ message: 'Order marked as Delivered', updated: updated });
   } catch (err) {
     console.error('deliver endpoint error:', err);
