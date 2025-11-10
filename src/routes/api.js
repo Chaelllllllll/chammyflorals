@@ -421,32 +421,29 @@ router.post('/messenger/webhook', async (req, res) => {
         } else {
           list.push({ psid: String(sender), name: displayName || null, created_at: now, last_seen: now });
         }
-
+        // Try to persist to the file system (dev). If that fails (read-only), also persist/upsert to Supabase so
+        // admins are discoverable for messenger notifications in production environments.
+        let wroteFile = false;
         try {
           const dir = path.dirname(storagePath);
           if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(storagePath, JSON.stringify(list, null, 2), 'utf8');
+          wroteFile = true;
         } catch (werr) {
           console.warn('Failed writing messenger_admins storage', werr);
-          // In serverless/read-only environments (EROFS) fallback to a DB-backed store if available
-          try {
-            if (werr && (werr.code === 'EROFS' || process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)) {
-              try {
-                const supabase = require('../config/supabase');
-                if (supabase) {
-                  // Try to upsert a messenger_admins record (table should be created manually in Supabase)
-                  const payload = list.map(item => ({ psid: String(item.psid), name: item.name || null, created_at: item.created_at, last_seen: item.last_seen }));
-                  // Use upsert if the table has a unique constraint on psid
-                  await supabase.from('messenger_admins').upsert(payload, { onConflict: ['psid'] });
-                  console.log('Persisted messenger admins to Supabase as fallback');
-                }
-              } catch (dbErr) {
-                console.warn('Failed to persist messenger_admins to Supabase fallback', dbErr && dbErr.message ? dbErr.message : dbErr);
-              }
+        }
+
+        // Always attempt DB persistence as well (best-effort). This ensures admins are available when env missing.
+        try {
+          const supabase = require('../config/supabase');
+          if (supabase) {
+            const single = list.find(x => String(x.psid) === String(sender));
+            if (single) {
+              await supabase.from('messenger_admins').upsert({ psid: String(single.psid), name: single.name || null, created_at: single.created_at, last_seen: single.last_seen }, { onConflict: ['psid'] });
             }
-          } catch (ferr) {
-            console.warn('Fallback persistence error for messenger_admins', ferr && ferr.message ? ferr.message : ferr);
           }
+        } catch (dbErr) {
+          console.warn('Failed to persist messenger_admins to Supabase', dbErr && dbErr.message ? dbErr.message : dbErr);
         }
       }
     }

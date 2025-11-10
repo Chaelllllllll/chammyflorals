@@ -28,10 +28,28 @@ function buildMessageText(order) {
 async function notifyAdmins(order) {
   try {
     const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+    if (!token) return { ok: false, message: 'Missing FB token' };
+
+    // Primary source: explicit env var of admin PSIDs. Fallback: read from Supabase table `messenger_admins`.
+    let psids = [];
     const psidsEnv = process.env.ADMIN_MESSENGER_PSIDS || process.env.FB_ADMIN_PSIDS || '';
-    if (!token || !psidsEnv) return { ok: false, message: 'Missing FB token or admin PSIDs' };
-    const psids = psidsEnv.split(',').map(s=>s.trim()).filter(Boolean);
-    if (!psids.length) return { ok: false, message: 'No admin PSIDs configured' };
+    if (psidsEnv && psidsEnv.trim()) {
+      psids = psidsEnv.split(',').map(s=>s.trim()).filter(Boolean);
+    }
+    if (!psids.length) {
+      try {
+        const supabase = require('../config/supabase');
+        if (supabase) {
+          const { data, error } = await supabase.from('messenger_admins').select('psid').limit(200);
+          if (!error && Array.isArray(data)) {
+            psids = data.map(r => String(r.psid)).filter(Boolean);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('notifyAdmins: failed to read admin PSIDs from Supabase', dbErr && dbErr.message ? dbErr.message : dbErr);
+      }
+    }
+    if (!psids.length) return { ok: false, message: 'No admin PSIDs configured or found in DB' };
     const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
     const text = buildMessageText(order);
     const results = [];
