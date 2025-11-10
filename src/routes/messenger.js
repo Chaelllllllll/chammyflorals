@@ -195,6 +195,33 @@ async function handleTrackRequest(psid, orderId) {
       return sendMessage(psid, `Sorry, I couldn't find an order with ID ${orderId}.`);
     }
 
+    // If we found an order and the sender PSID is not stored, save it so we can notify this customer about updates.
+    try {
+      const currentPsid = data.messenger_psid || data.customer_psid || null;
+      if (!currentPsid || String(currentPsid) !== String(psid)) {
+        const upd = {
+          messenger_psid: String(psid),
+          messenger_subscribed_at: new Date().toISOString()
+        };
+        // Attempt to update the order record with the PSID (best-effort)
+        try {
+          const { error: upErr } = await supabase.from('orders').update(upd).eq('order_id', String(orderId));
+          if (upErr) console.warn('Failed to update order with messenger PSID:', upErr.message || upErr);
+          else console.log('Messenger: saved PSID to order', orderId);
+        } catch (uErr) {
+          console.warn('Messenger: error updating order with PSID', uErr && uErr.message ? uErr.message : uErr);
+        }
+        // Optionally confirm subscription to the user
+        try {
+          await sendMessage(psid, `I've linked this chat to order ${orderId}. I'll send updates here if the order status changes.`);
+        } catch (cfErr) {
+          console.warn('Messenger: failed to send subscription confirmation', cfErr && cfErr.message ? cfErr.message : cfErr);
+        }
+      }
+    } catch (pmErr) {
+      console.warn('Messenger: error while attempting to persist PSID to order', pmErr && pmErr.message ? pmErr.message : pmErr);
+    }
+
   // Build a concise, professional order summary for messaging
   const parts = [];
   parts.push('⋆˚✿˖° 𝐎𝐫𝐝𝐞𝐫 𝐒𝐭𝐚𝐭𝐮𝐬 ⋆˚✿˖°');

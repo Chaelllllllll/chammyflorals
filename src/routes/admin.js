@@ -63,10 +63,11 @@ async function uploadBase64ToStorage(dataUrl) {
   return { publicUrl: data.publicUrl, path };
 }
 
-// Rate limit login attempts to mitigate brute force attacks
+// Rate limit login attempts to mitigate brute force attacks (configurable via ADMIN_LOGIN_MAX)
+const LOGIN_RATE_MAX = Number(process.env.ADMIN_LOGIN_MAX || 6);
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 6,
+  max: LOGIN_RATE_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req /*, res*/) => {
