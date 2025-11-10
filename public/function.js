@@ -555,23 +555,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="text-end">
                   <span class="badge ${statusClass(status)} rounded-pill">${escapeHtml(status)}</span>
                 </div>
-              </div>
+                </div>
               <div class="mb-3">
                 <div class="small text-muted">Items</div>
                 <div class="mt-2">
-                  <div>${escapeHtml(result.flower_type || '')}</div>
+                  ${(() => {
+                    try {
+                      if (Array.isArray(result.items) && result.items.length) {
+                        return result.items.map(it => {
+                          const name = it.name || it.flower_type || '';
+                          let colorRaw = it.color || it.color_name || it.colorType || '';
+                          let colorLabel = '';
+                          if (colorRaw && typeof colorRaw === 'object') {
+                            colorLabel = colorRaw.name || colorRaw.label || colorRaw.value || '';
+                          } else if (colorRaw) {
+                            colorLabel = String(colorRaw);
+                          }
+                          const colorPart = colorLabel ? ` (${escapeHtml(colorLabel)})` : '';
+                          return '<div>' + escapeHtml(name) + colorPart + '</div>';
+                        }).join('');
+                      }
+                      // fallback: try flower_type and color properties on result
+                      const base = escapeHtml(result.flower_type || '');
+                      let c = result.color || result.color_name || '';
+                      if (c && typeof c === 'object') c = c.name || c.label || c.value || '';
+                      return '<div>' + base + (c ? (' (' + escapeHtml(String(c)) + ')') : '') + '</div>';
+                    } catch (e) { return `<div>${escapeHtml(result.flower_type || '')}</div>`; }
+                  })()}
                   <div class="small text-muted">Quantity: ${escapeHtml(String(result.quantity || '1'))}</div>
                   <div class="small text-muted">Add-ons: ${result.addons?.length ? escapeHtml(result.addons.join(', ')) : 'None'}</div>
                 </div>
               </div>
-              <div class="mb-3">
+              </div>
+              <div class="mb-3 me-4 text-end">
                 <div class="small text-muted">Total Fee</div>
                 <div class="h5">₱${escapeHtml(String(result.total_fee || '0'))}</div>
               </div>
 
               <div class="mb-3">
-                <div class="small text-muted mb-2">Order Progress</div>
-                <div class="d-flex flex-wrap align-items-center gap-3">
+                <div class="small text-muted mb-2 ms-2">Order Progress</div>
+                <div class="d-flex flex-wrap align-items-center gap-3 ms-3">
                   ${stepsHtml}
                 </div>
               </div>

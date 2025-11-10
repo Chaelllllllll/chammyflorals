@@ -9,6 +9,18 @@ function formatPHP(n) {
   } catch (e) { return '₱0.00'; }
 }
 
+// normalize color field which may be a string or an object
+function formatColor(c) {
+  try {
+    if (c == null) return '';
+    if (typeof c === 'string') return c;
+    if (typeof c === 'object') {
+      return c.name || c.label || c.value || (c.toString && c.toString()) || '';
+    }
+    return String(c);
+  } catch (e) { return '' }
+}
+
 // order-success page JS: fetch order details and populate the page
 (async function(){
   const params = new URLSearchParams(window.location.search);
@@ -24,8 +36,12 @@ function formatPHP(n) {
     const data = await res.json();
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val == null ? '-' : String(val); };
     setText('os-order-id', data.orderId || data.order_id || orderId);
-    setText('os-flower-type', data.flower_type || '-');
-    setText('os-quantity', data.quantity || '-');
+  // display primary item with color: "Item (Color)" without quantity suffix
+  const primaryItem = (Array.isArray(data.items) && data.items.length) ? data.items[0] : null;
+  const itemName = primaryItem ? (primaryItem.name || primaryItem.flower_type) : (data.flower_type || '');
+  const itemColor = formatColor(primaryItem ? (primaryItem.color || primaryItem.color_name || primaryItem.colorType) : (data.color || data.color_name || ''));
+  setText('os-flower-type', itemName ? `${itemName}${itemColor ? ' (' + itemColor + ')' : ''}` : '-');
+  setText('os-quantity', data.quantity || (primaryItem && (primaryItem.qty || primaryItem.quantity)) || '-');
   setText('os-total', (typeof data.total_fee !== 'undefined' && data.total_fee !== null) ? formatPHP(data.total_fee).replace(/^[^0-9-]+/, '') : '-');
     setText('os-status', data.status || '-');
     // wire track link to this order
@@ -93,8 +109,13 @@ function formatPHP(n) {
           ctx.fillText(orderIdText, leftX, y); y += detailLineHeight;
           ctx.font = '16px Arial';
           ctx.fillStyle = '#333';
-          ctx.fillText(`Flower Type: ${data.flower_type || '-'}`, leftX, y); y += detailLineHeight;
-          ctx.fillText(`Quantity: ${data.quantity || '-'}`, leftX, y); y += detailLineHeight;
+          // Flower Type line: show primary item with color
+          const primary = (Array.isArray(data.items) && data.items.length) ? data.items[0] : null;
+          const displayName = primary ? (primary.name || primary.flower_type) : data.flower_type;
+          const displayColor = formatColor(primary ? (primary.color || primary.color_name || primary.colorType) : (data.color || data.color_name || ''));
+          const flowerLine = displayName ? `${displayName}${displayColor ? ' (' + displayColor + ')' : ''}` : '-';
+          ctx.fillText(`Flower Type: ${flowerLine}`, leftX, y); y += detailLineHeight;
+          ctx.fillText(`Quantity: ${data.quantity || (primary && (primary.qty || primary.quantity)) || '-'}`, leftX, y); y += detailLineHeight;
           ctx.fillText(`Status: ${data.status || '-'}`, leftX, y); y += detailLineHeight;
 
           // right column: total and CTA
@@ -111,7 +132,9 @@ function formatPHP(n) {
             ctx.fillText('Items', leftX, y + 10); y += 28;
             ctx.font = '14px Arial';
             data.items.forEach(it => {
-              const label = `${it.name || it.flower_type || 'Item'} x${it.qty || it.quantity || 1}`;
+              const name = it.name || it.flower_type || 'Item';
+              const color = formatColor(it.color || it.color_name || it.colorType || '');
+              const label = name + (color ? ` (${color})` : '');
               ctx.fillText(label, leftX, y);
               ctx.fillText(it.price ? formatPHP(it.price) : '', rightX, y);
               y += 26;
