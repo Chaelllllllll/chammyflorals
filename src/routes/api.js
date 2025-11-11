@@ -7,11 +7,27 @@ const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const router = express.Router();
 const multer = require('multer');
+const crypto = require('crypto');
+
 // use memory storage so we can upload the buffer to Supabase storage
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
+// SECURITY FIX: Use cryptographically secure random for order IDs
 const generateOrderId = () => {
-  return Math.random().toString(36).substr(2, 8).toUpperCase();
+  // Generate 8 alphanumeric characters from crypto.randomBytes (more secure than Math.random)
+  // Use hex encoding to ensure we always get enough characters
+  let id = '';
+  while (id.length < 8) {
+    id += crypto.randomBytes(6).toString('hex').toUpperCase();
+  }
+  return id.substring(0, 8);
+};
+
+// SECURITY FIX: Input sanitization helper
+const sanitizeString = (str, maxLength = 1000) => {
+  if (!str) return '';
+  // Remove HTML tags and limit length
+  return String(str).replace(/<[^>]*>/g, '').trim().substring(0, maxLength);
 };
 
 // Apply a stricter rate limit to the public inquiry endpoint to mitigate abuse.
@@ -36,6 +52,8 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
     // Log minimal info to avoid leaking PII in logs
     const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');
     console.log('Received inquiry from', { name: req.body.user_name, email: safeEmail });
+
+    // SECURITY FIX: Sanitize user inputs
     const {
       user_name,
       user_email,
@@ -46,6 +64,11 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       message,
       rush,
     } = req.body;
+
+    // Sanitize string inputs to prevent XSS
+    const sanitizedUserName = sanitizeString(user_name, 200);
+    const sanitizedFbLink = sanitizeString(fb_link, 500);
+    const sanitizedMessage = sanitizeString(message, 2000);
 
     // reCAPTCHA removed: no client-side captcha required. Add server-side rate-limits/anti-abuse if needed.
 
@@ -223,13 +246,13 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
 
     const orderData = {
       order_id: orderId,
-      name: stripTags(user_name),
+      name: sanitizedUserName || stripTags(user_name),
       email: String(user_email).trim(),
-      fb_link: stripTags(fb_link) || 'Not provided',
+      fb_link: sanitizedFbLink || stripTags(fb_link) || 'Not provided',
       flower_type,
       quantity: parseInt(quantity) || 1,
       addons: Array.isArray(addons) ? addons.map(a => stripTags(a)) : [],
-      message: stripTags(message) || 'Not provided',
+      message: sanitizedMessage || stripTags(message) || 'Not provided',
       rush,
       total_fee: totalFee,
     };
@@ -383,8 +406,11 @@ router.get('/track/:orderId', async (req, res) => {
   }
 });
 
+// SECURITY FIX: Protect recompute endpoint - require authentication
+const auth = require('../middleware/auth');
+
 // Debug endpoint: recompute total for an orderId using current products/pricing logic
-router.get('/recompute-total/:orderId', async (req, res) => {
+router.get('/recompute-total/:orderId', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
@@ -763,12 +789,25 @@ router.post('/reviews', upload.single('image'), async (req, res) => {
       message: String(message).replace(/<[^>]*>?/gm, ''),
     };
 
-    // If an image was uploaded, upload it to Supabase Storage and attach the public URL
+    // SECURITY FIX: Validate and upload image with proper checks
     if (req.file && req.file.buffer) {
       try {
+        // Validate file type
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!req.file.mimetype || !allowedMimeTypes.includes(req.file.mimetype.toLowerCase())) {
+          return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
+        }
+
+        // Validate file size (already limited by multer, but double-check)
+        if (req.file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        }
+
         const supabase = require('../config/supabase');
         const bucket = process.env.SUPABASE_REVIEWS_BUCKET || 'reviews';
-        const filename = `${String(orderId)}_${Date.now()}_${String(req.file.originalname || 'img').replace(/[^a-z0-9.\-]/gi,'')}`;
+        // Sanitize filename to prevent path traversal
+        const sanitizedOriginalName = String(req.file.originalname || 'img').replace(/[^a-z0-9.\-]/gi, '_').substring(0, 100);
+        const filename = `${String(orderId)}_${Date.now()}_${sanitizedOriginalName}`;
         const path = `${String(orderId)}/${filename}`;
         const { data: uploadData, error: uploadErr } = await supabase.storage.from(bucket).upload(path, req.file.buffer, { contentType: req.file.mimetype });
         if (uploadErr) {

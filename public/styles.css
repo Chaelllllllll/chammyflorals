@@ -251,11 +251,20 @@ body {
 
     /* Make badges responsive: allow wrapping and label wrapping on small widths */
     #statusBadges { flex-wrap: wrap; align-items: center; }
+
+    /* Mobile status dropdown styling */
+    #mobileStatusDropdown {
+      position: relative;
+    }
+
+    .mobile-status-filter.active {
+      background-color: rgba(255, 111, 155, 0.1);
+      font-weight: 600;
+    }
+
     @media (max-width: 768px) {
       .status-badge { font-size: .8rem; padding: .28rem .6rem; white-space: normal; }
       .status-badge .status-count { --bubble-size: 18px; font-size: .6rem; }
-      /* hide inline status badges on small screens; mobile uses the bell dropdown */
-      #statusBadges { display: none !important; }
       /* make the search input shrink to allow dropdown/bell to sit next to it */
       .d-flex > #ordersSearch { flex: 1 1 160px; min-width: 120px; }
     }

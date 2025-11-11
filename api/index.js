@@ -65,8 +65,9 @@ const corsOptions =
     : {};
 app.use(cors(corsOptions));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// SECURITY FIX: Limit JSON payload size to prevent DoS attacks
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiter — use a keyGenerator that prefers the X-Forwarded-For header when
 // available (common on serverless platforms) and emit standard headers for

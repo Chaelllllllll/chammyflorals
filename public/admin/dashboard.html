@@ -86,15 +86,48 @@
             <div class="small text-muted">Manage and search customer orders.</div>
           </div>
           <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
-            <!-- Desktop: status pills (right aligned) -->
-            <div id="statusBadges" class="d-flex gap-1 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
-              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All <span class="status-count" id="countAll" data-bs-toggle="tooltip" title="0">0</span></button>
+            <!-- Mobile: Single dropdown button with notification badge -->
+            <div class="dropdown d-md-none">
+              <button class="btn btn-pink btn-sm dropdown-toggle position-relative" type="button" id="mobileStatusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell-fill me-1" viewBox="0 0 16 16">
+                  <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901"/>
+                </svg>
+                Filters
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="mobileNotifBadge" style="display: none;">
+                  0
+                </span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="mobileStatusDropdown">
+                <li>
+                  <a class="dropdown-item mobile-status-filter" href="#" data-status="">
+                    All
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item mobile-status-filter" href="#" data-status="Pending">
+                    Pending <span class="badge bg-warning text-dark ms-2" id="ddCountPending">0</span>
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item mobile-status-filter" href="#" data-status="Processing">
+                    Processing <span class="badge bg-primary ms-2" id="ddCountProcessing">0</span>
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item mobile-status-filter" href="#" data-status="To Receive">
+                    To Receive <span class="badge bg-success ms-2" id="ddCountToReceive">0</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Desktop: Status filter buttons (hidden on mobile) -->
+            <div id="statusBadges" class="d-none d-md-flex gap-1 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
+              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All</button>
               <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
               <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
               <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
             </div>
-
-            <!-- Mobile: (notifications removed) -->
           </div>
         </div>
         <div class="mb-3">

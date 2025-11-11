@@ -76,6 +76,8 @@ function setupOrderFilters() {
   }
   // setup status badges (replaces status dropdown)
   setupStatusBadges();
+  // setup mobile status dropdown
+  setupMobileStatusDropdown();
   // wire mobile dropdown items (if present)
   const ddItems = document.querySelectorAll('.status-dropdown-item');
   if (ddItems && ddItems.length) {
@@ -272,6 +274,37 @@ function setupStatusBadges() {
   } catch (e) { /* bootstrap not available or tooltips already removed */ }
 }
 
+function setupMobileStatusDropdown() {
+  // Setup mobile dropdown filter clicks
+  document.querySelectorAll('.mobile-status-filter').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const status = item.dataset.status || '';
+
+      // Update active state in dropdown
+      document.querySelectorAll('.mobile-status-filter').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+
+      // Update desktop badges to match (if present)
+      const container = document.getElementById('statusBadges');
+      if (container) {
+        container.querySelectorAll('.status-badge').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-pressed', 'false');
+          if (b.dataset.status === status) {
+            b.classList.add('active');
+            b.setAttribute('aria-pressed', 'true');
+          }
+        });
+      }
+
+      // Apply filter
+      window.orderStatusFilter = status;
+      applyOrderFilters();
+    });
+  });
+}
+
 function updateStatusCounts() {
   const all = window.ordersData || [];
   // count only non-delivered orders as the table shows not-delivered by default
@@ -323,6 +356,18 @@ function updateStatusCounts() {
     const ddToReceive = document.getElementById('ddCountToReceive'); if (ddToReceive) { if (counts['To Receive'] === 0) ddToReceive.style.display = 'none'; else { ddToReceive.style.display = ''; ddToReceive.textContent = fmt(counts['To Receive']); } }
   } catch (e) {}
   try { const notifTotalEl = document.getElementById('notifTotal'); if (notifTotalEl) { if (counts.All === 0) notifTotalEl.style.display = 'none'; else { notifTotalEl.style.display = ''; notifTotalEl.textContent = fmt(counts.All); } } } catch (e) {}
+  // update mobile notification badge
+  try {
+    const mobileNotifBadge = document.getElementById('mobileNotifBadge');
+    if (mobileNotifBadge) {
+      if (counts.All === 0) {
+        mobileNotifBadge.style.display = 'none';
+      } else {
+        mobileNotifBadge.style.display = '';
+        mobileNotifBadge.textContent = fmt(counts.All);
+      }
+    }
+  } catch (e) {}
   // update optional dashboard metric cards if present
   try {
     const elTotal = document.getElementById('metricTotalOrders'); if (elTotal) elTotal.textContent = String(counts.All || 0);

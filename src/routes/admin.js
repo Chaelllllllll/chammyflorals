@@ -10,6 +10,7 @@ const fs = require('fs');
 const messenger = require('../lib/messenger');
 const { setSession } = require('../lib/sessionStore');
 const path = require('path');
+const crypto = require('crypto');
 const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state.json');
 
 // In-memory two-factor store: { email => { code, expires, token } }
@@ -95,7 +96,6 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     // Use timing-safe comparison to avoid leaking which part failed
-    const crypto = require('crypto');
     const safeEqual = (a, b) => {
       try {
         const aa = Buffer.from(String(a));
@@ -193,8 +193,9 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.json({ twoFactorRequired: true, message: `A code has already been sent. Please wait ${remaining} seconds before requesting a new code.`, remainingSeconds: remaining });
     }
 
-  // Generate 6-digit code
-  const code = String(Math.floor(100000 + Math.random() * 900000));
+  // SECURITY FIX: Generate cryptographically secure 6-digit code
+  const randomNum = crypto.randomInt(100000, 1000000); // crypto.randomInt is cryptographically secure
+  const code = String(randomNum);
   const expiresAt = new Date(Date.now() + (1 * 60 * 1000)).toISOString(); // 1 minute
 
     // Try to persist code to DB for reliability across instances (do not store session token yet)
@@ -275,7 +276,6 @@ router.post('/login/verify', loginLimiter, async (req, res) => {
         }
         if (String(code).trim() !== dbCode) return res.status(401).json({ error: 'Invalid 2FA code' });
         // clear used code and create a one-time session token (random) for the admin
-        const crypto = require('crypto');
         const sessionToken = crypto.randomBytes(32).toString('hex');
         const sessionExpiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(); // 8 hours
         try {
@@ -303,7 +303,6 @@ router.post('/login/verify', loginLimiter, async (req, res) => {
     // success — issue a secure session token, persist (best-effort), and clear store
     twofaStore.delete(normEmail);
     try {
-      const crypto = require('crypto');
       const sessionToken = crypto.randomBytes(32).toString('hex');
       const sessionExpiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(); // 8 hours
       try {
@@ -881,7 +880,6 @@ router.post('/admins/messenger', auth, async (req, res) => {
 });
 
 // --- Admin accounts management (email/password) ---
-const crypto = require('crypto');
 
 // List admins (do not return password_hash)
 router.get('/admins', auth, async (req, res) => {
@@ -1052,16 +1050,18 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
       return res.status(400).json({ error: 'File is required (no multipart file and no base64 payload found)' });
     }
 
-    // Validate file type and size
-    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-      return res.status(400).json({ error: 'Only image files are allowed' });
+    // SECURITY FIX: Validate file type with whitelist
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!file.mimetype || !allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
     }
     if (file.size > 5 * 1024 * 1024) {
       return res.status(400).json({ error: 'File size exceeds 5MB limit' });
     }
     console.log('Received multipart file:', { originalname: file.originalname, size: file.size, mimetype: file.mimetype });
     const ext = (file.mimetype && file.mimetype.split('/')[1]) || 'png';
-    const filename = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    // SECURITY FIX: Use crypto.randomBytes instead of Math.random
+    const filename = `${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
     const path = `products/${filename}`;
     const { error: uploadError } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file.buffer, { contentType: file.mimetype, upsert: false });
     if (uploadError) {
