@@ -36,14 +36,127 @@ function formatColor(c) {
     const data = await res.json();
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val == null ? '-' : String(val); };
     setText('os-order-id', data.orderId || data.order_id || orderId);
-  // display primary item with color: "Item (Color)" without quantity suffix
-  const primaryItem = (Array.isArray(data.items) && data.items.length) ? data.items[0] : null;
-  const itemName = primaryItem ? (primaryItem.name || primaryItem.flower_type) : (data.flower_type || '');
-  const itemColor = formatColor(primaryItem ? (primaryItem.color || primaryItem.color_name || primaryItem.colorType) : (data.color || data.color_name || ''));
-  setText('os-flower-type', itemName ? `${itemName}${itemColor ? ' (' + itemColor + ')' : ''}` : '-');
-  setText('os-quantity', data.quantity || (primaryItem && (primaryItem.qty || primaryItem.quantity)) || '-');
-  setText('os-total', (typeof data.total_fee !== 'undefined' && data.total_fee !== null) ? formatPHP(data.total_fee).replace(/^[^0-9-]+/, '') : '-');
-    setText('os-status', data.status || '-');
+
+    // Helper function to get color value (hex or rgb)
+    function getColorValue(colorData) {
+      if (!colorData) return null;
+
+      // If it's an object with value/hex/color property
+      if (typeof colorData === 'object') {
+        return colorData.value || colorData.hex || colorData.color || null;
+      }
+
+      // If it's a string that looks like a color code
+      if (typeof colorData === 'string') {
+        const str = colorData.trim();
+        // Check if it's hex or rgb
+        if (str.startsWith('#') || str.startsWith('rgb')) {
+          return str;
+        }
+      }
+
+      return null;
+    }
+
+    // Display all items
+    const itemsListEl = document.getElementById('os-items-list');
+    let totalQuantity = 0;
+
+    if (itemsListEl) {
+      let itemsHtml = '';
+
+      if (Array.isArray(data.items) && data.items.length) {
+        // Show all items
+        data.items.forEach((item, idx) => {
+          const itemName = item.name || item.flower_type || 'Item';
+          const itemColorName = formatColor(item.color || item.color_name || item.colorType || '');
+          const itemColorValue = getColorValue(item.color || item.color_name || item.colorType);
+          const qty = item.quantity || item.qty || 1;
+          totalQuantity += qty;
+
+          // Create color swatch if we have a color value
+          let colorDisplay = '';
+          if (itemColorValue) {
+            colorDisplay = `
+              <span class="d-inline-flex align-items-center gap-1 ms-2">
+                <span class="d-inline-block rounded-circle border" style="width: 16px; height: 16px; background: ${itemColorValue};"></span>
+                <span class="badge bg-white text-dark border">${itemColorName}</span>
+              </span>
+            `;
+          } else if (itemColorName) {
+            colorDisplay = `<span class="badge bg-white text-dark border ms-2">${itemColorName}</span>`;
+          }
+
+          itemsHtml += `
+            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mb-2">
+              <div class="d-flex align-items-center">
+                <span class="badge bg-pink text-white me-2">${idx + 1}</span>
+                <span class="fw-semibold">${itemName}</span>
+                ${colorDisplay}
+              </div>
+              <div class="text-muted">×${qty}</div>
+            </div>
+          `;
+        });
+      } else {
+        // Fallback to old format
+        const itemName = data.flower_type || 'Item';
+        const itemColorName = formatColor(data.color || data.color_name || '');
+        const itemColorValue = getColorValue(data.color || data.color_name);
+        const qty = data.quantity || 1;
+        totalQuantity = qty;
+
+        // Create color swatch if we have a color value
+        let colorDisplay = '';
+        if (itemColorValue) {
+          colorDisplay = `
+            <span class="d-inline-flex align-items-center gap-1 ms-2">
+              <span class="d-inline-block rounded-circle border" style="width: 16px; height: 16px; background: ${itemColorValue};"></span>
+              <span class="badge bg-white text-dark border">${itemColorName}</span>
+            </span>
+          `;
+        } else if (itemColorName) {
+          colorDisplay = `<span class="badge bg-white text-dark border ms-2">${itemColorName}</span>`;
+        }
+
+        itemsHtml = `
+          <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mb-2">
+            <div class="d-flex align-items-center">
+              <span class="badge bg-pink text-white me-2">1</span>
+              <span class="fw-semibold">${itemName}</span>
+              ${colorDisplay}
+            </div>
+            <div class="text-muted">×${qty}</div>
+          </div>
+        `;
+      }
+
+      itemsListEl.innerHTML = itemsHtml;
+    }
+
+    // Set total quantity
+    setText('os-total-quantity', totalQuantity);
+
+    // Set total amount
+    setText('os-total', (typeof data.total_fee !== 'undefined' && data.total_fee !== null) ? formatPHP(data.total_fee).replace(/^[^0-9-]+/, '') : '-');
+
+    // Set status with appropriate badge color
+    const statusEl = document.getElementById('os-status');
+    if (statusEl) {
+      const status = data.status || 'pending';
+      statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+      // Update badge color based on status
+      statusEl.className = 'badge';
+      if (status === 'completed' || status === 'delivered') {
+        statusEl.classList.add('bg-success');
+      } else if (status === 'processing' || status === 'confirmed') {
+        statusEl.classList.add('bg-primary');
+      } else if (status === 'cancelled' || status === 'rejected') {
+        statusEl.classList.add('bg-danger');
+      } else {
+        statusEl.classList.add('bg-warning', 'text-dark');
+      }
+    }
     // wire track link to this order
     const trackLink = document.getElementById('trackLink');
     if (trackLink) {
@@ -62,7 +175,8 @@ function formatColor(c) {
     if (messengerLink) {
       messengerLink.href = 'https://www.messenger.com/t/847673415097754';
     }
-    // Show a track prompt modal after 3 seconds that instructs user to type the track command
+    // Optional: Show track prompt modal after 8 seconds (less intrusive)
+    // Users can also access Messenger link directly from the page
     try {
       const idForCode = data.orderId || data.order_id || orderId;
       const promptCodeEl = document.getElementById('trackPromptCode');
@@ -70,31 +184,26 @@ function formatColor(c) {
       const confirmBtn = document.getElementById('trackPromptConfirm');
       const modalEl = document.getElementById('trackPromptModal');
       if (modalEl && confirmBtn) {
-        // show after 3 seconds
+        // Show after 8 seconds (give user time to read the page first)
+        // Only show if user hasn't left the page
         setTimeout(() => {
           try {
-            const m = new bootstrap.Modal(modalEl);
-            m.show();
-            // wire confirm to redirect to messenger chat
+            // Check if user is still on the page
+            if (document.hasFocus()) {
+              const m = new bootstrap.Modal(modalEl);
+              m.show();
+            }
+            // Wire confirm button to open Messenger
             const onConfirm = () => {
-              // use messenger link element if present, otherwise a hardcoded fallback
               const target = (messengerLink && messengerLink.href) ? messengerLink.href : 'https://www.messenger.com/t/847673415097754';
-              // navigate
-              window.location.href = target;
+              window.open(target, '_blank'); // Open in new tab instead of redirecting
+              // Close modal
+              const modalInstance = bootstrap.Modal.getInstance(modalEl);
+              if (modalInstance) modalInstance.hide();
             };
             confirmBtn.addEventListener('click', onConfirm, { once: true });
-            // wire modal download button to trigger the main save/download handler
-            try {
-              const modalDownload = document.getElementById('trackModalDownload');
-              if (modalDownload) {
-                modalDownload.addEventListener('click', () => {
-                  const saveBtnInner = document.getElementById('saveOrderBtn');
-                  if (saveBtnInner) saveBtnInner.click();
-                });
-              }
-            } catch (e) { /* ignore */ }
           } catch (e) { /* ignore */ }
-        }, 3000);
+        }, 8000); // Increased from 3s to 8s
       }
     } catch (modalErr) {}
     // wire save button in navbar (no footer should be included in the saved image)
@@ -149,42 +258,153 @@ function formatColor(c) {
           ctx.font = '600 18px Arial';
           let y = cardY + 124;
           const leftX = cardX + 28;
-          const detailLineHeight = 34;
+          const detailLineHeight = 28;
           const orderIdText = `Tracking ID: ${data.orderId || data.order_id || orderId}`;
-          ctx.fillText(orderIdText, leftX, y); y += detailLineHeight;
+          ctx.fillText(orderIdText, leftX, y); y += detailLineHeight + 6;
+
+          // Status
           ctx.font = '16px Arial';
           ctx.fillStyle = '#333';
-          // Flower Type line: show primary item with color
-          const primary = (Array.isArray(data.items) && data.items.length) ? data.items[0] : null;
-          const displayName = primary ? (primary.name || primary.flower_type) : data.flower_type;
-          const displayColor = formatColor(primary ? (primary.color || primary.color_name || primary.colorType) : (data.color || data.color_name || ''));
-          const flowerLine = displayName ? `${displayName}${displayColor ? ' (' + displayColor + ')' : ''}` : '-';
-          ctx.fillText(`Flower Type: ${flowerLine}`, leftX, y); y += detailLineHeight;
-          ctx.fillText(`Quantity: ${data.quantity || (primary && (primary.qty || primary.quantity)) || '-'}`, leftX, y); y += detailLineHeight;
-          ctx.fillText(`Status: ${data.status || '-'}`, leftX, y); y += detailLineHeight;
+          ctx.fillText(`Status: ${data.status || 'Pending'}`, leftX, y); y += detailLineHeight + 10;
 
-          // right column: total and CTA
-          const rightX = cardX + cardW - 300;
+          // Helper function to get color value for canvas
+          function getColorValueForCanvas(colorData) {
+            if (!colorData) return null;
+
+            if (typeof colorData === 'object') {
+              return colorData.value || colorData.hex || colorData.color || null;
+            }
+
+            if (typeof colorData === 'string') {
+              const str = colorData.trim();
+              if (str.startsWith('#') || str.startsWith('rgb')) {
+                return str;
+              }
+            }
+
+            return null;
+          }
+
+          // Items section
+          ctx.font = '600 16px Arial';
+          ctx.fillStyle = '#111';
+          ctx.fillText('Order Items:', leftX, y); y += detailLineHeight;
+
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#333';
+
+          let totalQuantity = 0;
+
+          if (Array.isArray(data.items) && data.items.length) {
+            // Show all items with quantities and color swatches
+            data.items.forEach((it, idx) => {
+              const name = it.name || it.flower_type || 'Item';
+              const colorName = formatColor(it.color || it.color_name || it.colorType || '');
+              const colorValue = getColorValueForCanvas(it.color || it.color_name || it.colorType);
+              const qty = it.quantity || it.qty || 1;
+              totalQuantity += qty;
+
+              // Draw item number and name
+              const label = `${idx + 1}. ${name}`;
+              ctx.fillText(label, leftX + 10, y);
+
+              // Draw color swatch if available
+              if (colorValue) {
+                const swatchX = leftX + 10 + ctx.measureText(label).width + 8;
+                const swatchY = y - 10;
+
+                // Draw color circle
+                ctx.fillStyle = colorValue;
+                ctx.beginPath();
+                ctx.arc(swatchX + 6, swatchY + 6, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw border
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Draw color name
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.fillText(`(${colorName})`, swatchX + 16, y);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#333';
+              } else if (colorName) {
+                // Just show color name if no color value
+                const colorTextX = leftX + 10 + ctx.measureText(label).width + 8;
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.fillText(`(${colorName})`, colorTextX, y);
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#333';
+              }
+
+              // Draw quantity
+              ctx.fillText(`Qty: ${qty}`, leftX + 450, y);
+              y += 24;
+            });
+          } else {
+            // Fallback to old format
+            const displayName = data.flower_type || 'Item';
+            const colorName = formatColor(data.color || data.color_name || '');
+            const colorValue = getColorValueForCanvas(data.color || data.color_name);
+            const qty = data.quantity || 1;
+            totalQuantity = qty;
+
+            // Draw item
+            const label = `1. ${displayName}`;
+            ctx.fillText(label, leftX + 10, y);
+
+            // Draw color swatch if available
+            if (colorValue) {
+              const swatchX = leftX + 10 + ctx.measureText(label).width + 8;
+              const swatchY = y - 10;
+
+              // Draw color circle
+              ctx.fillStyle = colorValue;
+              ctx.beginPath();
+              ctx.arc(swatchX + 6, swatchY + 6, 6, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Draw border
+              ctx.strokeStyle = '#ccc';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+
+              // Draw color name
+              ctx.fillStyle = '#666';
+              ctx.font = '12px Arial';
+              ctx.fillText(`(${colorName})`, swatchX + 16, y);
+              ctx.font = '14px Arial';
+              ctx.fillStyle = '#333';
+            } else if (colorName) {
+              const colorTextX = leftX + 10 + ctx.measureText(label).width + 8;
+              ctx.fillStyle = '#666';
+              ctx.font = '12px Arial';
+              ctx.fillText(`(${colorName})`, colorTextX, y);
+              ctx.font = '14px Arial';
+              ctx.fillStyle = '#333';
+            }
+
+            ctx.fillText(`Qty: ${qty}`, leftX + 450, y);
+            y += 24;
+          }
+
+          // Total quantity
+          y += 6;
+          ctx.font = '600 15px Arial';
+          ctx.fillStyle = '#111';
+          ctx.fillText(`Total Quantity: ${totalQuantity}`, leftX + 10, y);
+          y += detailLineHeight;
+
+          // right column: total amount
+          const rightX = cardX + cardW - 280;
           let ry = cardY + 140;
           ctx.fillStyle = '#6c6c6c'; ctx.font = '14px Arial';
-          ctx.fillText('Total', rightX, ry); ry += 30;
-          ctx.fillStyle = '#000'; ctx.font = '700 28px Arial';
+          ctx.fillText('Total Amount', rightX, ry); ry += 30;
+          ctx.fillStyle = '#ff6f9b'; ctx.font = '700 32px Arial';
           ctx.fillText(formatPHP(data.total_fee || 0), rightX, ry); ry += 50;
-
-          // optional items table
-          if (Array.isArray(data.items) && data.items.length) {
-            ctx.font = '600 16px Arial'; ctx.fillStyle = '#333';
-            ctx.fillText('Items', leftX, y + 10); y += 28;
-            ctx.font = '14px Arial';
-            data.items.forEach(it => {
-              const name = it.name || it.flower_type || 'Item';
-              const color = formatColor(it.color || it.color_name || it.colorType || '');
-              const label = name + (color ? ` (${color})` : '');
-              ctx.fillText(label, leftX, y);
-              ctx.fillText(it.price ? formatPHP(it.price) : '', rightX, y);
-              y += 26;
-            });
-          }
 
           // download
           const url = canvas.toDataURL('image/png');

@@ -64,20 +64,22 @@ async function renderPreview() {
   }
   container.innerHTML = top.map(r => `
     <div class="col-12 col-md-4">
-      <div class="card h-100">
-        <div class="card-body d-flex p-3">
-          ${r.image_url ? `
-            <div class="review-thumb-wrap">
-              <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
-            </div>
-          ` : ''}
-          <div class="flex-grow-1">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <strong>${escapeHtml(r.name)}</strong>
-              <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
-            </div>
-            <p class="mb-0">${escapeHtml(r.message)}</p>
+      <div class="card h-100" style="border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        ${r.image_url ? `
+          <div style="position: relative; width: 100%; height: 180px; overflow: hidden; background: #f5f5f5;">
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image"
+                 style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;"
+                 onmouseover="this.style.transform='scale(1.05)'"
+                 onmouseout="this.style.transform='scale(1)'"
+                 onerror="this.closest('div').style.display='none'" />
           </div>
+        ` : ''}
+        <div class="card-body p-3">
+          <div class="mb-2">
+            <div class="fw-semibold mb-1" style="color: #2d2d2d;">${escapeHtml(r.name)}</div>
+            <div style="color: #ffc107; font-size: 0.9rem;">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+          </div>
+          <p class="mb-0 small" style="color: #666; line-height: 1.5;">${escapeHtml(r.message)}</p>
         </div>
       </div>
     </div>

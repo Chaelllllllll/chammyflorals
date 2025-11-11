@@ -9,9 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const flowerSelect = inquiryForm.querySelector('select[name="flower_type"]');
   const addonsContainer = document.getElementById('addonsContainer');
   const defaultAddonsHtml = addonsContainer ? addonsContainer.innerHTML : '';
+  const addonsSection = document.getElementById('addonsSection');
   const addonsWrapper = addonsContainer ? addonsContainer.parentElement : null;
   // hide addons section by default until a product with addons is selected
-  try { if (addonsWrapper) addonsWrapper.style.display = 'none'; } catch (e) {}
+  try {
+    if (addonsSection) addonsSection.style.display = 'none';
+    if (addonsWrapper && !addonsSection) addonsWrapper.style.display = 'none';
+  } catch (e) {}
   let _productsCache = null;
 
   // Load products once and populate flower type select dynamically
@@ -159,23 +163,35 @@ document.addEventListener('DOMContentLoaded', () => {
           const html = product.addons.map(a => {
             if (typeof a === 'string') {
               const val = escapeHtml(a);
-              return `<div class="form-check"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input"><label class="form-check-label">${val}</label></div>`;
+              return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input" id="addon_${val}"><label class="form-check-label fw-semibold" for="addon_${val}">${val}</label></div>`;
             }
             const label = String(a.label || '').trim();
             const price = a.price != null ? `₱${Number(a.price).toLocaleString()}` : '';
             const value = escapeHtml(label + (price ? ` - ${price}` : ''));
-            return `<div class="form-check"><input type="checkbox" name="addons[]" value="${value}" class="form-check-input"><label class="form-check-label">${escapeHtml(label)}${price ? ` - ${price}` : ''}</label></div>`;
+            const id = 'addon_' + label.replace(/\s+/g, '_');
+            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${value}" class="form-check-input" id="${id}"><label class="form-check-label" for="${id}"><span class="fw-semibold">${escapeHtml(label)}</span>${price ? ` <span class="badge bg-pink text-white ms-2">${price}</span>` : ''}</label></div>`;
           }).join('');
           addonsContainer.innerHTML = html;
-          try { if (addonsWrapper) addonsWrapper.style.display = ''; } catch (e) {}
+          try {
+            if (addonsSection) addonsSection.style.display = '';
+            if (addonsWrapper && !addonsSection) addonsWrapper.style.display = '';
+          } catch (e) {}
         } else {
           // no product-specific addons: hide the addons wrapper
-          try { if (addonsWrapper) { addonsWrapper.style.display = 'none'; addonsContainer.innerHTML = ''; } else { addonsContainer.innerHTML = ''; } } catch (e) {}
+          try {
+            if (addonsSection) { addonsSection.style.display = 'none'; addonsContainer.innerHTML = ''; }
+            else if (addonsWrapper) { addonsWrapper.style.display = 'none'; addonsContainer.innerHTML = ''; }
+            else { addonsContainer.innerHTML = ''; }
+          } catch (e) {}
         }
       }
     } catch (err) {
       console.error('Failed to fetch product info for inquiry:', err);
-      try { if (addonsWrapper) addonsWrapper.style.display = 'none'; else if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml; } catch (e) {}
+      try {
+        if (addonsSection) addonsSection.style.display = 'none';
+        else if (addonsWrapper) addonsWrapper.style.display = 'none';
+        else if (addonsContainer) addonsContainer.innerHTML = defaultAddonsHtml;
+      } catch (e) {}
     }
   }
 
@@ -232,15 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'order-item mb-2';
     row.innerHTML = `
-      <div class="item-controls d-flex align-items-center gap-2 w-100">
-        <select class="form-select item-flower" name="flower_type_${index}" required>
-          <option value="">Select Flower Type</option>
+      <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
+        <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${index + 1}</span>
+        <select class="form-select form-select-sm item-flower" name="flower_type_${index}" required style="flex: 3;">
+          <option value="">Flower Type</option>
         </select>
-        <select class="form-select item-color" name="color_${index}" aria-label="Color selection">
-          <option value="">Select Color</option>
+        <select class="form-select form-select-sm item-color" name="color_${index}" aria-label="Color" style="flex: 2;">
+          <option value="">Color</option>
         </select>
-        <input type="number" class="form-control item-quantity" name="quantity_${index}" min="1" value="1" required>
-        <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
+        <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${index}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
+          <i class="fa fa-times"></i>
+        </button>
       </div>
     `;
     const selectEl = row.querySelector('.item-flower');
@@ -260,10 +279,21 @@ document.addEventListener('DOMContentLoaded', () => {
     row.querySelector('.remove-item').addEventListener('click', () => {
       if (itemsContainer.children.length <= 1) return; // keep at least one
       row.remove();
+      // update item numbers
+      updateItemNumbers();
       // update rush fee when item removed
       computeRushFee();
     });
     return row;
+  }
+
+  // Update item numbers after adding/removing items
+  function updateItemNumbers() {
+    const items = itemsContainer.querySelectorAll('.order-item');
+    items.forEach((item, idx) => {
+      const badge = item.querySelector('.badge');
+      if (badge) badge.textContent = `Item ${idx + 1}`;
+    });
   }
 
   function populateColorSelectForRow(row) {
@@ -549,42 +579,88 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusClass = (s) => {
           switch ((s||'').toLowerCase()) {
             case 'pending': return 'bg-warning text-dark';
-            case 'processing': return 'bg-primary text-white';
-            case 'to receive': return 'bg-success text-white';
-            case 'delivered': return 'bg-success text-white';
-            case 'cancelled': return 'bg-secondary text-white';
-            default: return 'bg-light text-dark';
+            case 'processing': case 'confirmed': return 'bg-primary text-white';
+            case 'to receive': case 'ready': return 'bg-info text-white';
+            case 'delivered': case 'completed': return 'bg-success text-white';
+            case 'cancelled': case 'rejected': return 'bg-danger text-white';
+            default: return 'bg-secondary text-white';
+          }
+        };
+
+        const statusIcon = (s) => {
+          switch ((s||'').toLowerCase()) {
+            case 'pending': return 'fa-clock';
+            case 'processing': case 'confirmed': return 'fa-cog fa-spin';
+            case 'to receive': case 'ready': return 'fa-box';
+            case 'delivered': case 'completed': return 'fa-check-circle';
+            case 'cancelled': case 'rejected': return 'fa-times-circle';
+            default: return 'fa-info-circle';
           }
         };
 
         // compute progress steps
-        const steps = ['Pending','Processing','To Receive','Delivered'];
-        const activeIndex = steps.findIndex(s => s.toLowerCase() === status.toLowerCase());
+        const steps = [
+          { name: 'Pending', icon: 'fa-clock' },
+          { name: 'Processing', icon: 'fa-cog' },
+          { name: 'To Receive', icon: 'fa-box' },
+          { name: 'Delivered', icon: 'fa-check-circle' }
+        ];
+        const activeIndex = steps.findIndex(s => s.name.toLowerCase() === status.toLowerCase());
 
-        // render steps in a wrapping flex container to avoid overflow on small screens
-        const stepsHtml = steps.map((s,i)=>{
-          const active = i <= activeIndex;
-          return `<div class="d-flex align-items-center">
-            <div class="rounded-circle d-inline-flex justify-content-center align-items-center me-2" style="width:28px;height:28px;${active? 'background:#ff99bb;color:#fff;': 'background:#eee;color:#666;'}">${i+1}</div>
-            <div class="small">${escapeHtml(s)}</div>
-          </div>`;
-        }).join('');
+        // render steps as a progress bar
+        const stepsHtml = `
+          <div class="position-relative">
+            <!-- Progress line -->
+            <div class="position-absolute top-50 start-0 translate-middle-y w-100" style="height: 3px; background: #e0e0e0; z-index: 0;"></div>
+            <div class="position-absolute top-50 start-0 translate-middle-y" style="height: 3px; background: #ff99bb; z-index: 0; width: ${activeIndex >= 0 ? (activeIndex / (steps.length - 1)) * 100 : 0}%;"></div>
+
+            <!-- Steps -->
+            <div class="d-flex justify-content-between position-relative" style="z-index: 1;">
+              ${steps.map((s, i) => {
+                const active = i <= activeIndex;
+                const current = i === activeIndex;
+                return `
+                  <div class="text-center" style="flex: 1;">
+                    <div class="rounded-circle d-inline-flex justify-content-center align-items-center mb-2"
+                         style="width: 40px; height: 40px; background: ${active ? '#ff99bb' : '#e0e0e0'}; color: ${active ? '#fff' : '#999'}; border: 3px solid ${current ? '#ff6f9b' : 'transparent'};">
+                      <i class="fa ${s.icon}"></i>
+                    </div>
+                    <div class="small fw-${active ? 'bold' : 'normal'}" style="color: ${active ? '#ff6f9b' : '#999'}; font-size: 0.75rem;">
+                      ${escapeHtml(s.name)}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
 
         trackResult.innerHTML = `
           <div class="card border-0 shadow-sm">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="card-body p-4">
+              <!-- Header -->
+              <div class="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                 <div>
-                  <h5 class="card-title mb-0">Order ${escapeHtml(result.orderId || '')}</h5>
-                  <div class="small text-muted">${escapeHtml(result.name || '')} · ${new Date(result.created_at).toLocaleDateString()}</div>
+                  <div class="small text-muted mb-1">Order ID</div>
+                  <h5 class="card-title mb-1 fw-bold text-pink">${escapeHtml(result.orderId || '')}</h5>
+                  <div class="small text-muted">
+                    <i class="fa fa-user me-1"></i>${escapeHtml(result.name || 'Customer')} ·
+                    <i class="fa fa-calendar ms-2 me-1"></i>${new Date(result.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
                 </div>
                 <div class="text-end">
-                  <span class="badge ${statusClass(status)} rounded-pill">${escapeHtml(status)}</span>
+                  <span class="badge ${statusClass(status)} rounded-pill px-3 py-2" style="font-size: 0.9rem;">
+                    <i class="fa ${statusIcon(status)} me-1"></i>${escapeHtml(status)}
+                  </span>
                 </div>
+              </div>
+
+              <!-- Order Details -->
+              <div class="mb-4">
+                <div class="fw-semibold mb-3 text-muted" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <i class="fa fa-shopping-bag me-2"></i>Order Details
                 </div>
-              <div class="mb-3">
-                <div class="small text-muted">Items</div>
-                <div class="mt-2">
+                <div class="bg-light rounded p-3">
                   ${(() => {
                     try {
                       if (Array.isArray(result.items) && result.items.length) {
@@ -597,31 +673,58 @@ document.addEventListener('DOMContentLoaded', () => {
                           } else if (colorRaw) {
                             colorLabel = String(colorRaw);
                           }
-                          const colorPart = colorLabel ? ` (${escapeHtml(colorLabel)})` : '';
-                          return '<div>' + escapeHtml(name) + colorPart + '</div>';
+                          const colorPart = colorLabel ? ` <span class="badge bg-white text-dark border">${escapeHtml(colorLabel)}</span>` : '';
+                          return `<div class="d-flex justify-content-between align-items-center mb-2">
+                            <div><i class="fa fa-flower text-pink me-2"></i>${escapeHtml(name)}${colorPart}</div>
+                            <div class="text-muted">×${it.quantity || 1}</div>
+                          </div>`;
                         }).join('');
                       }
                       // fallback: try flower_type and color properties on result
                       const base = escapeHtml(result.flower_type || '');
                       let c = result.color || result.color_name || '';
                       if (c && typeof c === 'object') c = c.name || c.label || c.value || '';
-                      return '<div>' + base + (c ? (' (' + escapeHtml(String(c)) + ')') : '') + '</div>';
-                    } catch (e) { return `<div>${escapeHtml(result.flower_type || '')}</div>`; }
+                      const colorBadge = c ? ` <span class="badge bg-white text-dark border">${escapeHtml(String(c))}</span>` : '';
+                      return `<div class="d-flex justify-content-between align-items-center">
+                        <div><i class="fa fa-flower text-pink me-2"></i>${base}${colorBadge}</div>
+                        <div class="text-muted">×${result.quantity || 1}</div>
+                      </div>`;
+                    } catch (e) { return `<div><i class="fa fa-flower text-pink me-2"></i>${escapeHtml(result.flower_type || '')}</div>`; }
                   })()}
-                  <div class="small text-muted">Quantity: ${escapeHtml(String(result.quantity || '1'))}</div>
-                  <div class="small text-muted">Add-ons: ${result.addons?.length ? escapeHtml(result.addons.join(', ')) : 'None'}</div>
+                  ${result.addons?.length ? `
+                    <div class="mt-2 pt-2 border-top">
+                      <div class="small text-muted mb-1">Add-ons:</div>
+                      <div class="small">${result.addons.map(a => `<span class="badge bg-pink text-white me-1">${escapeHtml(a)}</span>`).join('')}</div>
+                    </div>
+                  ` : ''}
                 </div>
               </div>
-              </div>
-              <div class="mb-3 me-4 text-end">
-                <div class="small text-muted">Total Fee</div>
-                <div class="h5">₱${escapeHtml(String(result.total_fee || '0'))}</div>
+
+              <!-- Total -->
+              <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light rounded">
+                <div class="fw-semibold">Total Amount</div>
+                <div class="h4 mb-0 text-pink fw-bold">₱${escapeHtml(String(result.total_fee || '0'))}</div>
               </div>
 
+              <!-- Progress -->
               <div class="mb-3">
-                <div class="small text-muted mb-2 ms-2">Order Progress</div>
-                <div class="d-flex flex-wrap align-items-center gap-3 ms-3">
+                <div class="fw-semibold mb-3 text-muted" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <i class="fa fa-route me-2"></i>Order Progress
+                </div>
+                <div class="px-2">
                   ${stepsHtml}
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="mt-4 pt-3 border-top">
+                <div class="d-flex gap-2 flex-wrap">
+                  <a href="/?orderId=${encodeURIComponent(result.orderId || '')}" class="btn btn-outline-pink btn-sm flex-fill">
+                    <i class="fa fa-refresh me-2"></i>Refresh Status
+                  </a>
+                  <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="btn btn-outline-primary btn-sm flex-fill">
+                    <i class="fa-brands fa-facebook-messenger me-2"></i>Contact Us
+                  </a>
                 </div>
               </div>
             </div>

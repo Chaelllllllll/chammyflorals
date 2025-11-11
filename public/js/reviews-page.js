@@ -30,10 +30,10 @@ async function renderPageReviews() {
     }
 
     if (!reviews.length) {
-      container.innerHTML = '<div class="p-4 text-center text-muted">No reviews yet. Be the first to add one!</div>';
+      container.innerHTML = '<div class="text-center text-muted py-5"><i class="fa fa-star-o fa-3x mb-3 d-block" style="opacity: 0.3;"></i><p>No reviews yet. Be the first to add one!</p></div>';
       // update hero counts
-      try { document.getElementById('reviewsCount').textContent = '0 reviews'; } catch (e) {}
-      try { document.getElementById('reviewsAvg').textContent = '—'; } catch (e) {}
+      try { document.getElementById('reviewsCount').textContent = '0'; } catch (e) {}
+      try { document.getElementById('reviewsAvg').textContent = '0.0'; } catch (e) {}
       return;
     }
 
@@ -45,31 +45,57 @@ async function renderPageReviews() {
       const avgEl = document.getElementById('reviewsAvg');
       const total = sorted.length;
       const avg = (sorted.reduce((s, x) => s + (Number(x.stars) || 0), 0) / Math.max(1, total));
-      if (countEl) countEl.textContent = `${total} review${total>1?'s':''}`;
+      if (countEl) countEl.textContent = `${total}`;
       if (avgEl) avgEl.textContent = `${Number(avg.toFixed(1))}`;
     } catch (e) {}
 
     container.innerHTML = sorted.map(r => `
-      <div class="card review-card mb-3">
-        <div class="card-body d-flex p-3">
+      <div class="col-12 mb-3">
+        <div class="review-card">
           ${r.image_url ? `
-            <div class="review-thumb-wrap">
-              <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
-            </div>
-          ` : ''}
-          <div class="flex-grow-1">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-              <div>
-                <strong>${escapeHtml(r.name || 'Customer')}</strong>
-                <div class="review-meta">Order ${escapeHtml(r.order_id || r.orderId || '')} · ${new Date(r.created_at || r.createdAt).toLocaleDateString()}</div>
+            <div class="row g-0">
+              <div class="col-md-6">
+                <div class="review-content">
+                  <div class="review-author">${escapeHtml(r.name || 'Customer')}</div>
+                  <div class="review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+                  <p class="review-text mb-0">${escapeHtml(r.message)}</p>
+                </div>
               </div>
-              <div class="stars fs-5">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+              <div class="col-md-6">
+                <div class="review-image-wrapper" data-image-url="${escapeHtml(r.image_url)}">
+                  <img src="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.col-md-6').style.display='none'" />
+                </div>
+              </div>
             </div>
-            <p class="mb-0">${escapeHtml(r.message)}</p>
-          </div>
+          ` : `
+            <div class="review-content">
+              <div class="review-author">${escapeHtml(r.name || 'Customer')}</div>
+              <div class="review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
+              <p class="review-text mb-0">${escapeHtml(r.message)}</p>
+            </div>
+          `}
         </div>
       </div>
     `).join('');
+
+    // Add click event listeners to all review images
+    setTimeout(() => {
+      const imageWrappers = container.querySelectorAll('.review-image-wrapper');
+      console.log('Found review images:', imageWrappers.length);
+      imageWrappers.forEach(wrapper => {
+        wrapper.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const imageUrl = this.getAttribute('data-image-url');
+          console.log('Image clicked, URL:', imageUrl);
+          if (imageUrl && typeof window.openImageModal === 'function') {
+            window.openImageModal(imageUrl);
+          } else {
+            console.error('openImageModal not available or no URL');
+          }
+        });
+      });
+    }, 100);
   } catch (err) {
     console.error('Failed to render page reviews', err);
     container.innerHTML = '<div class="p-4 text-center text-danger">Failed to load reviews. Please try again later.</div>';

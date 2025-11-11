@@ -36,32 +36,81 @@ document.addEventListener('DOMContentLoaded', () => {
     Object.keys(groups).forEach(cat => {
       const section = document.createElement('section');
       section.className = 'mb-5';
-      const heading = document.createElement('h4');
-      heading.className = 'text-center fw-bold mb-3';
-      heading.textContent = cat;
-      section.appendChild(heading);
+
+      // Category header with decorative line
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'text-center mb-4';
+      headerDiv.innerHTML = `
+        <div class="d-inline-flex align-items-center gap-3">
+          <div style="width: 50px; height: 2px; background: linear-gradient(to right, transparent, #ff99bb);"></div>
+          <h4 class="fw-bold mb-0 text-pink">${escapeHtml(cat)}</h4>
+          <div style="width: 50px; height: 2px; background: linear-gradient(to left, transparent, #ff99bb);"></div>
+        </div>
+      `;
+      section.appendChild(headerDiv);
 
       const row = document.createElement('div');
       row.className = 'row g-4 justify-content-center';
 
       groups[cat].forEach(p => {
         const col = document.createElement('div');
-        col.className = 'col-md-4 col-sm-6';
+        col.className = 'col-lg-3 col-md-4 col-sm-6';
         const imgSrc = p.image_url || 'flowers/bouquetwithglitter.jfif';
-        // create card elements and attach handler directly (no setTimeout)
+
+        // Get price preview (first pricing item)
+        let pricePreview = '';
+        if (p.pricing && Array.isArray(p.pricing) && p.pricing.length && p.pricing[0].price) {
+          pricePreview = `<div class="small text-muted mb-2">Starting at <span class="fw-bold text-pink">₱${p.pricing[0].price}</span></div>`;
+        }
+
+        // Create modern card with hover effects
         const card = document.createElement('div');
-        card.className = 'card shadow-sm';
+        card.className = 'card h-100 border-0 shadow-sm product-card';
+        card.style.cssText = 'transition: all 0.3s ease; cursor: pointer; overflow: hidden;';
         card.innerHTML = `
-          <img src="${imgSrc}" alt="${escapeHtml(p.name)}" class="card-img-top rounded-top">
-          <div class="card-body text-center">
-            <h5 class="card-title text-muted">${escapeHtml(p.name)}</h5>
-            <div class="mt-2 product-cta">
-              <button class="btn btn-pink view-price-btn">View Price</button>
+          <div class="position-relative overflow-hidden" style="height: 220px;">
+            <img src="${imgSrc}" alt="${escapeHtml(p.name)}" class="card-img-top" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+            <div class="position-absolute top-0 end-0 m-2">
+              <span class="badge bg-white text-pink shadow-sm px-3 py-2">
+                <i class="fa fa-flower"></i>
+              </span>
+            </div>
+          </div>
+          <div class="card-body text-center d-flex flex-column">
+            <h5 class="card-title fw-bold mb-2" style="color: #333; font-size: 1.1rem;">${escapeHtml(p.name)}</h5>
+            ${pricePreview}
+            <div class="mt-auto">
+              <button class="btn btn-pink w-100 view-price-btn">
+                <i class="fa fa-eye me-2"></i>View Details
+              </button>
             </div>
           </div>
         `;
+
+        // Add hover effect
+        card.addEventListener('mouseenter', () => {
+          card.style.transform = 'translateY(-8px)';
+          card.style.boxShadow = '0 8px 24px rgba(255, 111, 155, 0.2)';
+          const img = card.querySelector('img');
+          if (img) img.style.transform = 'scale(1.1)';
+        });
+
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = 'translateY(0)';
+          card.style.boxShadow = '';
+          const img = card.querySelector('img');
+          if (img) img.style.transform = 'scale(1)';
+        });
+
         const btn = card.querySelector('.view-price-btn');
-        if (btn) btn.addEventListener('click', () => showPriceModal(p));
+        if (btn) btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showPriceModal(p);
+        });
+
+        // Make entire card clickable
+        card.addEventListener('click', () => showPriceModal(p));
+
         col.appendChild(card);
         row.appendChild(col);
       });
@@ -118,13 +167,21 @@ document.addEventListener('DOMContentLoaded', () => {
       modalEl.id = 'productPriceModal';
       modalEl.tabIndex = -1;
       modalEl.innerHTML = `
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content rounded-4">
-            <div class="modal-header bg-light">
-              <h5 class="modal-title text-pink" id="productPriceModalLabel"></h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
+              <div class="w-100">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa fa-flower text-pink" style="font-size: 1.5rem;"></i>
+                  </div>
+                  <h5 class="modal-title text-white mb-0 fw-bold" id="productPriceModalLabel" style="font-size: 1.5rem;"></h5>
+                </div>
+                <p class="text-white mb-0 opacity-75 small">View pricing details and available options</p>
+              </div>
+              <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center" id="productPriceModalBody">
+            <div class="modal-body p-4" id="productPriceModalBody">
             </div>
           </div>
         </div>
@@ -139,27 +196,71 @@ document.addEventListener('DOMContentLoaded', () => {
     // build pricing tables if present
     let html = '';
     if (product.pricing && Array.isArray(product.pricing) && product.pricing.length) {
-      html += '<h6 class="text-pink mb-3">Bouquet Pricing</h6>';
-      html += '<div class="table-responsive"><table class="table table-bordered align-middle"><thead class="table-light"><tr><th>Flower Type</th><th>Set</th><th>Price (₱)</th></tr></thead><tbody>';
-      product.pricing.forEach(r => {
-        html += `<tr><td>${escapeHtml(r.label||'')}</td><td>${escapeHtml(r.set||'')}</td><td>${escapeHtml(r.price||'')}</td></tr>`;
+      html += `
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fa fa-tags text-pink"></i>
+            <h6 class="mb-0 fw-bold text-dark">Pricing Options</h6>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="border-radius: 8px; overflow: hidden;">
+              <thead style="background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);">
+                <tr>
+                  <th class="border-0 text-pink fw-semibold">Flower Type</th>
+                  <th class="border-0 text-pink fw-semibold">Set</th>
+                  <th class="border-0 text-pink fw-semibold text-end">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+      `;
+      product.pricing.forEach((r, idx) => {
+        const bgClass = idx % 2 === 0 ? 'bg-white' : 'bg-light';
+        html += `
+          <tr class="${bgClass}">
+            <td class="border-0 fw-semibold">${escapeHtml(r.label||'')}</td>
+            <td class="border-0 text-muted">${escapeHtml(r.set||'')}</td>
+            <td class="border-0 text-end"><span class="badge bg-pink text-white px-3 py-2">₱${escapeHtml(r.price||'')}</span></td>
+          </tr>
+        `;
       });
-      html += '</tbody></table></div>';
+      html += '</tbody></table></div></div>';
     }
 
     if (product.addons && Array.isArray(product.addons) && product.addons.length) {
-      html += '<h6 class="text-pink mt-4 mb-3">Add-ons</h6>';
-      html += '<div class="table-responsive"><table class="table table-bordered align-middle"><thead class="table-light"><tr><th>Add-on</th><th>Price (₱)</th></tr></thead><tbody>';
+      html += `
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fa fa-plus-circle text-pink"></i>
+            <h6 class="mb-0 fw-bold text-dark">Available Add-ons</h6>
+          </div>
+          <div class="row g-2">
+      `;
       product.addons.forEach(a => {
-        html += `<tr><td>${escapeHtml(a.label||'')}</td><td>${escapeHtml(a.price||'')}</td></tr>`;
+        html += `
+          <div class="col-md-6">
+            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 border">
+              <div class="d-flex align-items-center gap-2">
+                <i class="fa fa-gift text-pink"></i>
+                <span class="fw-semibold">${escapeHtml(a.label||'')}</span>
+              </div>
+              <span class="badge bg-pink text-white">₱${escapeHtml(a.price||'')}</span>
+            </div>
+          </div>
+        `;
       });
-      html += '</tbody></table></div>';
+      html += '</div></div>';
     }
 
-    // Available colors: render a simple 2-column table (Color preview, Color Name)
+    // Available colors: render as color swatches
     if (product.colors && Array.isArray(product.colors) && product.colors.length) {
-      html += '<h6 class="text-pink mt-4 mb-3">Available Colors</h6>';
-      html += '<div class="table-responsive"><table class="table table-bordered align-middle"><thead class="table-light"><tr><th style="width:80px">Color</th><th>Color Name</th></tr></thead><tbody>';
+      html += `
+        <div class="mb-4">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <i class="fa fa-palette text-pink"></i>
+            <h6 class="mb-0 fw-bold text-dark">Available Colors</h6>
+          </div>
+          <div class="row g-3">
+      `;
       product.colors.forEach(c => {
         let value = c.value || c.hex || c.color || '';
         // normalize rgb(...) to hex for display
@@ -175,18 +276,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = c.name || '';
         const safeValue = escapeHtml(value);
         const safeName = escapeHtml(name);
-        const swatch = value ? `<div style="width:36px;height:20px;border-radius:4px;border:1px solid rgba(0,0,0,0.08);background:${safeValue}"></div>` : '<span class="text-muted">—</span>';
-        html += `<tr><td class="text-center">${swatch}</td><td>${safeName}</td></tr>`;
+        const swatch = value ? `
+          <div class="text-center p-3 bg-white rounded-3 border shadow-sm h-100">
+            <div class="mx-auto mb-2 rounded-circle shadow-sm" style="width: 50px; height: 50px; background: ${safeValue}; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
+            <div class="small fw-semibold">${safeName}</div>
+          </div>
+        ` : `<div class="text-center p-3 bg-light rounded-3"><span class="text-muted">—</span></div>`;
+        html += `<div class="col-6 col-md-4 col-lg-3">${swatch}</div>`;
       });
-      html += '</tbody></table></div>';
+      html += '</div></div>';
     }
 
     // fallback to single price (use first pricing row if present) or show contact message
     if (!html) {
       if (product.pricing && Array.isArray(product.pricing) && product.pricing.length && typeof product.pricing[0].price !== 'undefined') {
-        html = `<p class="h4 text-pink">₱${Number(product.pricing[0].price).toLocaleString()}</p>`;
+        html = `
+          <div class="text-center py-4">
+            <div class="display-4 text-pink fw-bold mb-2">₱${Number(product.pricing[0].price).toLocaleString()}</div>
+            <p class="text-muted">Starting price</p>
+          </div>
+        `;
       } else {
-        html = `<p class="h6 text-muted">Contact us for pricing</p>`;
+        html = `
+          <div class="text-center py-4">
+            <i class="fa fa-envelope text-pink mb-3" style="font-size: 3rem;"></i>
+            <h6 class="text-muted">Contact us for pricing details</h6>
+          </div>
+        `;
       }
     }
 
@@ -196,10 +312,19 @@ document.addEventListener('DOMContentLoaded', () => {
     let footer = modalEl.querySelector('.modal-footer');
     if (!footer) {
       footer = document.createElement('div');
-      footer.className = 'modal-footer';
+      footer.className = 'modal-footer border-0 bg-light';
       modalEl.querySelector('.modal-content').appendChild(footer);
     }
-    footer.innerHTML = `<div class="w-100"><button type="button" id="productOrderBtn" class="btn btn-pink w-100">Order</button></div>`;
+    footer.innerHTML = `
+      <div class="w-100 d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal">
+          <i class="fa fa-times me-2"></i>Close
+        </button>
+        <button type="button" id="productOrderBtn" class="btn btn-pink flex-fill">
+          <i class="fa fa-shopping-bag me-2"></i>Order Now
+        </button>
+      </div>
+    `;
 
     const modal = new bootstrap.Modal(modalEl);
     modal.show();

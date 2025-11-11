@@ -12,24 +12,229 @@
     /* Homepage tweaks */
     /* prevent accidental horizontal scroll on small devices (modal padding issues etc) */
     body { overflow-x: hidden; }
-    /* make hero background full width while keeping content centered */
-    .hero { background: linear-gradient(180deg, rgba(255,233,241,0.6), rgba(255,255,255,0.85)); }
+
+    /* Hero section */
+    .hero {
+      background: linear-gradient(135deg, rgba(255,233,241,0.8) 0%, rgba(255,255,255,0.9) 100%);
+      position: relative;
+    }
     .hero .hero-inner { padding: 1rem; }
-    /* use responsive padding so the hero isn't oversized on small screens */
-    .hero .hero-card { padding: 1rem; }
+    .hero .hero-card {
+      padding: 2rem 1rem;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+    }
     @media (min-width: 768px) {
       .hero .hero-inner { padding: 2rem; }
-      .hero .hero-card { padding: 2.5rem; }
+      .hero .hero-card { padding: 3rem 2rem; }
     }
-    .card-img-top { height: auto; max-height: 240px; object-fit: cover; }
-    .card .card-body { padding: 12px; }
-    .card-title { font-size: 1rem; font-weight:600; }
-    .product-cta { display:flex; gap:8px; justify-content:center; }
+
+    /* Product cards */
+    .product-card {
+      border-radius: 12px !important;
+      overflow: hidden;
+    }
+    .product-card .card-img-top {
+      height: 220px;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover .card-img-top {
+      transform: scale(1.1);
+    }
+    .product-card .card-body {
+      padding: 1.25rem;
+    }
+    .product-card .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .product-cta {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    /* Product modal enhancements */
+    #productPriceModal .table {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #productPriceModal .table thead {
+      background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+    }
+
+    /* Track modal enhancements */
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+    .btn-outline-pink:hover {
+      background-color: #ff6f9b;
+      border-color: #ff6f9b;
+      color: white;
+    }
+
+    /* Badge styles */
+    .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+
+    /* Smooth transitions */
+    .btn, .card, .badge {
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Order Form Enhancements */
+    #inquiryModal .order-item {
+      transition: all 0.2s ease;
+    }
+
+    #inquiryModal .order-item > div {
+      transition: all 0.2s ease;
+    }
+
+    #inquiryModal .order-item:hover > div {
+      background: #fff !important;
+      box-shadow: 0 2px 8px rgba(255, 111, 155, 0.15);
+    }
+
+    /* Compact item row styling */
+    #inquiryModal .order-item .badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    #inquiryModal .order-item .form-select-sm,
+    #inquiryModal .order-item .form-control-sm {
+      font-size: 0.875rem;
+      padding: 0.375rem 0.5rem;
+    }
+
+    /* Ensure items container uses full width */
+    #itemsContainer {
+      width: 100%;
+    }
+
+    #inquiryModal .order-item {
+      width: 100%;
+    }
+
+    /* Mobile responsive - stack vertically on small screens */
+    @media (max-width: 767px) {
+      #inquiryModal .order-item > div {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+      }
+
+      #inquiryModal .order-item .badge {
+        width: 100% !important;
+        flex: none !important;
+        text-align: center;
+      }
+
+      #inquiryModal .order-item .item-flower {
+        width: 100% !important;
+        flex: none !important;
+      }
+
+      #inquiryModal .order-item .item-color {
+        width: 100% !important;
+        flex: none !important;
+      }
+
+      #inquiryModal .order-item .item-quantity {
+        width: 100% !important;
+        flex: none !important;
+      }
+
+      #inquiryModal .order-item .remove-item {
+        width: 100% !important;
+        flex: none !important;
+        height: auto !important;
+        padding: 0.5rem !important;
+      }
+    }
+
+    #inquiryModal .form-control:focus,
+    #inquiryModal .form-select:focus {
+      border-color: #ff99bb;
+      box-shadow: 0 0 0 0.2rem rgba(255, 111, 155, 0.15);
+    }
+
+    #inquiryModal .invalid-feedback {
+      display: none;
+      font-size: 0.875rem;
+      color: #dc3545;
+    }
+
+    #inquiryModal .form-control.is-invalid,
+    #inquiryModal .form-select.is-invalid {
+      border-color: #dc3545;
+    }
+
+    #inquiryModal .form-control.is-invalid ~ .invalid-feedback,
+    #inquiryModal .form-select.is-invalid ~ .invalid-feedback {
+      display: block;
+    }
+
+    /* Step numbers */
+    #inquiryModal .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+
+    /* Add item button hover */
+    #addItemBtn:hover {
+      background-color: transparent;
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+
+    /* Optimize modal width for different screen sizes */
+    @media (min-width: 1400px) {
+      #inquiryModal .modal-dialog {
+        max-width: 900px !important;
+      }
+    }
+
+    @media (min-width: 1200px) and (max-width: 1399px) {
+      #inquiryModal .modal-dialog {
+        max-width: 850px !important;
+      }
+    }
+
+    @media (min-width: 992px) and (max-width: 1199px) {
+      #inquiryModal .modal-dialog {
+        max-width: 800px !important;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 991px) {
+      #inquiryModal .modal-dialog {
+        max-width: 720px !important;
+      }
+    }
+
+    @media (max-width: 767px) {
+      #inquiryModal .modal-dialog {
+        max-width: 100% !important;
+        margin: 0.5rem !important;
+      }
+    }
     </style>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <meta property="og:title" content="Chammy Florals 💐 - Handmade Bouquets & Keychains" />
-  <meta property="og:description" content="Bloom with love — Chammy Florals crafts delicate handmade bouquets and keychains to make every day special. Order now!" />
+  <meta property="og:title" content="Chammy Florals 💐 - Beautiful Handmade Bouquets & Keychains" />
+  <meta property="og:description" content="Make every moment special with handcrafted floral arrangements and keepsakes. Perfect for gifts, celebrations, or just because! Order now!" />
   <meta property="og:image" content="https://chammyflorals.vercel.app/flowers/bouquetwithglitter.jfif" />
   <meta property="og:image:alt" content="Handmade Bouquet with Glitters" />
   <meta property="og:image:width" content="1200" />
@@ -40,13 +245,13 @@
   <meta property="og:locale" content="en_US" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Chammy Florals 💐 - Handmade Bouquets & Keychains" />
-  <meta name="twitter:description" content="Bloom with love — Chammy Florals crafts delicate handmade bouquets and keychains to make every day special." />
+  <meta name="twitter:title" content="Chammy Florals 💐 - Beautiful Handmade Bouquets & Keychains" />
+  <meta name="twitter:description" content="Make every moment special with handcrafted floral arrangements and keepsakes. Perfect for gifts, celebrations, or just because!" />
   <meta name="twitter:image" content="https://chammyflorals.vercel.app/flowers/bouquetwithglitter.jfif" />
-  <meta name="twitter:site" content="@ChammyFlorals" /> 
+  <meta name="twitter:site" content="@ChammyFlorals" />
 
-  <meta name="description" content="Discover handmade bouquets and keychains at Chammy Florals. Perfect gifts for any occasion, crafted with love." />
-  <meta name="keywords" content="handmade bouquets, keychains, floral gifts, Chammy Florals" />
+  <meta name="description" content="Handcrafted bouquets and keychains at Chammy Florals. Perfect gifts for any occasion. Fast processing, made to order, 100% handmade." />
+  <meta name="keywords" content="handmade bouquets, handcrafted keychains, floral gifts, flower arrangements, Chammy Florals, custom bouquets, gift ideas" />
   <meta name="author" content="Chammy Florals" />
 </head>
 
@@ -60,30 +265,48 @@
 
     <div class="collapse navbar-collapse" id="mainNav">
       <!-- Use ms-md-auto so on small screens the buttons stay left; on md+ they align right -->
-      <ul class="navbar-nav ms-md-auto align-items-center">
-        <li class="nav-item me-2 mt-2 mb-2">
-          <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#trackModal">Track Order</button>
+      <ul class="navbar-nav ms-md-auto align-items-lg-center">
+        <li class="nav-item me-2 my-2 my-lg-0">
+          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#trackModal">
+            <i class="fa fa-map-marker-alt me-1"></i>Track Order
+          </button>
         </li>
-        <li class="nav-item me-2 mt-2 mb-2">
-          <a class="btn btn-outline-success" id="navReviewsBtn" href="/reviews.html">Reviews</a>
+        <li class="nav-item me-2 my-2 my-lg-0">
+          <a class="btn btn-sm btn-outline-pink" id="navReviewsBtn" href="/reviews.html">
+            <i class="fa fa-star me-1"></i>Reviews
+          </a>
         </li>
-        <li class="nav-item">
-          <button class="btn btn-pink me-2 mt-2 mb-2" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order</button>
+        <li class="nav-item my-2 my-lg-0">
+          <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#inquiryModal">
+            <i class="fa fa-shopping-bag me-1"></i>Order Now
+          </button>
         </li>
       </ul>
     </div>
   </div>
 </nav>
 
-  <section class="text-center py-5">
+  <section class="text-center py-4 py-md-5">
     <div class="hero">
       <div class="container hero-inner">
-        <div class="hero-card rounded-4 shadow-sm text-center">
-          <h1 class="fw-bold display-5 text-pink mb-3">Handmade Bouquets & Keychains</h1>
-          <p class="lead text-muted mb-4">Bloom with love — Chammy Florals crafts delicate, handcrafted bouquets and keepsakes for every occasion.</p>
-          <div class="d-flex justify-content-center gap-3 flex-wrap">
-            <button class="btn btn-pink btn-lg" data-bs-toggle="modal" data-bs-target="#inquiryModal">Order Now</button>
-            <button class="btn btn-outline-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#trackModal">Track Order</button>
+        <div class="hero-card rounded-4 shadow-sm text-center position-relative overflow-hidden">
+          <!-- Decorative elements -->
+          <div class="position-absolute top-0 start-0 opacity-25" style="font-size: 120px; color: #ff99bb; transform: rotate(-15deg); margin: -30px 0 0 -30px;">🌸</div>
+          <div class="position-absolute bottom-0 end-0 opacity-25" style="font-size: 120px; color: #ff99bb; transform: rotate(15deg); margin: 0 -30px -30px 0;">💐</div>
+
+          <div class="position-relative" style="z-index: 1;">
+            <h1 class="fw-bold display-5 text-pink mb-3">Beautiful Bouquets & Keychains</h1>
+            <p class="lead text-muted mb-4 mx-auto" style="max-width: 600px;">
+              Bloom with love — Chammy Florals crafts delicate, handcrafted bouquets and keepsakes for every occasion.
+            </p>
+            <div class="d-flex justify-content-center gap-2 gap-md-3 flex-wrap mb-3">
+              <button class="btn btn-pink btn-lg px-4" data-bs-toggle="modal" data-bs-target="#inquiryModal">
+                <i class="fa fa-shopping-bag me-2"></i>Order Now
+              </button>
+              <button class="btn btn-outline-pink btn-lg px-4" data-bs-toggle="modal" data-bs-target="#trackModal">
+                <i class="fa fa-map-marker-alt me-2"></i>Track Order
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -113,26 +336,73 @@
 
   <!-- Track Order Modal -->
   <div class="modal fade" id="trackModal" tabindex="-1" aria-labelledby="trackModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4">
-        <div class="modal-header bg-light">
-          <h5 class="modal-title text-pink" id="trackModalLabel">Track Your Order</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <div class="text-center mb-3">
-            <p class="mb-1 fw-semibold">Quickly check your order status</p>
-            <p class="small text-muted mb-0">Enter your Order ID and we'll show the latest status and details.</p>
-          </div>
-          <form id="trackForm" class="row g-2 align-items-center">
-            <div class="col-8">
-              <input type="text" class="form-control form-control-lg" id="orderId" placeholder="Enter Order ID" required aria-label="Order ID">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fa fa-map-marker-alt text-pink"></i>
             </div>
-            <div class="col-4 d-grid">
-              <button type="submit" class="btn btn-pink btn-lg">Track</button>
+            <h5 class="modal-title text-muted mb-0" id="trackModalLabel">Track Your Order</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">X</button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Instructions -->
+          <div class="alert alert-light border-0 mb-4">
+            <div class="d-flex align-items-start gap-3">
+              <i class="fa fa-info-circle text-pink mt-1" style="font-size: 1.2rem;"></i>
+              <div>
+                <div class="fw-semibold mb-1">How to track your order</div>
+                <div class="small text-muted">
+                  Enter your Order ID (found in your receipt) to see real-time status updates.
+                </div>
+                <div class="small text-muted mt-1">
+                  <strong>Example:</strong> <code class="bg-white px-2 py-1 rounded">A5DW7DW</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Track Form -->
+          <form id="trackForm">
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-8">
+                <label for="orderId" class="form-label fw-semibold">Order ID</label>
+                <div class="input-group input-group-lg">
+                  <span class="input-group-text bg-light border-end-0">
+                    <i class="fa fa-search text-muted"></i>
+                  </span>
+                  <input
+                    type="text"
+                    class="form-control border-start-0 ps-0"
+                    id="orderId"
+                    placeholder="e.g., A5DW7DW"
+                    required
+                    aria-label="Order ID"
+                    style="font-size: 1rem;">
+                </div>
+              </div>
+              <div class="col-12 col-md-4 d-grid">
+                <button type="submit" class="btn btn-pink btn-lg">
+                  <i class="fa fa-search me-2"></i>Track Now
+                </button>
+              </div>
             </div>
           </form>
+
+          <!-- Track Result -->
           <div id="trackResult" class="mt-4"></div>
+
+          <!-- Alternative Tracking Methods -->
+          <div class="mt-4 pt-3 border-top">
+            <div class="small text-muted mb-2 fw-semibold">Other ways to track:</div>
+            <div class="d-flex flex-column flex-md-row gap-2">
+              <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="btn btn-sm btn-outline-primary flex-fill">
+                <i class="fa-brands fa-facebook-messenger me-2"></i>Track via Messenger
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -140,13 +410,17 @@
 
   <!-- Reviews preview -->
   <section class="container my-5">
-    <hr class="mx-auto" style="width: 200px; border: 2px solid #ff99bb;">
-
-    <h3 class="text-center fw-bold mb-3">Customer Reviews</h3>
-    <div id="reviewsPreview" class="row g-3 justify-content-center">
+    <div class="text-center mb-4">
+      <div class="d-inline-flex align-items-center gap-2 mb-2">
+        <h3 class="fw-bold mb-0">Customer Reviews</h3>
+      </div>
     </div>
-    <div class="text-center mt-3">
-      <a class="btn btn-pink" id="viewReviewsBtn" href="/reviews.html">View reviews</a>
+    <div id="reviewsPreview" class="row g-4 justify-content-center">
+    </div>
+    <div class="text-center mt-4">
+      <a class="btn btn-pink btn-lg px-5" id="viewReviewsBtn" href="/reviews.html">
+        <i class="fa fa-comments me-2"></i>View All Reviews
+      </a>
     </div>
   </section>
 
@@ -167,66 +441,131 @@
 </footer>
 
 <div class="modal fade" id="inquiryModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content rounded-4">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title">Order Form</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      <!-- Modern Header -->
+      <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
+        <div class="w-100">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+              <i class="fa fa-shopping-bag text-pink" style="font-size: 1.5rem;"></i>
+            </div>
+            <div>
+              <h5 class="modal-title text-white mb-0 fw-bold" style="font-size: 1.5rem;">Place Your Order</h5>
+              <p class="text-white mb-0 opacity-75 small">Fill in the details below to create your custom bouquet</p>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+
+      <div class="modal-body p-3 p-md-4">
         <form id="inquiryForm" class="needs-validation" novalidate>
-          <div class="mb-3">
-            <label class="form-label">Name</label>
-            <input type="text" name="user_name" class="form-control" required>
+          <!-- Step 1: Personal Information -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">1</div>
+              <h6 class="mb-0 fw-bold">Personal Information</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-user text-pink me-2"></i>Full Name
+                </label>
+                <input type="text" name="user_name" class="form-control" placeholder="Enter your name" required>
+                <div class="invalid-feedback">Please enter your name.</div>
+              </div>
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-envelope text-pink me-2"></i>Email Address
+                </label>
+                <input type="email" name="user_email" class="form-control" placeholder="your@email.com" required>
+                <div class="invalid-feedback">Please enter a valid email.</div>
+              </div>
+              <div class="col-lg-4 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa-brands fa-facebook text-pink me-2"></i>Facebook Account Link
+                </label>
+                <input type="url" name="fb_link" class="form-control" placeholder="https://facebook.com/yourprofile" required>
+                <div class="invalid-feedback">Please enter your Facebook profile link.</div>
+              </div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="user_email" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Facebook Account Link</label>
-            <input type="url" name="fb_link" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Items</label>
-            <div id="itemsContainer">
+
+          <!-- Step 2: Select Items -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">2</div>
+              <h6 class="mb-0 fw-bold">Select Your Items</h6>
+            </div>
+            <div id="itemsContainer" class="mb-3">
               <!-- Single item row template -->
               <div class="order-item mb-2">
-                <div class="item-controls d-flex align-items-center gap-2 w-100">
-                  <select class="form-select item-flower" name="flower_type_0" required>
-                    <option value="">Select Flower Type</option>
+                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
+                  <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item 1</span>
+                  <select class="form-select form-select-sm item-flower" name="flower_type_0" required style="flex: 3;">
+                    <option value="">Flower Type</option>
                   </select>
-                  <select class="form-select item-color" name="color_0" aria-label="Color selection">
-                    <option value="">Select Color</option>
+                  <select class="form-select form-select-sm item-color" name="color_0" aria-label="Color" style="flex: 2;">
+                    <option value="">Color</option>
                   </select>
-                  <input type="number" class="form-control item-quantity" name="quantity_0" min="1" value="1" required>
-                  <button type="button" class="btn btn-outline-danger btn-sm remove-item">&times;</button>
+                  <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_0" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="display: none; width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
+                    <i class="fa fa-times"></i>
+                  </button>
                 </div>
               </div>
             </div>
-            <div class="mt-2">
-              <button type="button" id="addItemBtn" class="btn btn-sm btn-pink w-100">Add another item</button>
+            <button type="button" id="addItemBtn" class="btn btn-outline-pink w-100">
+              <i class="fa fa-plus me-2"></i>Add Another Item
+            </button>
+          </div>
+
+          <!-- Step 3: Add-ons (Dynamic) -->
+          <div class="mb-4" id="addonsSection" style="display: none;">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">3</div>
+              <h6 class="mb-0 fw-bold">Add-ons</h6>
+            </div>
+            <div id="addonsContainer" class="p-3 bg-light rounded-3">
+              <!-- Add-ons will be populated dynamically -->
             </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Add-ons</label>
-            <div id="addonsContainer">
-              <!-- Add-ons will be populated dynamically per selected product. If a product has no addons configured in the database,
-                   this section will remain hidden. -->
+
+          <!-- Step 4: Additional Details -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">4</div>
+              <h6 class="mb-0 fw-bold">Additional Details</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-8 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-comment text-pink me-2"></i>Special Message or Instructions
+                </label>
+                <textarea name="message" class="form-control" rows="3" placeholder="Add any special requests or messages for your order..."></textarea>
+              </div>
+              <div class="col-lg-4 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-bolt text-pink me-2"></i>Rush Order?
+                </label>
+                <select name="rush" class="form-select" required>
+                  <option value="No">No - Standard Processing</option>
+                  <option value="Yes">Yes - Rush Order (additional fee may apply)</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Additional Message</label>
-            <textarea name="message" class="form-control" rows="3"></textarea>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-pink btn-lg py-3">
+              <i class="fa fa-shopping-bag me-2"></i>Place Order Now
+            </button>
+            <div class="text-center small text-muted">
+              <i class="fa fa-lock me-1"></i>Your information is secure and will only be used to process your order
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Rush Order?</label>
-            <select name="rush" class="form-select" required>
-              <option value="No">No</option>
-              <option value="Yes">Yes (additional fee may apply)</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-pink w-100 mt-3">Place Order</button>
         </form>
       </div>
     </div>
