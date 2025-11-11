@@ -686,7 +686,7 @@ function openOrderItemsModal(order, editable = false) {
           flowerSelect.addEventListener('change', () => populateColorSelectForRowAdmin(newRow));
         });
 
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
           const newItems = [];
           tblBody.querySelectorAll('tr').forEach(r => {
             const flowerOpt = r.querySelector('.item-flower-select')?.selectedOptions[0];
@@ -704,24 +704,74 @@ function openOrderItemsModal(order, editable = false) {
           if (editItemsInput) editItemsInput.value = JSON.stringify(newItems);
 
           // update in-memory ordersData and also update top-level flower_type and quantity
+          let flowerTypeSummary = '';
+          let totalQty = 0;
           if (order && window.ordersData) {
             const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
             if (idx !== -1) {
               window.ordersData[idx].items = newItems;
               // compute a sensible top-level flower_type summary
               if (Array.isArray(newItems) && newItems.length === 1) {
-                window.ordersData[idx].flower_type = newItems[0].flower_type || '';
+                flowerTypeSummary = newItems[0].flower_type || '';
               } else if (Array.isArray(newItems) && newItems.length > 1) {
-                window.ordersData[idx].flower_type = newItems.map(it => `${it.flower_type || ''}${it.quantity ? ' x' + it.quantity : ''}`).join('; ');
+                flowerTypeSummary = newItems.map(it => `${it.flower_type || ''}${it.quantity ? ' x' + it.quantity : ''}`).join('; ');
               } else {
-                window.ordersData[idx].flower_type = '';
+                flowerTypeSummary = '';
               }
+              window.ordersData[idx].flower_type = flowerTypeSummary;
               // update top-level quantity as the sum of item quantities
-              const totalQty = (newItems || []).reduce((s,it) => s + (Number(it.quantity || it.qty || 1) || 0), 0);
+              totalQty = (newItems || []).reduce((s,it) => s + (Number(it.quantity || it.qty || 1) || 0), 0);
               window.ordersData[idx].quantity = totalQty;
               // reflect changes in the current `order` reference as well
-              try { order.items = newItems; order.flower_type = window.ordersData[idx].flower_type; order.quantity = totalQty; } catch (e) {}
+              try { order.items = newItems; order.flower_type = flowerTypeSummary; order.quantity = totalQty; } catch (e) {}
             }
+          }
+
+          // First, save the items to the database so recompute can use them
+          try {
+            const token = localStorage.getItem('adminToken');
+            const updateResp = await fetch(`/api/admin/orders/${order.order_id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                items: newItems,
+                flower_type: flowerTypeSummary,
+                quantity: totalQty
+              })
+            });
+
+            if (!updateResp.ok) {
+              console.warn('Failed to update items in database');
+              showErrorModal('Failed to save items to database');
+              return;
+            }
+
+            // Now recalculate total fee based on the saved items
+            const recomputeResp = await fetch(`/api/recompute-total/${order.order_id}`);
+            if (recomputeResp.ok) {
+              const recomputeData = await recomputeResp.json();
+              const newTotalFee = recomputeData.recomputed_total || 0;
+
+              // Update the total_fee in ordersData
+              const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
+              if (idx !== -1) {
+                window.ordersData[idx].total_fee = newTotalFee;
+                order.total_fee = newTotalFee;
+              }
+
+              // Update the total_fee input in the edit form if present
+              const editFormTotalFee = document.querySelector('#orderDetailsContent input[name="total_fee"]');
+              if (editFormTotalFee) {
+                editFormTotalFee.value = newTotalFee;
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to save items and recalculate total fee:', err);
+            showErrorModal('Failed to save items: ' + (err.message || 'Unknown error'));
+            return;
           }
 
           // update any open edit form inputs so they reflect the saved values immediately
@@ -873,7 +923,7 @@ function openOrderAddonsModal(order, editable = false) {
       }
       const saveBtn = modalFooter ? modalFooter.querySelector('#saveOrderAddonsBtn') : null;
       if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
           const chosen = Array.from(body.querySelectorAll('.addon-choice:checked')).map(cb => cb.value);
           // copy back to edit form input if present
           const editAddonsInput = document.querySelector('#orderDetailsContent input[name="addons"]');
@@ -883,6 +933,50 @@ function openOrderAddonsModal(order, editable = false) {
             const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
             if (idx !== -1) window.ordersData[idx].addons = chosen;
           }
+
+          // First, save the add-ons to the database so recompute can use them
+          try {
+            const token = localStorage.getItem('adminToken');
+            const updateResp = await fetch(`/api/admin/orders/${order.order_id}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ addons: chosen })
+            });
+
+            if (!updateResp.ok) {
+              console.warn('Failed to update add-ons in database');
+              showErrorModal('Failed to save add-ons to database');
+              return;
+            }
+
+            // Now recalculate total fee based on the saved add-ons
+            const recomputeResp = await fetch(`/api/recompute-total/${order.order_id}`);
+            if (recomputeResp.ok) {
+              const recomputeData = await recomputeResp.json();
+              const newTotalFee = recomputeData.recomputed_total || 0;
+
+              // Update the total_fee in ordersData
+              const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
+              if (idx !== -1) {
+                window.ordersData[idx].total_fee = newTotalFee;
+                order.total_fee = newTotalFee;
+              }
+
+              // Update the total_fee input in the edit form if present
+              const editFormTotalFee = document.querySelector('#orderDetailsContent input[name="total_fee"]');
+              if (editFormTotalFee) {
+                editFormTotalFee.value = newTotalFee;
+              }
+            }
+          } catch (err) {
+            console.warn('Failed to save add-ons and recalculate total fee:', err);
+            showErrorModal('Failed to save add-ons: ' + (err.message || 'Unknown error'));
+            return;
+          }
+
           try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { console.warn(e); }
         });
       }
@@ -979,6 +1073,58 @@ function openEditModal(orderId) {
   modalContent.querySelectorAll('.view-order-addons-btn').forEach(btn => {
     btn.addEventListener('click', () => openOrderAddonsModal(order, true));
   });
+
+  // Add listener to Rush dropdown to recalculate total fee when changed
+  const rushSelect = modalContent.querySelector('select[name="rush"]');
+  if (rushSelect) {
+    rushSelect.addEventListener('change', async () => {
+      // Update the order in the database first so recompute can use the new rush value
+      try {
+        const token = localStorage.getItem('adminToken');
+        const updateResp = await fetch(`/api/admin/orders/${order.order_id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ rush: rushSelect.value })
+        });
+
+        if (!updateResp.ok) {
+          console.warn('Failed to update rush value in database');
+          return;
+        }
+
+        // Update the order object with the new rush value
+        order.rush = rushSelect.value;
+        const idx = window.ordersData.findIndex(o => o.order_id === order.order_id);
+        if (idx !== -1) {
+          window.ordersData[idx].rush = rushSelect.value;
+        }
+
+        // Recalculate total fee
+        const recomputeResp = await fetch(`/api/recompute-total/${order.order_id}`);
+        if (recomputeResp.ok) {
+          const recomputeData = await recomputeResp.json();
+          const newTotalFee = recomputeData.recomputed_total || 0;
+
+          // Update the total_fee in ordersData
+          if (idx !== -1) {
+            window.ordersData[idx].total_fee = newTotalFee;
+            order.total_fee = newTotalFee;
+          }
+
+          // Update the total_fee input in the edit form
+          const editFormTotalFee = modalContent.querySelector('input[name="total_fee"]');
+          if (editFormTotalFee) {
+            editFormTotalFee.value = newTotalFee;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to recalculate total fee on rush change:', err);
+      }
+    });
+  }
 
   // If addon visibility couldn't be determined because product cache was empty,
   // fetch products and update the edit form to show the Add-ons View button if applicable.

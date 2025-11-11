@@ -431,11 +431,19 @@ router.get('/recompute-total/:orderId', async (req, res) => {
 
     const details = [];
     let recomputed = 0;
+    const itemsWithCategory = [];
     if (Array.isArray(order.items) && order.items.length) {
       for (const it of order.items) {
         const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
         recomputed += d.itemTotal || 0;
         details.push(d);
+        // Track category for rush fee calculation
+        if (d.matchedProductName) {
+          const prod = products.find(p => p.name === d.matchedProductName);
+          if (prod && prod.category) {
+            itemsWithCategory.push({ category: prod.category, quantity: it.quantity || it.qty || 1 });
+          }
+        }
       }
     } else {
       // attempt to parse summary flower_type like "FWGK1 x1; FWGK2 x1"
@@ -447,10 +455,24 @@ router.get('/recompute-total/:orderId', async (req, res) => {
             const d = computeForDebug(m[1].trim(), Number(m[2]));
             recomputed += d.itemTotal || 0;
             details.push(d);
+            // Track category for rush fee calculation
+            if (d.matchedProductName) {
+              const prod = products.find(pr => pr.name === d.matchedProductName);
+              if (prod && prod.category) {
+                itemsWithCategory.push({ category: prod.category, quantity: Number(m[2]) });
+              }
+            }
           } else {
             const d = computeForDebug(p, 1);
             recomputed += d.itemTotal || 0;
             details.push(d);
+            // Track category for rush fee calculation
+            if (d.matchedProductName) {
+              const prod = products.find(pr => pr.name === d.matchedProductName);
+              if (prod && prod.category) {
+                itemsWithCategory.push({ category: prod.category, quantity: 1 });
+              }
+            }
           }
         }
       }
@@ -469,6 +491,32 @@ router.get('/recompute-total/:orderId', async (req, res) => {
           if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
         }
       }
+    }
+
+    // Apply rush fees if order is marked as rush
+    try {
+      const rushFlag = String(order.rush || '').toLowerCase() === 'yes' || String(order.rush || '').toLowerCase() === 'true' || order.rush === true;
+      if (rushFlag && itemsWithCategory.length > 0) {
+        const { data: cats } = await supabase.from('categories').select('id,name,slug,rush_fee');
+        const feeMap = {};
+        (cats || []).forEach(c => {
+          const fee = Number(c.rush_fee) || 0;
+          const nameKey = String(c.name || '').trim().toLowerCase();
+          const slugKey = String(c.slug || '').trim().toLowerCase();
+          const idKey = c.id != null ? String(c.id).trim() : '';
+          if (nameKey) feeMap[nameKey] = fee;
+          if (slugKey) feeMap[slugKey] = fee;
+          if (idKey) feeMap[idKey] = fee;
+        });
+        // apply fees
+        for (const it of itemsWithCategory) {
+          const key = String(it.category || '').trim().toLowerCase();
+          const fee = feeMap[key] || 0;
+          if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
+        }
+      }
+    } catch (rfErr) {
+      console.warn('Failed to apply rush fees during recompute:', rfErr);
     }
 
     return res.json({ orderId: order.order_id, original_total_fee: order.total_fee, recomputed_total: recomputed, details });
