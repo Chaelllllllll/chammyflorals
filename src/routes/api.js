@@ -50,10 +50,7 @@ const inquiryLimiter = rateLimit({
 router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
   try {
     // Log minimal info to avoid leaking PII in logs
-    const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');
-    console.log('Received inquiry from', { name: req.body.user_name, email: safeEmail });
-
-    // SECURITY FIX: Sanitize user inputs
+    const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');// SECURITY FIX: Sanitize user inputs
     const {
       user_name,
       user_email,
@@ -72,10 +69,7 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
 
     // reCAPTCHA removed: no client-side captcha required. Add server-side rate-limits/anti-abuse if needed.
 
-  // Debug: log minimal incoming inquiry info (avoid logging PII)
-  console.log('Inquiry payload summary:', { itemsCount: Array.isArray(req.body.items) ? req.body.items.length : 0, rush: req.body.rush });
-
-  // Compute total using products/pricing stored in the DB (pricing is an array of rows per product).
+    // Compute total using products/pricing stored in the DB (pricing is an array of rows per product).
   let totalFee = 0;
   // helpers to collect matched categories for rush fee calculation
   let matchedCategories = [];
@@ -114,12 +108,8 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
             itemTotal = r ? Number(r.price) * qty : 0;
           }
           if (!itemTotal) {
-            console.warn('Price not found for item code:', itemFlower, 'matchedProduct:', found && found.product ? found.product.name : null);
             // Debug: when no match, log the normalized needle and a sample of product labels to aid diagnosis
-            try {
-              const sample = (products || []).slice(0, 8).map(p => ({ id: p.id, name: p.name, category: p.category, pricing: (p.pricing || []).map(r => ({ label: r.label || r.set || null })) }));
-              console.log('No product match for normalized needle:', needle, 'sampleProducts:', sample);
-            } catch (e) { /* ignore debug errors */ }
+            // Removed debug logging for production
           }
           return { itemTotal, matched: !!found, matchedProduct: found && found.product ? found.product.name : null, matchedRow: found && found.row ? (found.row.label || found.row.set) : null, matchedCategory: found && found.product ? found.product.category : null };
         };
@@ -135,9 +125,7 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
               totalFee += info.itemTotal || 0;
               if (info.matchedCategory) matchedCategories.push({ category: info.matchedCategory, qty: parseInt(it.quantity) || 1 });
             }
-          // Debug: show matched categories from products
-          console.log('Matched categories for items:', matchedCategories);
-          // if rush, we'll add category-specific rush fees below using matchedCategories
+          // Debug: show matched categories from products// if rush, we'll add category-specific rush fees below using matchedCategories
         } else {
           // single item fallback (backwards compatible)
           let found = null;
@@ -185,9 +173,7 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
           }
         }
       }
-    } catch (err) {
-      console.warn('Failed to compute price from products/pricing:', err);
-    }
+    } catch (err) {}
 
     // If rush is requested, add per-category rush fees (if categories define a rush_fee)
     try {
@@ -215,30 +201,18 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
             const fee = feeMap[key] || 0;
             if (fee) {
               const add = fee * (mc.qty || 1);
-              computedRush += add;
-              console.log('Applying rush fee for category', mc.category, { feePerUnit: fee, qty: mc.qty, add });
-              totalFee += add;
-            } else {
-              console.log('No rush fee found for category key', key, 'matchedCategoryRaw', mc.category);
-            }
-          }
-          console.log('Total rush fee added for this inquiry:', computedRush);
-        } else {
+              computedRush += add;totalFee += add;
+            } else {}
+          }} else {
           // single item
           const key = String(singleMatchedCategory || '').trim().toLowerCase();
           const fee = feeMap[key] || 0;
           if (fee) {
-            const add = fee * (parseInt(quantity) || 1);
-            console.log('Applying single-item rush fee', { category: singleMatchedCategory, feePerUnit: fee, qty: quantity, add });
-            totalFee += add;
-          } else {
-            console.log('No rush fee found for single item category key', key, 'singleMatchedCategoryRaw', singleMatchedCategory);
-          }
+            const add = fee * (parseInt(quantity) || 1);totalFee += add;
+          } else {}
         }
       }
-    } catch (feeErr) {
-      console.warn('Failed to apply rush fees:', feeErr);
-    }
+    } catch (feeErr) {}
 
     const orderId = generateOrderId();
     // Simple server-side sanitization to strip tags from user-provided text fields
@@ -303,16 +277,14 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
       orderData.flower_type = orderData.items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
       orderData.quantity = orderData.items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
     }
-  // Only store canonical created_at (constructed from client local ISO+offset when provided).
-  // Do not persist auxiliary client-local fields (created_at_local_iso, created_at_local, tz_offset_minutes) — keep DB minimal per request.
-  console.log('Inserting order:', { order_id: orderId, name: orderData.name, created_at: orderData.created_at });
 
+    // Only store canonical created_at (constructed from client local ISO+offset when provided).
+    // Do not persist auxiliary client-local fields (created_at_local_iso, created_at_local, tz_offset_minutes) — keep DB minimal per request.
     const { data, error } = await supabase.from('orders').insert([orderData]).select();
     if (error) {
       console.error('Supabase insert error:', error);
       return res.status(500).json({ error: 'Failed to save order to database' });
     }
-    console.log('Supabase insert success:', data);
 
     // Send order confirmation email (best-effort)
     try {
@@ -348,23 +320,19 @@ router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
           body: JSON.stringify(embed),
         });
       }
-    } catch (discordErr) {
-      console.warn('Failed to notify Discord webhook:', discordErr && discordErr.message ? discordErr.message : discordErr);
-    }
+    } catch (discordErr) {}
 
     // Notify admins via Facebook Messenger (if configured)
     try {
       const messenger = require('../lib/messenger');
       // prefer the inserted row data if available
       const inserted = (data && Array.isArray(data) && data[0]) ? data[0] : orderData;
-      const mres = await messenger.notifyAdmins(inserted);
-      if (mres && mres.ok === false) console.log('Messenger notify skipped or failed:', mres);
-      else if (mres && mres.results) console.log('Messenger notify results:', mres.results);
+      await messenger.notifyAdmins(inserted);
     } catch (mErr) {
-      console.warn('Failed to send messenger notifications:', mErr && mErr.message ? mErr.message : mErr);
+      // Silently fail - notification is not critical
     }
 
-  res.json({ message: 'Inquiry sent successfully!', orderId });
+    res.json({ message: 'Inquiry sent successfully!', orderId });
   } catch (error) {
     console.error('Inquiry error:', error);
     res.status(500).json({ error: 'Failed to process inquiry' });
@@ -406,11 +374,9 @@ router.get('/track/:orderId', async (req, res) => {
   }
 });
 
-// SECURITY FIX: Protect recompute endpoint - require authentication
-const auth = require('../middleware/auth');
-
-// Debug endpoint: recompute total for an orderId using current products/pricing logic
-router.get('/recompute-total/:orderId', auth, async (req, res) => {
+// Public endpoint: recompute total for an orderId using current products/pricing logic
+// This is used by the order success page to show customers their order total
+router.get('/recompute-total/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
@@ -541,9 +507,7 @@ router.get('/recompute-total/:orderId', auth, async (req, res) => {
           if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
         }
       }
-    } catch (rfErr) {
-      console.warn('Failed to apply rush fees during recompute:', rfErr);
-    }
+    } catch (rfErr) {}
 
     return res.json({ orderId: order.order_id, original_total_fee: order.total_fee, recomputed_total: recomputed, details });
   } catch (err) {
@@ -671,9 +635,7 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
           if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
         }
       }
-    } catch (rfErr) {
-      console.warn('Failed to apply rush fees during recompute-update:', rfErr);
-    }
+    } catch (rfErr) {}
 
     // update the order record with recomputed values (safe, minimal fields)
     const updates = { total_fee: recomputed };
@@ -810,20 +772,14 @@ router.post('/reviews', upload.single('image'), async (req, res) => {
         const filename = `${String(orderId)}_${Date.now()}_${sanitizedOriginalName}`;
         const path = `${String(orderId)}/${filename}`;
         const { data: uploadData, error: uploadErr } = await supabase.storage.from(bucket).upload(path, req.file.buffer, { contentType: req.file.mimetype });
-        if (uploadErr) {
-          console.warn('Failed to upload review image to storage:', uploadErr);
-        } else {
+        if (uploadErr) {} else {
           // get public URL
           try {
             const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl(path);
             if (urlData && urlData.publicUrl) review.image_url = urlData.publicUrl;
-          } catch (uerr) {
-            console.warn('Failed to get public URL for review image:', uerr);
-          }
+          } catch (uerr) {}
         }
-      } catch (err) {
-        console.warn('Unexpected error uploading review image:', err);
-      }
+      } catch (err) {}
     }
 
     // Attempt insert including image_url if set; if the DB doesn't have that column, retry without it

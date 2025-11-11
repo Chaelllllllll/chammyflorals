@@ -676,30 +676,64 @@ router.patch('/orders/:orderId', auth, async (req, res) => {
     // If status changed, send a status update email (best-effort)
     try {
       const updated = (updatedRows && updatedRows[0]) || null;
+      console.log('Status update check:', {
+        hasUpdated: !!updated,
+        previousStatus,
+        newStatus: updated?.status,
+        statusChanged: previousStatus !== updated?.status,
+        hasEmail: !!updated?.email,
+        hasPsid: !!(updated?.messenger_psid || updated?.customer_psid)
+      });
+
       if (updated && previousStatus !== updated.status && updated.email) {
-        const templates = require('../lib/email-templates');
-        const mailer = require('../lib/mailer');
-        // If the new status is Delivered, send a friendly delivered/thank-you email
-        if (String(updated.status || '').toLowerCase() === 'delivered') {
-          const mail = templates.deliveredTemplate(updated);
-          await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
-        } else {
-          const mail = templates.statusUpdateTemplate(updated, previousStatus);
-          await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+        console.log('Status changed, sending notifications...');
+
+        // Send email notification (best-effort, don't let it block messenger)
+        try {
+          const templates = require('../lib/email-templates');
+          const mailer = require('../lib/mailer');
+          // If the new status is Delivered, send a friendly delivered/thank-you email
+          if (String(updated.status || '').toLowerCase() === 'delivered') {
+            console.log('Sending delivered email...');
+            const mail = templates.deliveredTemplate(updated);
+            await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+            console.log('Delivered email sent successfully');
+          } else {
+            console.log('Sending status update email...');
+            const mail = templates.statusUpdateTemplate(updated, previousStatus);
+            await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+            console.log('Status update email sent successfully');
+          }
+        } catch (emailErr) {
+          console.error('Failed to send email (continuing with messenger):', emailErr.message || emailErr);
         }
+
+        console.log('Email done, now checking messenger...');
         // Also attempt to notify the customer via Messenger if they've linked their chat (best-effort)
         try {
-          if (updated.messenger_psid || updated.customer_psid) {
+          const psid = updated.messenger_psid || updated.customer_psid;
+          console.log('Messenger PSID check:', { psid, has_psid: !!psid });
+          if (psid) {
+            console.log('Sending messenger notification for status:', updated.status, 'to PSID:', psid);
             const mres = await messenger.notifyCustomer(updated);
+            console.log('Messenger response:', mres);
             if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger', mres);
             else console.log('Messenger: customer notification result', mres && mres.status);
+          } else {
+            console.log('No messenger PSID found, skipping messenger notification');
           }
         } catch (mErr) {
-          console.warn('Failed to send messenger notification to customer:', mErr && mErr.message ? mErr.message : mErr);
+          console.error('Failed to send messenger notification to customer:', mErr);
         }
+      } else {
+        console.log('Skipping status notification:', {
+          reason: !updated ? 'no updated record' :
+                  previousStatus === updated.status ? 'status unchanged' :
+                  !updated.email ? 'no email' : 'unknown'
+        });
       }
-    } catch (mailErr) {
-      console.error('Failed to send status update/delivered email:', mailErr);
+    } catch (outerErr) {
+      console.error('Unexpected error in notification flow:', outerErr);
     }
 
     res.json({ message: 'Order updated successfully', updated: (updatedRows && updatedRows[0]) || null });

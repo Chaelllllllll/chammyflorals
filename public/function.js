@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         optEl.dataset.colorName = name;
         colorSelect.appendChild(optEl);
       });
-    } catch (err) { console.warn('populateColorSelectForRow error', err); }
+    } catch (err) {}
   }
 
   // ensure initial item has select options populated after products load
@@ -347,9 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (slugKey) _categoriesCache[slugKey] = fee;
         if (idKey) _categoriesCache[idKey] = fee;
       });
-    } catch (err) {
-      console.warn('Failed to load categories for rush fee calculation', err);
-      _categoriesCache = {};
+    } catch (err) {_categoriesCache = {};
     }
   }
 
@@ -377,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
           yesOpt.textContent = `Yes - Rush Fee: ₱${Number(totalRush).toLocaleString()}`;
         }
       }
-    } catch (err) { console.warn('computeRushFee error', err); }
+    } catch (err) {}
   }
 
   // load categories and compute initial value
@@ -459,9 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.setAttribute('aria-busy', 'true');
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Placing...';
-      }
-
-  console.log('Submitting inquiry:', { items: data.items, quantity: data.quantity }); // minimal debug
+      }// minimal debug
       const response = await fetch('/api/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -477,9 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const inquiryModalInstance = bootstrap.Modal.getInstance(inquiryModalEl) || new bootstrap.Modal(inquiryModalEl);
             inquiryModalInstance.hide();
           }
-        } catch (hideErr) {
-          console.warn('Failed to hide inquiry modal before showing placed modal:', hideErr);
-        }
+        } catch (hideErr) {}
 
         // redirect to success page with orderId in querystring
         try {
@@ -490,9 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `/order-success.html?orderId=${encodeURIComponent(orderId)}`;
             return;
           }
-        } catch (redirectErr) {
-          console.warn('Failed to redirect to success page:', redirectErr);
-          alert(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
+        } catch (redirectErr) {alert(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
         }
       } else {
         alert(result.error || 'Something went wrong. Please try again.');
@@ -537,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           if (typeof trackForm.requestSubmit === 'function') trackForm.requestSubmit();
           else trackForm.dispatchEvent(new Event('submit', { cancelable: true }));
-        } catch (e) { console.warn('Auto-submit track form failed', e); }
+        } catch (e) {}
       }, 400);
     }
   } catch (e) { /* ignore parsing errors */ }

@@ -8,9 +8,7 @@ async function fetchReviewsFromServer() {
     if (!resp.ok) throw new Error('Failed to fetch reviews');
     const data = await resp.json();
     return Array.isArray(data) ? data : [];
-  } catch (err) {
-    console.warn('fetchReviewsFromServer failed, falling back to localStorage', err);
-    try {
+  } catch (err) {try {
       const raw = localStorage.getItem('chammy_reviews_v1') || '[]';
       return JSON.parse(raw);
     } catch (e) {
@@ -143,7 +141,7 @@ async function validateOrderId(orderId) {
     if (modalImg) modalImg.src = url || '';
     const modalEl = document.getElementById('reviewImageModal');
     if (modalEl) {
-      try { new bootstrap.Modal(modalEl).show(); } catch (err) { console.warn('Failed to show image modal', err); }
+      try { new bootstrap.Modal(modalEl).show(); } catch (err) {}
     }
   });
 
@@ -254,8 +252,6 @@ function wireUI() {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await renderPreview();
-  } catch (e) {
-    console.warn('Failed to render reviews preview on load', e);
-  }
+  } catch (e) {}
   wireUI();
 });

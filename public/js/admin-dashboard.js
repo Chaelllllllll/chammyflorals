@@ -545,9 +545,7 @@ function openOrderItemsModal(order, editable = false) {
       const prods = await res.json();
       window._adminProductsCache = prods || [];
       return window._adminProductsCache;
-    } catch (err) {
-      console.warn('Failed to load admin products cache', err);
-      window._adminProductsCache = [];
+    } catch (err) {window._adminProductsCache = [];
       return window._adminProductsCache;
     }
   }
@@ -634,7 +632,7 @@ function openOrderItemsModal(order, editable = false) {
         }
         colorSelect.value = sel;
       }
-    } catch (err) { console.warn('populateColorSelectForRowAdmin error', err); }
+    } catch (err) {}
   }
 
   // Helper to create one editable row HTML (uses flower select and color select)
@@ -788,9 +786,7 @@ function openOrderItemsModal(order, editable = false) {
               })
             });
 
-            if (!updateResp.ok) {
-              console.warn('Failed to update items in database');
-              showErrorModal('Failed to save items to database');
+            if (!updateResp.ok) {showErrorModal('Failed to save items to database');
               return;
             }
 
@@ -813,9 +809,7 @@ function openOrderItemsModal(order, editable = false) {
                 editFormTotalFee.value = newTotalFee;
               }
             }
-          } catch (err) {
-            console.warn('Failed to save items and recalculate total fee:', err);
-            showErrorModal('Failed to save items: ' + (err.message || 'Unknown error'));
+          } catch (err) {showErrorModal('Failed to save items: ' + (err.message || 'Unknown error'));
             return;
           }
 
@@ -838,7 +832,7 @@ function openOrderItemsModal(order, editable = false) {
             }
           } catch (e) { /* ignore */ }
 
-          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { console.warn(e); }
+          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) {}
         });
 
       } else {
@@ -862,7 +856,7 @@ function openOrderItemsModal(order, editable = false) {
       }
     }
 
-    try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) { console.warn('Unable to open order items modal', e); }
+    try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) {}
   })();
 }
 
@@ -991,9 +985,7 @@ function openOrderAddonsModal(order, editable = false) {
               body: JSON.stringify({ addons: chosen })
             });
 
-            if (!updateResp.ok) {
-              console.warn('Failed to update add-ons in database');
-              showErrorModal('Failed to save add-ons to database');
+            if (!updateResp.ok) {showErrorModal('Failed to save add-ons to database');
               return;
             }
 
@@ -1016,13 +1008,11 @@ function openOrderAddonsModal(order, editable = false) {
                 editFormTotalFee.value = newTotalFee;
               }
             }
-          } catch (err) {
-            console.warn('Failed to save add-ons and recalculate total fee:', err);
-            showErrorModal('Failed to save add-ons: ' + (err.message || 'Unknown error'));
+          } catch (err) {showErrorModal('Failed to save add-ons: ' + (err.message || 'Unknown error'));
             return;
           }
 
-          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { console.warn(e); }
+          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) {}
         });
       }
     } else {
@@ -1039,7 +1029,7 @@ function openOrderAddonsModal(order, editable = false) {
     }
   }
 
-  try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) { console.warn('Unable to open order addons modal', e); }
+  try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) {}
 }
 
 function openEditModal(orderId) {
@@ -1135,9 +1125,7 @@ function openEditModal(orderId) {
           body: JSON.stringify({ rush: rushSelect.value })
         });
 
-        if (!updateResp.ok) {
-          console.warn('Failed to update rush value in database');
-          return;
+        if (!updateResp.ok) {return;
         }
 
         // Update the order object with the new rush value
@@ -1165,9 +1153,7 @@ function openEditModal(orderId) {
             editFormTotalFee.value = newTotalFee;
           }
         }
-      } catch (err) {
-        console.warn('Failed to recalculate total fee on rush change:', err);
-      }
+      } catch (err) {}
     });
   }
 
@@ -1365,7 +1351,6 @@ async function changeStatus(orderId) {
   const status = document.getElementById('orderStatus').value;
   try {
     // Simple status update (Delivered should be handled via Payment flow in the order details)
-    console.log('Sending PATCH for order:', orderId, 'Status:', status);
     const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: {
@@ -1402,9 +1387,7 @@ async function changeStatus(orderId) {
 
 async function deleteOrder(orderId) {
   const token = localStorage.getItem('adminToken');
-  try {
-  console.log('Sending DELETE for order:', orderId);
-  const response = await fetch(`/api/admin/orders/${orderId}`, {
+  try {const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1568,4 +1551,4 @@ function showNotifToast(count, items) {
 }
 
 // Start polling after a short delay once page loads (notifications disabled)
-// setTimeout(() => { try { startNotificationsPolling(); } catch (e) { console.warn(e); } }, 2000);
+// setTimeout(() => { try { startNotificationsPolling(); } catch (e) {} }, 2000);

@@ -1,3 +1,23 @@
+// Check if already logged in
+(async () => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    try {
+      const response = await fetch('/api/admin/verify-token', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        window.location.href = '/admin/dashboard.html';
+      } else {
+        localStorage.removeItem('adminToken');
+      }
+    } catch (error) {
+      console.error('Token verification error:', error);
+      localStorage.removeItem('adminToken');
+    }
+  }
+})();
+
 // Form submission
 let pendingEmail = null;
 let pendingPassword = null;

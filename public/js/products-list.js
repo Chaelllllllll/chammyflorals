@@ -279,10 +279,8 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           // open inquiry modal after a short delay so Bootstrap finishes hiding the previous modal/backdrop
-          setTimeout(() => { try { inquiryModal.show(); } catch (e) { console.warn('Failed to show inquiry modal', e); } }, 200);
-        } catch (err) {
-          console.warn('Failed to open inquiry modal from product order button', err);
-        }
+          setTimeout(() => { try { inquiryModal.show(); } catch (e) {} }, 200);
+        } catch (err) {}
       });
     }
   }

@@ -96,7 +96,7 @@ function formatColor(c) {
           } catch (e) { /* ignore */ }
         }, 3000);
       }
-    } catch (modalErr) { console.warn('track prompt modal error', modalErr); }
+    } catch (modalErr) {}
     // wire save button in navbar (no footer should be included in the saved image)
     const saveBtn = document.getElementById('saveOrderBtn');
     if (saveBtn) {

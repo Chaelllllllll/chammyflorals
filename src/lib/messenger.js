@@ -132,34 +132,38 @@ async function notifyCustomer(order) {
     const total = order.total_fee != null ? `₱${Number(order.total_fee).toLocaleString()}` : '';
     const base = process.env.SITE_BASE_URL || '';
     const trackUrl = base ? `${base.replace(/\/$/, '')}/?orderId=${encodeURIComponent(id)}` : undefined;
+
+    // If order is delivered, send a cute thank-you message
+    if (String(status || '').toLowerCase() === 'delivered') {
+      // Build review link (prefer SITE_BASE_URL when present)
+      const reviewLink = base ? `${base.replace(/\/$/, '')}/reviews.html` : '/reviews.html';
+      // Format exactly as requested by the user
       const lines = [];
-      // If order is delivered, send a cute thank-you message
-      if (String(status || '').toLowerCase() === 'delivered') {
-    // Build review link (prefer SITE_BASE_URL when present)
-    const base = process.env.SITE_BASE_URL || '';
-    const reviewLink = base ? `${base.replace(/\/$/, '')}/reviews.html` : '/reviews.html';
-    // Format exactly as requested by the user
-    lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°');
-    lines.push(`Hi ${order.name || ''}, Your order has been delivered!`);
+      lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°');
+      lines.push(`Hi ${order.name || ''}, Your order has been delivered!`);
+      lines.push('');
+      lines.push(`Order ID: ${id}`);
+      lines.push(`Total: ${total}`);
+      lines.push('');
+      lines.push('Thank you so much for choosing Chammy Florals — your support means the world to us!');
+      lines.push('If you loved it, we\'d be so grateful for a quick review — it helps our small shop grow');
+      lines.push(`Link: ${reviewLink}`);
+      const textDelivered = lines.join('\n');
+      return await sendToPsid(psid, textDelivered);
+    }
+
+    // Fallback: generic update message for other statuses
+    const lines = [];
+    lines.push(`⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°`);
+    lines.push(`Hi ${order.name || ''},`);
     lines.push('');
     lines.push(`Order ID: ${id}`);
-    lines.push(`Total: ${total}`);
+    lines.push(`Status: ${status}`);
+    if (total) lines.push(`Total: ${total}`);
     lines.push('');
-    lines.push('Thank you so much for choosing Chammy Florals — your support means the world to us!');
-    lines.push('If you loved it, we\'d be so grateful for a quick review — it helps our small shop grow');
-    lines.push(`Link: ${reviewLink}`);
-    const textDelivered = lines.join('\n');
-    return await sendToPsid(psid, textDelivered);
-      }
-
-      // Fallback: generic update message
-      lines.push(`⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°`);
-      lines.push(`Order ID: ${id}`);
-      lines.push(`Status: ${status}`);
-      if (total) lines.push(`Total: ${total}`);
-      if (trackUrl) lines.push(`\nInfo: ${trackUrl}`);
-      const text = lines.join('\n');
-      return await sendToPsid(psid, text);
+    if (trackUrl) lines.push(`Track your order: ${trackUrl}`);
+    const text = lines.join('\n');
+    return await sendToPsid(psid, text);
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : String(err) };
   }

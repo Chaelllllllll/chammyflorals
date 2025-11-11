@@ -84,26 +84,5 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/admin-login.js"></script>
-  <script>
-    // Check if already logged in
-    (async () => {
-      const token = localStorage.getItem('adminToken');
-      if (token) {
-        try {
-          const response = await fetch('/api/admin/verify-token', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (response.ok) {
-            window.location.href = '/admin/dashboard.html';
-          } else {
-            localStorage.removeItem('adminToken');
-          }
-        } catch (error) {
-          console.error('Token verification error:', error);
-          localStorage.removeItem('adminToken');
-        }
-      }
-    })();
-  </script>
 </body>
 </html>

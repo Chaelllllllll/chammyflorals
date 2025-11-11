@@ -62,9 +62,7 @@ async function populateCategoryOptions(products = []) {
 
     const prodDefault = productSelect.querySelector('option[value=""]') ? productSelect.querySelector('option[value=""]').outerHTML : '<option value="">Uncategorized</option>';
     productSelect.innerHTML = prodDefault + categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  } catch (err) {
-    console.warn('populateCategoryOptions error', err);
-  }
+  } catch (err) {}
 }
 
 // Add category button/modal handlers
@@ -85,9 +83,7 @@ document.getElementById('saveCategoryBtn')?.addEventListener('click', async () =
     bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
     showToast(`Category "${created.name || name}" added`, 'success');
     return;
-  } catch (err) {
-    console.warn('Server create category failed, falling back to localStorage', err);
-  }
+  } catch (err) {}
 
   // fallback: add to localStorage-backed categories and update selects
   try {
@@ -160,9 +156,7 @@ document.getElementById('manageSaveCategoryBtn')?.addEventListener('click', asyn
     await populateCategoryOptions(window._adminProducts || []);
     showToast(`Category "${created.name || name}" added`, 'success');
     return;
-  } catch (err) {
-    console.warn('Server create/update category failed inside manage modal, falling back to localStorage', err);
-    try {
+  } catch (err) {try {
       const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
       if (!saved.includes(name)) saved.push(name);
       localStorage.setItem('adminCategories', JSON.stringify(saved));
@@ -237,9 +231,7 @@ function populateManageCategories() {
         new bootstrap.Modal(document.getElementById('manageCategoriesModal')).show();
         // focus input when modal shown (existing listener will focus)
       }));
-    } catch (err) {
-      console.warn('populateManageCategories fallback to localStorage', err);
-      const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
+    } catch (err) {const saved = JSON.parse(localStorage.getItem('adminCategories') || '[]');
       const set = new Set(saved || []);
       (window._adminProducts || []).forEach(p => { if (p && p.category) set.add(p.category); });
       const categories = Array.from(set).filter(Boolean).sort((a,b)=> a.localeCompare(b));
@@ -303,7 +295,7 @@ document.getElementById('confirmRemoveCategoryBtn')?.addEventListener('click', a
     if (_pendingServerCategoryId) {
       try {
         await fetchJSON(`/api/admin/categories/${_pendingServerCategoryId}`, { method: 'DELETE' });
-      } catch (err) { console.warn('Server delete failed, falling back to local removal', err); }
+      } catch (err) {}
     }
 
     // remove from saved local categories as well
@@ -445,7 +437,7 @@ async function onEdit(e) {
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
     // fill pricing and addons editors
-  try { fillPricingInForm(p.pricing || [], p.addons || [], p.colors || []); } catch (err) { console.warn('No pricing/addons/colors to fill', err); }
+  try { fillPricingInForm(p.pricing || [], p.addons || [], p.colors || []); } catch (err) {}
     new bootstrap.Modal(document.getElementById('productModal')).show();
   } catch (err) { showError(err.error || err.message || 'Failed to load product'); }
 }

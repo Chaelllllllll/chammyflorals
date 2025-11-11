@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (modalImg) modalImg.src = url || '';
     const modalEl = document.getElementById('reviewImageModal');
     if (modalEl) {
-      try { new bootstrap.Modal(modalEl).show(); } catch (err) { console.warn('Failed to show image modal', err); }
+      try { new bootstrap.Modal(modalEl).show(); } catch (err) {}
     }
   });
 });

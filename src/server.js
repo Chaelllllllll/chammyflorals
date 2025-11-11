@@ -52,20 +52,33 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configure route-specific rate limiters. Values can be tuned via environment variables.
 const PUBLIC_RATE_MAX = Number(process.env.PUBLIC_RATE_MAX || 150); // requests per window
-const LOGIN_RATE_MAX = Number(process.env.ADMIN_LOGIN_MAX || 6); // admin login attempts
 const API_RATE_MAX = Number(process.env.API_RATE_MAX || 1000);
 const RATE_WINDOW_MS = Number(process.env.RATE_WINDOW_MS || 15 * 60 * 1000);
 
 const publicLimiter = rateLimit({ windowMs: RATE_WINDOW_MS, max: PUBLIC_RATE_MAX, standardHeaders: true, legacyHeaders: false });
 const apiLimiter = rateLimit({ windowMs: RATE_WINDOW_MS, max: API_RATE_MAX, standardHeaders: true, legacyHeaders: false });
 
-// Apply api limiter to /api routes
-app.use('/api', apiLimiter);
+// Apply rate limiting BEFORE static files, but skip /admin paths completely
+app.use((req, res, next) => {
+  // Skip ALL rate limiting for /admin paths (HTML files and API routes)
+  // Login endpoints have their own rate limiter in admin.js
+  if (req.path.startsWith('/admin')) {
+    return next();
+  }
 
-// Apply public limiter to public static assets and other public routes
-app.use(publicLimiter);
+  // Apply API rate limiter to /api routes
+  if (req.path.startsWith('/api')) {
+    return apiLimiter(req, res, next);
+  }
+
+  // Apply public rate limiter to everything else
+  publicLimiter(req, res, next);
+});
+
+// Serve static files
 app.use(express.static('public'));
 
+// Register routes
 app.use('/api', apiRoutes);
 app.use('/admin', adminRoutes);
 

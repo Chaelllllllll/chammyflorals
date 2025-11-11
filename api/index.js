@@ -73,11 +73,24 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // available (common on serverless platforms) and emit standard headers for
 // monitoring. This prevents express-rate-limit from throwing when the
 // Forwarded header is present.
-const limiter = rateLimit({
+
+// Public rate limiter (for customer-facing pages)
+const publicLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for:
+    // 1. /admin paths (HTML pages - admins need to work freely)
+    // 2. /api/admin paths (API routes - have their own rate limiting below)
+    // 3. Static assets (CSS, JS, images, fonts, etc.)
+    const isAdminPath = req.path.startsWith('/admin') || req.path.startsWith('/api/admin');
+    const isStaticAsset = req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|json)$/i);
+    const isWellKnown = req.path.startsWith('/.well-known');
+
+    return isAdminPath || isStaticAsset || isWellKnown;
+  },
   keyGenerator: (req /*, res*/) => {
     // Prefer the X-Forwarded-For / Forwarded headers set by proxies (Vercel).
     const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
@@ -91,7 +104,28 @@ const limiter = rateLimit({
     }
   },
 });
-app.use(limiter);
+
+// Admin API rate limiter (generous limit for authenticated users)
+// This protects against compromised tokens being used to spam the API
+const adminApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // generous limit - 1000 requests per 15 min for authenticated admins
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many admin API requests. Please slow down.' },
+  keyGenerator: (req /*, res*/) => {
+    const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
+    if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
+    try {
+      return ipKeyGenerator(req.ip);
+    } catch (err) {
+      return req.ip || '';
+    }
+  },
+});
+
+// Apply public rate limiting
+app.use(publicLimiter);
 
 // Static files (optional)
 app.use(express.static('public'));
@@ -100,7 +134,8 @@ app.use(express.static('public'));
 app.use('/api', apiRoutes);
 // Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
 // Express router when Vercel routes them to /api/index.js.
-app.use('/api/admin', adminRoutes);
+// Apply generous rate limiting to admin API (protects against compromised tokens)
+app.use('/api/admin', adminApiLimiter, adminRoutes);
 // Messenger webhook endpoint
 app.use('/api/messenger', messengerRoutes);
 
