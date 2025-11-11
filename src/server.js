@@ -2,19 +2,31 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 require('dotenv').config();
 
 const app = express();
 
-// Minimal request logging in non-production to avoid leaking sensitive routing info in prod logs
-app.use((req, res, next) => {
-  if ((process.env.NODE_ENV || 'development') !== 'production') {
-    console.log(`${req.method} ${req.url}`);
-  }
-  next();
-});
+// Force HTTPS in production (Vercel sets x-forwarded-proto header)
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(301, `https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+}
+
+// Request logging with Morgan
+if (process.env.NODE_ENV !== 'production') {
+  // Development: detailed logging
+  app.use(morgan('dev'));
+} else {
+  // Production: combined format (Apache-style)
+  app.use(morgan('combined'));
+}
 
 app.use(
   helmet({

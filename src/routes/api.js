@@ -1,6 +1,8 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const validate = require('../middleware/validate');
+const { validateOrderCreation, validateReview, sanitizeBody } = require('../middleware/validators');
+const { cacheMiddleware, clearCache } = require('../middleware/cache');
 const mailer = require('../lib/mailer');
 const templates = require('../lib/email-templates');
 const rateLimit = require('express-rate-limit');
@@ -47,7 +49,7 @@ const inquiryLimiter = rateLimit({
   },
 });
 
-router.post('/inquiry', validate.inquiry, inquiryLimiter, async (req, res) => {
+router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
   try {
     // Log minimal info to avoid leaking PII in logs
     const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');// SECURITY FIX: Sanitize user inputs
@@ -654,7 +656,8 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
 });
 
 // Public products list for the public site (no auth)
-router.get('/products', async (req, res) => {
+// Cache for 10 minutes to reduce database load
+router.get('/products', cacheMiddleware(600), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -673,7 +676,8 @@ router.get('/products', async (req, res) => {
 
 // Public categories list (no auth)
 // Include rush_fee so the public site can show/apply rush fees per category
-router.get('/categories', async (req, res) => {
+// Cache for 10 minutes
+router.get('/categories', cacheMiddleware(600), async (req, res) => {
   try {
     const { data, error } = await supabase.from('categories').select('id,name,slug,rush_fee').order('name', { ascending: true });
     if (error) {
@@ -689,7 +693,8 @@ router.get('/categories', async (req, res) => {
 
 // Reviews endpoints (public)
 // GET /reviews - list recent reviews
-router.get('/reviews', async (req, res) => {
+// Cache for 5 minutes (reviews change less frequently)
+router.get('/reviews', cacheMiddleware(300), async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('reviews')
@@ -709,7 +714,7 @@ router.get('/reviews', async (req, res) => {
 
 // POST /reviews - create a review after validating order id
 // Accept JSON or multipart/form-data with an optional image file (field name 'image')
-router.post('/reviews', upload.single('image'), async (req, res) => {
+router.post('/reviews', upload.single('image'), sanitizeBody, async (req, res) => {
   try {
     // support both JSON body and multipart form body
     const body = req.body || {};

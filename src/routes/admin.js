@@ -1,6 +1,7 @@
 const express = require('express');
 const supabase = require('../config/supabase');
 const auth = require('../middleware/auth');
+const { validateOrderStatus, validateProduct, sanitizeBody } = require('../middleware/validators');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
@@ -621,7 +622,7 @@ router.delete('/categories/:id', auth, async (req, res) => {
   }
 });
 
-router.patch('/orders/:orderId', auth, async (req, res) => {
+router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
   try {
     const { orderId } = req.params;
     const updates = {};

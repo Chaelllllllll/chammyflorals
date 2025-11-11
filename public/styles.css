@@ -324,8 +324,45 @@ body {
         border-spacing: 0;
         background: transparent;
         width: 100%;
+        table-layout: auto;
       }
-  .admin-page .table-responsive { border-radius: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .admin-page .table-responsive {
+    border-radius: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  /* Column width optimization for better layout */
+  .admin-page .admin-table th:nth-child(1),
+  .admin-page .admin-table td:nth-child(1) {
+    width: 120px;
+    min-width: 100px;
+  }
+
+  .admin-page .admin-table th:nth-child(2),
+  .admin-page .admin-table td:nth-child(2) {
+    width: 180px;
+    min-width: 150px;
+  }
+
+  .admin-page .admin-table th:nth-child(3),
+  .admin-page .admin-table td:nth-child(3) {
+    width: 200px;
+    min-width: 180px;
+  }
+
+  .admin-page .admin-table th:nth-child(4),
+  .admin-page .admin-table td:nth-child(4) {
+    width: auto;
+    min-width: 150px;
+  }
+
+  .admin-page .admin-table th.actions,
+  .admin-page .admin-table td.actions {
+    width: 120px;
+    min-width: 100px;
+  }
       .admin-page .admin-table thead th {
         background: linear-gradient(180deg, #ffffff, #fff6f9);
         border-bottom: 1px solid rgba(16,24,40,0.06);
@@ -348,6 +385,24 @@ body {
         padding: .6rem .75rem;
         vertical-align: middle;
         color: #4f3f45;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+
+      /* Prevent email and Facebook link from breaking layout */
+      .admin-page .admin-table td:nth-child(3),
+      .admin-page .admin-table td:nth-child(4) {
+        max-width: 250px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* On hover, show full text */
+      .admin-page .admin-table td:nth-child(3):hover,
+      .admin-page .admin-table td:nth-child(4):hover {
+        white-space: normal;
+        overflow: visible;
       }
       /* Actions column: keep compact and right-aligned */
       .admin-page .admin-table td.actions, .admin-page .admin-table th.actions { text-align: center; white-space: nowrap; }
