@@ -1,0 +1,110 @@
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { CartProvider } from './src/contexts/CartContext';
+
+// Import screens
+import HomeScreen from './src/screens/HomeScreen';
+import ProductsScreen from './src/screens/ProductsScreen';
+import ProductDetailScreen from './src/screens/ProductDetailScreen';
+import CartScreen from './src/screens/CartScreen';
+import CheckoutScreen from './src/screens/CheckoutScreen';
+import OrderSuccessScreen from './src/screens/OrderSuccessScreen';
+import TrackOrderScreen from './src/screens/TrackOrderScreen';
+import ReviewsScreen from './src/screens/ReviewsScreen';
+import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
+import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
+
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: any;
+
+          if (route.name === 'Home') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Products') {
+            iconName = focused ? 'flower' : 'flower-outline';
+          } else if (route.name === 'Cart') {
+            iconName = focused ? 'cart' : 'cart-outline';
+          } else if (route.name === 'Reviews') {
+            iconName = focused ? 'star' : 'star-outline';
+          } else if (route.name === 'Track') {
+            iconName = focused ? 'location' : 'location-outline';
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#ff6f9b',
+        tabBarInactiveTintColor: 'gray',
+        headerStyle: {
+          backgroundColor: '#fff6f9',
+        },
+        headerTintColor: '#333',
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Chammy Florals' }} />
+      <Tab.Screen name="Products" component={ProductsScreen} />
+      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Reviews" component={ReviewsScreen} />
+      <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
+    </Tab.Navigator>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <NavigationContainer>
+          <Stack.Navigator
+            screenOptions={{
+              headerStyle: {
+                backgroundColor: '#fff6f9',
+              },
+              headerTintColor: '#333',
+            }}
+          >
+            <Stack.Screen 
+              name="MainTabs" 
+              component={MainTabs} 
+              options={{ headerShown: false }} 
+            />
+            <Stack.Screen 
+              name="ProductDetail" 
+              component={ProductDetailScreen} 
+              options={{ title: 'Product Details' }}
+            />
+            <Stack.Screen 
+              name="Checkout" 
+              component={CheckoutScreen}
+              options={{ title: 'Checkout' }}
+            />
+            <Stack.Screen 
+              name="OrderSuccess" 
+              component={OrderSuccessScreen}
+              options={{ title: 'Order Success', headerLeft: () => null }}
+            />
+            <Stack.Screen 
+              name="AdminLogin" 
+              component={AdminLoginScreen}
+              options={{ title: 'Admin Login' }}
+            />
+            <Stack.Screen 
+              name="AdminDashboard" 
+              component={AdminDashboardScreen}
+              options={{ title: 'Admin Dashboard' }}
+            />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </CartProvider>
+    </AuthProvider>
+  );
+}

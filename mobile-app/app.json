@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Chammy Florals",
+    "slug": "chammy-florals",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fff6f9"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chammyflorals.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#fff6f9"
+      },
+      "package": "com.chammyflorals.app",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ad439029-6105-4fcd-957e-273591986bb7"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ad439029-6105-4fcd-957e-273591986bb7"
+      }
+    },
+    "owner": "chaelyoooo"
+  }
+}
