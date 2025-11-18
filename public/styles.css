@@ -554,11 +554,9 @@ body.admin-page {
   box-shadow: 0 2px 8px rgba(255,111,155,0.15);
 }
 
-.sidebar-footer {
-  flex-shrink: 0;
-  padding: 1rem;
-  border-top: 1px solid rgba(16,24,40,0.06);
-  background: #fff;
+.sidebar-nav-item .btn-pink {
+  margin-top: 1rem;
+  padding: .875rem 1rem;
 }
 
 .main-content {
