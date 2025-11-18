@@ -346,7 +346,32 @@ router.post('/login/verify', loginLimiter, async (req, res) => {
 
 router.get('/verify-token', auth, async (req, res) => {
   try {
-    res.json({ valid: true });
+    // Extract email from the request (set by auth middleware)
+    // The auth middleware validates the token and we can extract email from it
+    const authHeader = req.headers.authorization || '';
+    const tokenStr = authHeader.replace(/^Bearer\s+/i, '').trim();
+    
+    let email = null;
+    
+    // Try to get email from session token in database
+    try {
+      const { data: sessionRow } = await supabase.from('admins').select('email').eq('session_token', tokenStr).limit(1).single();
+      if (sessionRow && sessionRow.email) {
+        email = sessionRow.email;
+      }
+    } catch (e) {
+      // If not session token, try to decode as legacy base64 token
+      try {
+        const decoded = Buffer.from(tokenStr, 'base64').toString();
+        if (decoded.includes(':')) {
+          email = decoded.split(':')[0];
+        }
+      } catch (decodeErr) {
+        // Ignore
+      }
+    }
+    
+    res.json({ valid: true, email: email ? email.trim().toLowerCase() : null });
   } catch (error) {
     console.error('Token verification error:', error);
     res.status(401).json({ error: 'Invalid token' });
@@ -965,13 +990,19 @@ router.get('/admins', auth, async (req, res) => {
 // Create an admin account (store salted scrypt password hash as salt$hash)
 router.post('/admins', auth, async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const { email, password, name, psid, status } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
     const salt = crypto.randomBytes(16).toString('hex');
     const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
     const password_hash = `${salt}$${derived}`;
-    const record = { email: String(email).trim().toLowerCase(), password_hash };
-    const { data, error } = await supabase.from('admins').insert([record]).select('id,email,created_at');
+    const record = { 
+      email: String(email).trim().toLowerCase(), 
+      password_hash,
+      name: name ? String(name).trim() : null,
+      psid: psid ? String(psid).trim() : null,
+      status: status || 'Not Approved'
+    };
+    const { data, error } = await supabase.from('admins').insert([record]).select('id,email,name,psid,status,created_at');
     if (error) throw error;
     res.json({ ok: true, admin: data && data[0] ? data[0] : null });
   } catch (err) {

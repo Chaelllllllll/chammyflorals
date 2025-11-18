@@ -437,7 +437,12 @@ async function onEdit(e) {
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
     // fill pricing and addons editors
-  try { fillPricingInForm(p.pricing || [], p.addons || [], p.colors || []); } catch (err) {}
+  try { 
+      console.log('Loading product colors:', p.colors);
+      fillPricingInForm(p.pricing || [], p.addons || [], p.colors || []); 
+    } catch (err) {
+      console.error('Error filling form:', err);
+    }
     new bootstrap.Modal(document.getElementById('productModal')).show();
   } catch (err) { showError(err.error || err.message || 'Failed to load product'); }
 }
@@ -693,6 +698,7 @@ function readColorsFromForm() {
 }
 
 function fillPricingInForm(pricing = [], addons = [], colors = []) {
+  console.log('fillPricingInForm called with colors:', colors);
   const pbody = document.querySelector('#pricingTable tbody');
   pbody.innerHTML = '';
   pricing.forEach(r => pbody.appendChild(createPricingRow(r)));
@@ -702,9 +708,13 @@ function fillPricingInForm(pricing = [], addons = [], colors = []) {
   addons.forEach(a => abody.appendChild(createAddonRow(a)));
   // colors
   const cbody = document.querySelector('#colorsTable tbody');
+  console.log('Colors table tbody found:', !!cbody);
   if (cbody) {
     cbody.innerHTML = '';
-    (colors || []).forEach(c => cbody.appendChild(createColorRow(c)));
+    (colors || []).forEach(c => {
+      console.log('Creating color row for:', c);
+      cbody.appendChild(createColorRow(c));
+    });
   }
 }
 
