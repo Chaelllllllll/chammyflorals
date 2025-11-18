@@ -229,29 +229,50 @@ router.post('/login', loginLimiter, async (req, res) => {
   // schedule cleanup
   setTimeout(() => { if (twofaStore.has(normEmail)) twofaStore.delete(normEmail); }, 2 * 60 * 1000);
 
-    // Send using messenger helper
-    try {
-  const sendResp = await messenger.sendToPsid(psid, `Your login code is: ${code}\nIt will expire in 1 minute.`);
-      if (!sendResp || !sendResp.ok) {
-        console.warn('Failed to send 2FA message', sendResp);
-        // If send failed, attempt to clear DB-stored code
-        if (persistedToDb) {
-          try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null }).eq('email', normEmail); } catch (e) {}
+    // Send 2FA via Messenger AND Email concurrently; succeed if at least one works
+    const mailer = require('../lib/mailer');
+    const messengerPromise = (async () => {
+      try {
+        // Use tagged send to allow out-of-window delivery for account updates (Facebook policy compliant)
+        const sendResp = await messenger.sendTwoFactor(psid, code);
+        // If explicit tagged send fails, fall back to generic send (which may succeed if window open)
+        if (!sendResp.ok) {
+          const fallback = await messenger.sendToPsid(psid, `Your login code is: ${code}\nIt will expire in 1 minute.`);
+          return fallback.ok ? { ok: true, channel: 'messenger', tagged: false } : { ok: false, channel: 'messenger', result: { tagged: sendResp, fallback } };
         }
-        return res.status(500).json({ error: 'Failed to send 2FA message' });
+        return { ok: true, channel: 'messenger', tagged: true };
+      } catch (err) {
+        return { ok: false, channel: 'messenger', error: err };
       }
-    } catch (err) {
-      console.error('Messenger send error:', err && err.message ? err.message : err);
+    })();
+    const emailPromise = (async () => {
+      try {
+        await mailer.sendMail({
+          to: normEmail,
+          subject: 'Your Chammy Florals 2FA Code',
+          html: `<p>Your login code is: <strong>${code}</strong></p><p>It will expire in 1 minute.</p>`,
+          text: `Your login code is: ${code}\nIt will expire in 1 minute.`,
+        });
+        return { ok: true, channel: 'email' };
+      } catch (err) {
+        return { ok: false, channel: 'email', error: err };
+      }
+    })();
+    const settled = await Promise.allSettled([messengerPromise, emailPromise]);
+    const results = settled.map(s => s.status === 'fulfilled' ? s.value : { ok: false, error: s.reason });
+    const successChannels = results.filter(r => r.ok).map(r => r.channel);
+    if (!successChannels.length) {
+      console.error('2FA failed on both channels', results);
       if (persistedToDb) {
         try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null }).eq('email', normEmail); } catch (e) {}
       }
-      return res.status(500).json({ error: 'Failed to send 2FA message' });
+      return res.status(500).json({ error: 'Failed to send 2FA on messenger and email' });
     }
-
-  const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
-  const resp = { twoFactorRequired: true, message: '2FA code sent to your Messenger', remainingSeconds, persistedToDb };
-  if (process.env.DEBUG && dbPersistError) resp.dbError = dbPersistError;
-  return res.json(resp);
+    const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
+    const resp = { twoFactorRequired: true, message: `2FA code sent via: ${successChannels.join(', ')}`, channels: successChannels, remainingSeconds, persistedToDb };
+    if (process.env.DEBUG) resp.details = results;
+    if (process.env.DEBUG && dbPersistError) resp.dbError = dbPersistError;
+    return res.json(resp);
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to process login' });

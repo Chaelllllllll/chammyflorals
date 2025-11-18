@@ -105,16 +105,50 @@ async function notifyAdmins(order) {
   }
 }
 
-// Send a direct message to a single PSID (page sends). `message` can be string or message object
+// Send a direct message to a single PSID (page sends). `message` can be string or message object.
+// If outside the 24h window (policy error code 10 / subcode 2018278) we retry once with MESSAGE_TAG ACCOUNT_UPDATE.
 async function sendToPsid(psid, message) {
-  try {
-    const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
-    if (!token) return { ok: false, message: 'Missing FB token' };
-    const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
-    const payload = { recipient: { id: String(psid) }, message: (typeof message === 'string' ? { text: message } : message) };
+  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+  if (!token) return { ok: false, message: 'Missing FB token' };
+  const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
+  const baseMsg = (typeof message === 'string' ? { text: message } : message);
+
+  async function post(payload) {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    let body = null;
-    try { body = await res.json(); } catch (e) { body = null; }
+    let body = null; try { body = await res.json(); } catch (e) { body = null; }
+    return { ok: res.ok, status: res.status, body };
+  }
+
+  try {
+    const payload = { recipient: { id: String(psid) }, message: baseMsg };
+    const first = await post(payload);
+    // Detect outside allowed window policy error
+    const errObj = first && first.body && first.body.error;
+    const isWindowError = first.ok === false && first.status === 400 && errObj && errObj.code === 10 && errObj.error_subcode === 2018278;
+    if (isWindowError) {
+      // Retry with message tag ACCOUNT_UPDATE (appropriate for login / account security notifications)
+      const tagged = { recipient: { id: String(psid) }, message: baseMsg, messaging_type: 'MESSAGE_TAG', tag: 'ACCOUNT_UPDATE' };
+      const second = await post(tagged);
+      second.windowRetry = true;
+      second.original = first;
+      return second;
+    }
+    return first;
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+// Explicit helper for two-factor messages using ACCOUNT_UPDATE tag directly.
+async function sendTwoFactor(psid, code) {
+  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+  if (!token) return { ok: false, message: 'Missing FB token' };
+  const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
+  const text = `Your login code is: ${code}\nIt will expire in 1 minute.`;
+  const payload = { recipient: { id: String(psid) }, message: { text }, messaging_type: 'MESSAGE_TAG', tag: 'ACCOUNT_UPDATE' };
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    let body = null; try { body = await res.json(); } catch (e) { body = null; }
     return { ok: res.ok, status: res.status, body };
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : String(err) };
@@ -135,24 +169,22 @@ async function notifyCustomer(order) {
 
     // If order is delivered, send a cute thank-you message
     if (String(status || '').toLowerCase() === 'delivered') {
-      // Build review link (prefer SITE_BASE_URL when present)
       const reviewLink = base ? `${base.replace(/\/$/, '')}/reviews.html` : '/reviews.html';
-      // Format exactly as requested by the user
       const lines = [];
-      lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°');
+      lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝐫 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°');
       lines.push(`Hi ${order.name || ''}, Your order has been delivered!`);
       lines.push('');
       lines.push(`Order ID: ${id}`);
-      lines.push(`Total: ${total}`);
+      if (total) lines.push(`Total: ${total}`);
       lines.push('');
       lines.push('Thank you so much for choosing Chammy Florals — your support means the world to us!');
       lines.push('If you loved it, we\'d be so grateful for a quick review — it helps our small shop grow');
-      lines.push(`Link: ${reviewLink}`);
+      lines.push(`Review: ${reviewLink}`);
       const textDelivered = lines.join('\n');
-      return await sendToPsid(psid, textDelivered);
+      return await sendOrderUpdate(psid, textDelivered);
     }
 
-    // Fallback: generic update message for other statuses
+    // Generic status update (use POST_PURCHASE_UPDATE tag to allow outside 24h window)
     const lines = [];
     lines.push(`⋆˚✿˖° 𝐎𝐫𝐝𝗲𝗿 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°`);
     lines.push(`Hi ${order.name || ''},`);
@@ -163,10 +195,25 @@ async function notifyCustomer(order) {
     lines.push('');
     if (trackUrl) lines.push(`Track your order: ${trackUrl}`);
     const text = lines.join('\n');
-    return await sendToPsid(psid, text);
+    return await sendOrderUpdate(psid, text);
   } catch (err) {
     return { ok: false, error: err && err.message ? err.message : String(err) };
   }
 }
 
-module.exports = { notifyAdmins, sendToPsid, notifyCustomer };
+// Tagged order update helper (POST_PURCHASE_UPDATE)
+async function sendOrderUpdate(psid, text) {
+  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+  if (!token) return { ok: false, message: 'Missing FB token' };
+  const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
+  const payload = { recipient: { id: String(psid) }, message: { text }, messaging_type: 'MESSAGE_TAG', tag: 'POST_PURCHASE_UPDATE' };
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    let body = null; try { body = await res.json(); } catch (e) { body = null; }
+    return { ok: res.ok, status: res.status, body };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+module.exports = { notifyAdmins, sendToPsid, notifyCustomer, sendTwoFactor, sendOrderUpdate };
