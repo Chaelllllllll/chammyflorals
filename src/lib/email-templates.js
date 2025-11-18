@@ -61,18 +61,19 @@ function deliveredTemplate(order) {
         <li><strong>Flower Type:</strong> ${escapeHtml(order.flower_type)}</li>
         <li><strong>Quantity:</strong> ${escapeHtml(String(order.quantity))}</li>
         <li><strong>Add-ons:</strong> ${escapeHtml(addons)}</li>
-        <li><strong>Total Paid:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
+        <li><strong>Total:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
       </ul>
-      ${order.message ? `<div style="margin-top:10px;padding:10px;background:#fff6f9;border-radius:6px;color:#333"><strong>Delivery notes:</strong><div style="margin-top:6px">${escapeHtml(order.message)}</div></div>` : ''}
-      ${typeof order.payment_received !== 'undefined' || order.receiver_name ? `
-        <div style="margin-top:10px;padding:10px;background:#f8f9fa;border-radius:6px;color:#333">
-          <strong>Payment details</strong>
-          <div style="margin-top:6px">
-            ${typeof order.payment_received !== 'undefined' ? `<div>Amount received: ₱${escapeHtml(String(Number(order.payment_received).toFixed(2)))}</div>` : ''}
-            ${order.receiver_name ? `<div>Receiver: ${escapeHtml(order.receiver_name)}</div>` : ''}
+      ${order.receiver_name || typeof order.payment_received !== 'undefined' || order.delivered_by ? `
+        <div style="margin-top:15px;padding:15px;background:#f0f8ff;border-left:4px solid #ff69b4;border-radius:6px;color:#333">
+          <strong style="color:#ff69b4">Delivery Details</strong>
+          <div style="margin-top:10px;line-height:1.8">
+            ${order.receiver_name ? `<div>✓ <strong>Received By:</strong> ${escapeHtml(order.receiver_name)}</div>` : ''}
+            ${typeof order.payment_received !== 'undefined' ? `<div><strong>Amount Received:</strong> ₱${escapeHtml(String(Number(order.payment_received).toFixed(2)))}</div>` : ''}
+            ${order.delivered_by ? `<div><strong>Delivered By:</strong> ${escapeHtml(order.delivered_by)}</div>` : ''}
           </div>
         </div>
       ` : ''}
+      ${order.delivery_notes ? `<div style="margin-top:10px;padding:10px;background:#fff6f9;border-radius:6px;color:#333"><strong>Delivery Notes:</strong><div style="margin-top:6px">${escapeHtml(order.delivery_notes)}</div></div>` : ''}
       <p>Thank you for choosing Chammy Florals. We hope our flowers made the moment special!</p>
       <p style="font-size:0.9em;color:#666">If you have feedback, please reply to this email — we'd love to hear from you.</p>
       <hr />

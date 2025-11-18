@@ -117,6 +117,12 @@
         </a>
       </li>
       <li class="sidebar-nav-item">
+        <a href="/admin/to-deliver.html" class="sidebar-nav-link">
+          <i class="fas fa-truck"></i>
+          <span>To Deliver</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
         <a href="/admin/admins.html" class="sidebar-nav-link">
           <i class="fas fa-user-shield"></i>
           <span>Admins</span>
@@ -157,14 +163,6 @@
             <i class="fas fa-cog text-primary me-2"></i>Processing
           </div>
           <div id="metricProcessing" class="fs-5 fw-bold text-primary">0</div>
-        </div>
-      </div>
-      <div class="col-6 col-md-3">
-        <div class="card metric-card p-3 text-center">
-          <div class="h6 mb-1 text-muted">
-            <i class="fas fa-box text-success me-2"></i>To Receive
-          </div>
-          <div id="metricToReceive" class="fs-5 fw-bold text-success">0</div>
         </div>
       </div>
     </div>
@@ -222,9 +220,6 @@
               </button>
               <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">
                 <i class="fas fa-cog"></i> Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span>
-              </button>
-              <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">
-                <i class="fas fa-box"></i> To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span>
               </button>
             </div>
           </div>
@@ -302,7 +297,7 @@
             <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
               <i class="fas fa-exchange-alt text-pink"></i>
             </div>
-            <h5 class="modal-title mb-0" id="changeStatusModalLabel">Change Order Status</h5>
+            <h5 class="modal-title mb-0" id="changeStatusModalLabel">Update Order Status</h5>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
@@ -310,76 +305,32 @@
           <form id="changeStatusForm">
             <div class="mb-3">
               <label for="orderStatus" class="form-label fw-semibold">
-                <i class="fas fa-list-ul text-pink me-2"></i>Status
+                <i class="fas fa-list-ul text-pink me-2"></i>Select New Status
               </label>
-              <select class="form-select" id="orderStatus" required>
-                <option value="" disabled selected>Select status</option>
-                <option value="Pending">⏳ Pending</option>
-                <option value="Processing">⚙️ Processing</option>
-                <option value="To Receive">📦 To Receive</option>
-                <option value="Cancelled">❌ Cancelled</option>
+              <select class="form-select form-select-lg" id="orderStatus" required>
+                <option value="" disabled selected>Choose order status...</option>
+                <option value="Pending">⏳ Pending - Order received, awaiting processing</option>
+                <option value="Processing">⚙️ Processing - Currently being prepared</option>
+                <option value="To Receive">📦 To Receive - Ready for pickup/delivery</option>
+                <option value="Cancelled">❌ Cancelled - Order cancelled</option>
               </select>
-              <div class="invalid-feedback">Please select a status.</div>
+              <div class="form-text mt-2">
+                <i class="fas fa-info-circle text-muted me-1"></i>
+                <small>Use "To Deliver" page to mark orders as delivered.</small>
+              </div>
             </div>
-            <button type="submit" class="btn btn-pink w-100">
-              <i class="fas fa-check me-2"></i>Update Status
-            </button>
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-pink btn-lg">
+                <i class="fas fa-check-circle me-2"></i>Update Status
+              </button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-2"></i>Cancel
+              </button>
+            </div>
           </form>
         </div>
       </div>
     </div>
-        </div>
-
-        <!-- Cashier Modal (shown when marking Delivered) -->
-        <div class="modal fade" id="cashierModal" tabindex="-1" aria-labelledby="cashierModalLabel" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content rounded-4 border-0 shadow-lg">
-              <div class="modal-header gradient-pink border-0">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-cash-register text-pink"></i>
-                  </div>
-                  <h5 class="modal-title mb-0" id="cashierModalLabel">Payment</h5>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body p-4">
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">
-                    <i class="fas fa-receipt text-pink me-2"></i>Order Total
-                  </label>
-                  <div id="cashierOrderTotal" class="h5 text-pink">₱0</div>
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">
-                    <i class="fas fa-money-bill-wave text-pink me-2"></i>Amount Received
-                  </label>
-                  <input type="number" step="0.01" class="form-control" id="cashierAmountReceived" placeholder="0.00">
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">
-                    <i class="fas fa-user text-pink me-2"></i>Receiver Name
-                  </label>
-                  <input type="text" class="form-control" id="cashierReceiverName" placeholder="Receiver name">
-                </div>
-                <div class="mb-3">
-                  <label class="form-label fw-semibold">
-                    <i class="fas fa-coins text-pink me-2"></i>Change
-                  </label>
-                  <div id="cashierChange" class="h6 text-success">₱0</div>
-                </div>
-              </div>
-              <div class="modal-footer border-0">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                  <i class="fas fa-times me-2"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-pink" id="cashierConfirmButton">
-                  <i class="fas fa-check me-2"></i>Confirm
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
   </div>
 
   <!-- Delete Confirmation Modal -->

@@ -1212,7 +1212,6 @@ function openEditModal(orderId) {
         <button type="button" class="btn btn-outline-danger" id="editDeleteButton">Delete</button>
       </div>
       <div>
-        <button type="button" class="btn btn-success me-2" id="paymentButton">Payment</button>
         <button type="button" class="btn btn-pink" id="editSaveButton">Save</button>
       </div>
     `;
@@ -1269,77 +1268,6 @@ function openEditModal(orderId) {
     });
   }
 
-  // wire payment button: open cashier modal and allow delivering the order
-  const paymentBtn = document.getElementById('paymentButton');
-  if (paymentBtn) {
-    paymentBtn.addEventListener('click', () => {
-      const cashierModalEl = document.getElementById('cashierModal');
-      const totalEl = document.getElementById('cashierOrderTotal');
-      const amtInput = document.getElementById('cashierAmountReceived');
-      const changeEl = document.getElementById('cashierChange');
-      const deliverBtn = document.getElementById('cashierConfirmButton');
-
-      totalEl.textContent = `₱${Number(order.total_fee || 0).toLocaleString()}`;
-      amtInput.value = '';
-      changeEl.textContent = `₱0`;
-      // disable deliver until amount entered
-      if (deliverBtn) deliverBtn.disabled = true;
-
-      const onInput = () => {
-        const received = parseFloat(amtInput.value);
-        const total = Number(order.total_fee) || 0;
-        const validNumber = amtInput.value !== '' && !Number.isNaN(received);
-        // Only enable deliver when a valid number is entered AND it's >= total fee
-        const sufficient = validNumber && (received >= total);
-        if (deliverBtn) deliverBtn.disabled = !sufficient;
-        const change = validNumber ? (received - total) : 0;
-        changeEl.textContent = `₱${(change < 0 ? 0 : change).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      };
-
-      amtInput.removeEventListener('input', onInput);
-      amtInput.addEventListener('input', onInput);
-
-      const cashierModal = new bootstrap.Modal(cashierModalEl);
-
-      const onDeliver = async () => {
-        if (!deliverBtn) return;
-        deliverBtn.disabled = true;
-        try {
-          const token = localStorage.getItem('adminToken');
-          const received = parseFloat(amtInput.value) || 0;
-          // send a deliver request that marks the order Delivered and sends the delivered email
-          const receiverNameInput = document.getElementById('cashierReceiverName');
-          const receiverName = receiverNameInput ? (receiverNameInput.value || '').trim() : '';
-          const response = await fetch(`/api/admin/orders/${orderId}/deliver`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ received, receiverName }),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Failed to mark delivered');
-          showSuccessModal(result.message || 'Order marked as Delivered');
-          cashierModal.hide();
-          loadOrders();
-          try { bootstrap.Modal.getInstance(document.getElementById('orderDetailsModal')).hide(); } catch (e) {}
-        } catch (err) {
-          showErrorModal(err && err.message ? err.message : 'Failed to mark delivered');
-        } finally {
-          try { deliverBtn.removeEventListener('click', onDeliver); } catch (e) {}
-          try { amtInput.removeEventListener('input', onInput); } catch (e) {}
-          if (deliverBtn) deliverBtn.disabled = false;
-        }
-      };
-
-      if (deliverBtn) deliverBtn.addEventListener('click', onDeliver);
-      cashierModalEl.addEventListener('hidden.bs.modal', () => {
-        try { if (deliverBtn) deliverBtn.removeEventListener('click', onDeliver); } catch (e) {}
-        try { amtInput.removeEventListener('input', onInput); } catch (e) {}
-      }, { once: true });
-
-      cashierModal.show();
-    });
-  }
-
   // View Audit removed: audit UI and client fetch removed per request.
 
   const detailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
@@ -1349,8 +1277,9 @@ function openEditModal(orderId) {
 async function changeStatus(orderId) {
   const token = localStorage.getItem('adminToken');
   const status = document.getElementById('orderStatus').value;
+  
   try {
-    // Simple status update (Delivered should be handled via Payment flow in the order details)
+    // Simple status update
     const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: {

@@ -769,7 +769,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
 router.post('/orders/:orderId/deliver', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { received, receiverName } = req.body || {};
+    const { received, receiverName, deliveredBy, notes } = req.body || {};
     // Fetch existing order
     const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (fetchErr || !existing) return res.status(404).json({ error: 'Order not found' });
@@ -779,17 +779,21 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
     if (updateErr) throw updateErr;
     const updated = (updatedRows && updatedRows[0]) || existing;
 
+    // Prepare comprehensive delivery details for notifications
+    const emailOrder = Object.assign({}, updated);
+    if (typeof received !== 'undefined') emailOrder.payment_received = Number(received);
+    if (receiverName) emailOrder.receiver_name = String(receiverName);
+    if (deliveredBy) emailOrder.delivered_by = String(deliveredBy);
+    if (notes) emailOrder.delivery_notes = String(notes);
+
     // Send delivered email including transient payment/receiver info (best-effort)
     try {
       const templates = require('../lib/email-templates');
       const mailer = require('../lib/mailer');
-      // Build a shallow copy that includes transient fields for email rendering only
-      const emailOrder = Object.assign({}, updated);
-      if (typeof received !== 'undefined') emailOrder.payment_received = Number(received);
-      if (receiverName) emailOrder.receiver_name = String(receiverName);
       if (emailOrder && emailOrder.email) {
         const mail = templates.deliveredTemplate(emailOrder);
         await mailer.sendMail({ to: emailOrder.email, subject: mail.subject, html: mail.html });
+        console.log('Delivered email sent successfully to customer');
       }
     } catch (mailErr) {
       console.error('Failed to send delivered email (transient):', mailErr);
@@ -798,13 +802,22 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
     // Also attempt to notify the customer via Messenger (best-effort) when delivered
     try {
       if (updated && (updated.messenger_psid || updated.customer_psid)) {
-        // include transient fields so the message can reference payment/receiver info if needed
+        const messenger = require('../lib/messenger');
         const notifyPayload = Object.assign({}, updated);
         if (typeof received !== 'undefined') notifyPayload.payment_received = Number(received);
         if (receiverName) notifyPayload.receiver_name = String(receiverName);
+        if (deliveredBy) notifyPayload.delivered_by = String(deliveredBy);
+        if (notes) notifyPayload.delivery_notes = String(notes);
+        console.log('Sending delivery notification with payload:', {
+          orderId: notifyPayload.order_id,
+          receiverName: notifyPayload.receiver_name,
+          paymentReceived: notifyPayload.payment_received,
+          deliveredBy: notifyPayload.delivered_by,
+          notes: notifyPayload.delivery_notes
+        });
         const mres = await messenger.notifyCustomer(notifyPayload);
         if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger (deliver):', mres);
-        else console.log('Messenger: delivered notification result', mres && (mres.status || mres));
+        else console.log('Messenger: delivered notification sent to customer');
       }
     } catch (mErr) {
       console.warn('Failed to send messenger notification to customer (deliver):', mErr && mErr.message ? mErr.message : mErr);

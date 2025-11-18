@@ -86,7 +86,10 @@ async function notifyAdmins(order) {
     }
     if (!psids.length) return { ok: false, message: 'No admin PSIDs configured or found in DB' };
     const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
-    const text = buildMessageText(order);
+    
+    // If order is a string, use it directly; otherwise build the message text
+    const text = typeof order === 'string' ? order : buildMessageText(order);
+    
     const results = [];
     for (const psid of psids) {
       try {
@@ -175,18 +178,35 @@ async function notifyCustomer(order) {
 
     // If order is delivered, send a cute thank-you message
     if (String(status || '').toLowerCase() === 'delivered') {
+      console.log('Building delivered message with data:', {
+        orderId: id,
+        receiverName: order.receiver_name,
+        paymentReceived: order.payment_received,
+        deliveredBy: order.delivered_by,
+        deliveryNotes: order.delivery_notes
+      });
       const reviewLink = base ? `${base.replace(/\/$/, '')}/reviews.html` : '/reviews.html';
       const lines = [];
-      lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝐫 𝐔𝗽𝗱𝗮𝘁𝗲 ⋆˚✿˖°');
+      lines.push('⋆˚✿˖° 𝐎𝐫𝐝𝗲𝐫 𝐃𝐞𝐥𝐢𝐯𝐞𝐫𝐞𝐝 ⋆˚✿˖°');
       lines.push(`Hi ${order.name || ''}, Your order has been delivered!`);
       lines.push('');
       lines.push(`Order ID: ${id}`);
+      if (order.flower_type) lines.push(`Order: ${order.flower_type}`);
       if (total) lines.push(`Total: ${total}`);
+      lines.push('');
+      if (order.receiver_name) lines.push(`Received By: ${order.receiver_name}`);
+      if (typeof order.payment_received !== 'undefined') lines.push(`Amount Received: ₱${Number(order.payment_received).toLocaleString()}`);
+      if (order.delivered_by) lines.push(`Delivered By: ${order.delivered_by}`);
+      if (order.delivery_notes) {
+        lines.push('');
+        lines.push(`Notes: ${order.delivery_notes}`);
+      }
       lines.push('');
       lines.push('Thank you so much for choosing Chammy Florals — your support means the world to us!');
       lines.push('If you loved it, we\'d be so grateful for a quick review — it helps our small shop grow');
       lines.push(`Review: ${reviewLink}`);
       const textDelivered = lines.join('\n');
+      console.log('Delivered message text:', textDelivered);
       return await sendOrderUpdate(psid, textDelivered);
     }
 
