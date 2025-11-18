@@ -90,7 +90,13 @@ async function notifyAdmins(order) {
     const results = [];
     for (const psid of psids) {
       try {
-        const payload = { recipient: { id: psid }, message: { text } };
+        // Use ACCOUNT_UPDATE tag to bypass 24-hour messaging window for admin notifications
+        const payload = { 
+          recipient: { id: psid }, 
+          message: { text },
+          messaging_type: 'MESSAGE_TAG',
+          tag: 'ACCOUNT_UPDATE'
+        };
         const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         let body = null;
         try { body = await res.json(); } catch (e) { body = null; }

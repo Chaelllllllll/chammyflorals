@@ -7,72 +7,164 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Admin page design enhancements */
+    body { overflow-x: hidden; }
+
+    /* Card styles */
+    .card {
+      border-radius: 12px !important;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Metric cards */
+    .metric-card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+      border-radius: 12px;
+    }
+
+    /* Button styles */
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+    .btn-outline-pink:hover {
+      background-color: #ff6f9b;
+      border-color: #ff6f9b;
+      color: white;
+    }
+
+    /* Badge styles */
+    .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+
+    /* Smooth transitions */
+    .btn, .badge {
+      transition: all 0.3s ease;
+    }
+
+    /* Table styles */
+    .table {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .table thead {
+      background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+    }
+
+    /* Modal enhancements */
+    .modal-content {
+      border-radius: 12px;
+    }
+  </style>
 </head>
 <body class="admin-page">
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-  <div class="container-fluid d-flex justify-content-between align-items-center">
-    
-    <!-- Brand -->
-    <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
-      <div class="fw-bold">Chammy Florals</div>
-    </a>
+  <!-- Sidebar Toggle Button (Mobile) -->
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-bars"></i>
+  </button>
 
-    <!-- MOBILE: Hamburger only -->
-    <div class="d-flex align-items-center d-lg-none">
-      <!-- Hamburger -->
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-        data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false"
-        aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        <i class="fas fa-flower"></i>
+        <span>Chammy Florals</span>
+      </a>
+    </div>
+    
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-item">
+        <a href="/admin/dashboard.html" class="sidebar-nav-link active">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/products.html" class="sidebar-nav-link">
+          <i class="fas fa-box-open"></i>
+          <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reviews.html" class="sidebar-nav-link">
+          <i class="fas fa-star"></i>
+          <span>Reviews</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reports.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-line"></i>
+          <span>Transactions</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/admins.html" class="sidebar-nav-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Admins</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-pink w-100" id="logoutButton">
+        <i class="fas fa-sign-out-alt me-2"></i>Logout
       </button>
     </div>
-
-    <!-- NAV LINKS -->
-    <div class="collapse navbar-collapse" id="adminNav">
-  <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-  <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
-  <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
-  <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
-  <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
-  <li class="nav-item"><a class="nav-link" href="/admin/todo.html">To Do</a></li>
-  <li class="nav-item"><a class="nav-link" href="/admin/admins.html">Admins</a></li>
-
-        <!-- DESKTOP: Logout -->
-        <li class="nav-item ms-2 d-flex align-items-center">
-          <button class="btn btn-pink btn-sm" id="logoutButton">Logout</button>
-        </li>
-      </ul>
-    </div>
   </div>
-</nav>
-
 
   <!-- Main Content -->
+  <div class="main-content">
   <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
     <!-- Quick metrics -->
     <div class="row g-3 mb-3">
       <div class="col-6 col-md-3">
-        <div class="card p-3 text-center">
-          <div class="h6 mb-1 text-muted">Total Orders</div>
-          <div id="metricTotalOrders" class="fs-5 fw-bold">0</div>
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-shopping-cart text-pink me-2"></i>Total Orders
+          </div>
+          <div id="metricTotalOrders" class="fs-5 fw-bold text-pink">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card p-3 text-center">
-          <div class="h6 mb-1 text-muted">Pending</div>
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-clock text-warning me-2"></i>Pending
+          </div>
           <div id="metricPending" class="fs-5 fw-bold text-warning">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card p-3 text-center">
-          <div class="h6 mb-1 text-muted">Processing</div>
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-cog text-primary me-2"></i>Processing
+          </div>
           <div id="metricProcessing" class="fs-5 fw-bold text-primary">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card p-3 text-center">
-          <div class="h6 mb-1 text-muted">To Receive</div>
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-box text-success me-2"></i>To Receive
+          </div>
           <div id="metricToReceive" class="fs-5 fw-bold text-success">0</div>
         </div>
       </div>
@@ -82,16 +174,16 @@
       <div class="card-body">
         <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
           <div>
-            <h2 class="card-title mb-0">Orders</h2>
+            <h2 class="card-title mb-0">
+              <i class="fas fa-list-alt text-pink me-2"></i>Orders
+            </h2>
             <div class="small text-muted">Manage and search customer orders.</div>
           </div>
           <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
             <!-- Mobile: Single dropdown button with notification badge -->
             <div class="dropdown d-md-none">
               <button class="btn btn-pink btn-sm dropdown-toggle position-relative" type="button" id="mobileStatusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bell-fill me-1" viewBox="0 0 16 16">
-                  <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2m.995-14.901a1 1 0 1 0-1.99 0A5 5 0 0 0 3 6c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7 0-2.42-1.72-4.44-4.005-4.901"/>
-                </svg>
+                <i class="fas fa-bell me-1"></i>
                 Filters
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="mobileNotifBadge" style="display: none;">
                   0
@@ -123,17 +215,25 @@
 
             <!-- Desktop: Status filter buttons (hidden on mobile) -->
             <div id="statusBadges" class="d-none d-md-flex gap-1 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
-              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">All</button>
-              <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span></button>
-              <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span></button>
-              <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span></button>
+              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">
+                <i class="fas fa-th-large"></i> All
+              </button>
+              <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">
+                <i class="fas fa-clock"></i> Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span>
+              </button>
+              <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">
+                <i class="fas fa-cog"></i> Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span>
+              </button>
+              <button type="button" class="btn btn-success btn-sm status-badge" data-status="To Receive" aria-pressed="false">
+                <i class="fas fa-box"></i> To Receive <span class="status-count" id="countToReceive" data-bs-toggle="tooltip" title="0">0</span>
+              </button>
             </div>
           </div>
         </div>
         <div class="mb-3">
           <div class="d-flex justify-content-end mb-2 mt-2">
             <!-- Search input moved above orders table for better layout -->
-            <input id="ordersSearch" class="form-control form-control-sm search-input-right" placeholder="Search by Order ID, name or email">
+            <input id="ordersSearch" class="form-control form-control-sm search-input-right" placeholder="🔍 Search by Order ID, name or email">
           </div>
         </div>
           <div class="table-responsive">
@@ -171,17 +271,24 @@
 
   <!-- Details Modal -->
   <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="orderDetailsModalLabel">Order Details</h5>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-info-circle text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="orderDetailsModalLabel">Order Details</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="orderDetailsContent">
           <!-- Order details will be populated here -->
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
@@ -189,26 +296,35 @@
 
   <!-- Change Status Modal -->
   <div class="modal fade" id="changeStatusModal" tabindex="-1" aria-labelledby="changeStatusModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="changeStatusModalLabel">Change Order Status</h5>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-exchange-alt text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="changeStatusModalLabel">Change Order Status</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <form id="changeStatusForm">
             <div class="mb-3">
-              <label for="orderStatus" class="form-label">Status</label>
+              <label for="orderStatus" class="form-label fw-semibold">
+                <i class="fas fa-list-ul text-pink me-2"></i>Status
+              </label>
               <select class="form-select" id="orderStatus" required>
                 <option value="" disabled selected>Select status</option>
-                <option value="Pending">Pending</option>
-                <option value="Processing">Processing</option>
-                <option value="To Receive">To Receive</option>
-                <option value="Cancelled">Cancelled</option>
+                <option value="Pending">⏳ Pending</option>
+                <option value="Processing">⚙️ Processing</option>
+                <option value="To Receive">📦 To Receive</option>
+                <option value="Cancelled">❌ Cancelled</option>
               </select>
               <div class="invalid-feedback">Please select a status.</div>
             </div>
-            <button type="submit" class="btn btn-pink">Update Status</button>
+            <button type="submit" class="btn btn-pink w-100">
+              <i class="fas fa-check me-2"></i>Update Status
+            </button>
           </form>
         </div>
       </div>
@@ -217,33 +333,50 @@
 
         <!-- Cashier Modal (shown when marking Delivered) -->
         <div class="modal fade" id="cashierModal" tabindex="-1" aria-labelledby="cashierModalLabel" aria-hidden="true">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title" id="cashierModalLabel">Payment</h5>
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+              <div class="modal-header gradient-pink border-0">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-cash-register text-pink"></i>
+                  </div>
+                  <h5 class="modal-title mb-0" id="cashierModalLabel">Payment</h5>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
               </div>
-              <div class="modal-body">
-                <div class="mb-2">
-                  <label class="form-label">Order Total</label>
-                  <div id="cashierOrderTotal" class="h5">₱0</div>
+              <div class="modal-body p-4">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">
+                    <i class="fas fa-receipt text-pink me-2"></i>Order Total
+                  </label>
+                  <div id="cashierOrderTotal" class="h5 text-pink">₱0</div>
                 </div>
-                <div class="mb-2">
-                  <label class="form-label">Amount Received</label>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">
+                    <i class="fas fa-money-bill-wave text-pink me-2"></i>Amount Received
+                  </label>
                   <input type="number" step="0.01" class="form-control" id="cashierAmountReceived" placeholder="0.00">
                 </div>
-                <div class="mb-2">
-                  <label class="form-label">Receiver Name</label>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">
+                    <i class="fas fa-user text-pink me-2"></i>Receiver Name
+                  </label>
                   <input type="text" class="form-control" id="cashierReceiverName" placeholder="Receiver name">
                 </div>
-                <div class="mb-2">
-                  <label class="form-label">Change</label>
-                  <div id="cashierChange" class="h6">₱0</div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold">
+                    <i class="fas fa-coins text-pink me-2"></i>Change
+                  </label>
+                  <div id="cashierChange" class="h6 text-success">₱0</div>
                 </div>
               </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-pink" id="cashierConfirmButton">Confirm</button>
+              <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                  <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-pink" id="cashierConfirmButton">
+                  <i class="fas fa-check me-2"></i>Confirm
+                </button>
               </div>
             </div>
           </div>
@@ -252,18 +385,27 @@
 
   <!-- Delete Confirmation Modal -->
   <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Deletion</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header bg-danger text-white border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-exclamation-triangle text-danger"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="deleteConfirmModalLabel">Confirm Deletion</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
-          Are you sure you want to delete this order? This action cannot be undone.
+        <div class="modal-body p-4">
+            <div>Are you sure you want to delete this order? This action cannot be undone.</div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" class="btn btn-danger" id="confirmDeleteButton">Delete</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Cancel
+          </button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteButton">
+            <i class="fas fa-trash-alt me-2"></i>Delete
+          </button>
         </div>
       </div>
     </div>
@@ -271,19 +413,26 @@
 
   <!-- Notifications Modal (new orders) -->
   <div class="modal fade" id="notificationsModal" tabindex="-1" aria-labelledby="notificationsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="notificationsModalLabel">New Orders</h5>
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-bell text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="notificationsModalLabel">New Orders</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="notificationsModalBody">
+        <div class="modal-body p-4" id="notificationsModalBody">
           <div id="notificationsList" class="list-group">
             <!-- JS populates recent new order notifications here -->
           </div>
           </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
@@ -291,17 +440,24 @@
 
   <!-- Error Modal -->
   <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="errorModalLabel">Error</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header bg-danger text-white border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-exclamation-circle text-danger"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="errorModalLabel">Error</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="errorModalContent">
+        <div class="modal-body p-4" id="errorModalContent">
           <!-- Error message will be populated here -->
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
@@ -311,15 +467,18 @@
   <!-- Toast container for new-order toasts -->
   <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
     <div id="notifToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
-      <div class="toast-header">
+      <div class="toast-header bg-pink text-white">
+        <i class="fas fa-bell me-2"></i>
         <strong class="me-auto">New Orders</strong>
-        <small class="text-muted" id="notifToastTime">just now</small>
-        <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
+        <small class="text-white opacity-75" id="notifToastTime">just now</small>
+        <button type="button" class="btn-close btn-close-white ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
       <div class="toast-body" id="notifToastBody">
-        You have new orders.
+        <i class="fas fa-shopping-cart me-2 text-pink"></i>You have new orders.
         <div class="mt-2 pt-1">
-          <button id="notifToastView" type="button" class="btn btn-sm btn-primary">View</button>
+          <button id="notifToastView" type="button" class="btn btn-sm btn-pink">
+            <i class="fas fa-eye me-1"></i>View
+          </button>
         </div>
       </div>
     </div>
@@ -327,17 +486,24 @@
 
   <!-- Success Modal -->
   <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="successModalLabel">Success</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header bg-success text-white border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-check-circle text-success"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="successModalLabel">Success</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="successModalContent">
+        <div class="modal-body p-4" id="successModalContent">
           <!-- Success message will be populated here -->
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
@@ -346,16 +512,23 @@
   <!-- Order Items / Addons Modal (reusable) -->
   <div class="modal fade" id="orderItemsModal" tabindex="-1" aria-labelledby="orderItemsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="orderItemsModalLabel">Details</h5>
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-list text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="orderItemsModalLabel">Details</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="orderItemsModalBody">
+        <div class="modal-body p-4" id="orderItemsModalBody">
           <!-- populated dynamically with a simple table -->
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
@@ -364,22 +537,33 @@
   <!-- Order Add-ons Modal (separate from items modal) -->
   <div class="modal fade" id="orderAddonsModal" tabindex="-1" aria-labelledby="orderAddonsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-md modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="orderAddonsModalLabel">Add-ons</h5>
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-plus-circle text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="orderAddonsModalLabel">Add-ons</h5>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body" id="orderAddonsModalBody">
+        <div class="modal-body p-4" id="orderAddonsModalBody">
           <!-- populated dynamically with add-ons list or checkboxes (in edit mode) -->
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
         </div>
       </div>
     </div>
   </div>
+  </div>
+  <!-- End Main Content -->
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/sidebar.js"></script>
   <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>

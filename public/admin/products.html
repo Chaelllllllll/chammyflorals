@@ -5,37 +5,155 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chammy Florals - Products</title>
    <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Admin page design enhancements */
+    body { overflow-x: hidden; }
+
+    /* Card styles */
+    .card {
+      border-radius: 12px !important;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+
+    /* Product cards */
+    .product-card {
+      border-radius: 12px !important;
+      overflow: hidden;
+    }
+    .product-card .card-img-top {
+      height: 220px;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+    .product-card:hover .card-img-top {
+      transform: scale(1.1);
+    }
+
+    /* Metric cards */
+    .metric-card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+      border-radius: 12px;
+    }
+
+    /* Button styles */
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+    .btn-outline-pink:hover {
+      background-color: #ff6f9b;
+      border-color: #ff6f9b;
+      color: white;
+    }
+
+    /* Badge styles */
+    .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+
+    /* Smooth transitions */
+    .btn, .badge {
+      transition: all 0.3s ease;
+    }
+
+    /* Table styles */
+    .table {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .table thead {
+      background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+    }
+
+    /* Modal enhancements */
+    .modal-content {
+      border-radius: 12px;
+    }
+
+    /* Toolbar card */
+    .toolbar.card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+    }
+  </style>
 </head>
 <body class="admin-page">
-  <!-- Responsive Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
-        <div class="fw-bold">Chammy Florals</div>
+  <!-- Sidebar Toggle Button (Mobile) -->
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        <i class="fas fa-flower"></i>
+        <span>Chammy Florals</span>
       </a>
-
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="adminNav">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link active" href="/admin/products.html">Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/todo.html">To Do</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/admins.html">Admins</a></li>
-          <li class="nav-item ms-2 me-3"><button class="btn btn-pink btn-sm" id="logoutButton">Logout</button></li>
-        </ul>
-      </div>
     </div>
-  </nav>
 
-  <main class="container mt-4">
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-item">
+        <a href="/admin/dashboard.html" class="sidebar-nav-link">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/products.html" class="sidebar-nav-link active">
+          <i class="fas fa-box-open"></i>
+          <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reviews.html" class="sidebar-nav-link">
+          <i class="fas fa-star"></i>
+          <span>Reviews</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reports.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-line"></i>
+          <span>Transactions</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/admins.html" class="sidebar-nav-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Admins</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-pink w-100" id="logoutButton">
+        <i class="fas fa-sign-out-alt me-2"></i>Logout
+      </button>
+    </div>
+  </div>
+
+  <div class="main-content">
+  <main class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
     <div class="toolbar card mb-3">
       <div class="card-body d-flex flex-column flex-md-row flex-wrap gap-3 align-items-center justify-content-between">
         <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 flex-grow-1">
@@ -87,6 +205,7 @@
     <!-- optional mobile card container (future enhancement) -->
     <div id="productsCards" class="d-none"></div>
   </main>
+  </div>
 
   <!-- Add / Edit Modal -->
   <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
@@ -288,6 +407,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/sidebar.js"></script>
   <script src="/js/admin-products.js"></script>
 </body>
 </html>

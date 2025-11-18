@@ -329,9 +329,12 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
       const messenger = require('../lib/messenger');
       // prefer the inserted row data if available
       const inserted = (data && Array.isArray(data) && data[0]) ? data[0] : orderData;
-      await messenger.notifyAdmins(inserted);
+      const notifyResult = await messenger.notifyAdmins(inserted);
+      if (!notifyResult.ok) {
+        console.warn('Failed to notify admins via Messenger:', notifyResult.message || notifyResult.error);
+      }
     } catch (mErr) {
-      // Silently fail - notification is not critical
+      console.error('Messenger notification error:', mErr);
     }
 
     res.json({ message: 'Inquiry sent successfully!', orderId });

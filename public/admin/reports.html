@@ -5,74 +5,186 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Chammy Florals - Admin Reports</title>
   <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    /* Admin page design enhancements */
+    body { overflow-x: hidden; }
+
+    /* Card styles */
+    .card {
+      border-radius: 12px !important;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+
+    /* KPI cards */
+    .kpi-card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+      border-radius: 12px;
+      padding: 1rem;
+    }
+
+    /* Report card */
+    .report-card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+    }
+
+    /* Button styles */
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+    .btn-outline-pink:hover {
+      background-color: #ff6f9b;
+      border-color: #ff6f9b;
+      color: white;
+    }
+
+    /* Badge styles */
+    .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+
+    /* Smooth transitions */
+    .btn, .badge {
+      transition: all 0.3s ease;
+    }
+
+    /* Table styles */
+    .table {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .table thead {
+      background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+    }
+
+    /* Modal enhancements */
+    .modal-content {
+      border-radius: 12px;
+    }
+  </style>
 </head>
 <body class="admin-page">
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-    <div class="container-fluid">
-      <a class="navbar-brand d-flex align-items-center" href="/admin/dashboard.html">
-        <div class="fw-bold">Chammy Florals</div>
+  <!-- Sidebar Toggle Button (Mobile) -->
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        <i class="fas fa-flower"></i>
+        <span>Chammy Florals</span>
       </a>
+    </div>
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-item">
+        <a href="/admin/dashboard.html" class="sidebar-nav-link">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/products.html" class="sidebar-nav-link">
+          <i class="fas fa-box-open"></i>
+          <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reviews.html" class="sidebar-nav-link">
+          <i class="fas fa-star"></i>
+          <span>Reviews</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reports.html" class="sidebar-nav-link active">
+          <i class="fas fa-chart-line"></i>
+          <span>Transactions</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/admins.html" class="sidebar-nav-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Admins</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-pink w-100" id="logoutButton">
+        <i class="fas fa-sign-out-alt me-2"></i>Logout
       </button>
-
-      <div class="collapse navbar-collapse" id="adminNav">
-        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
-          <li class="nav-item"><a class="nav-link" href="/admin/dashboard.html">Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/products.html">Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reviews.html">Reviews</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/reports.html">Transactions</a></li>
-          <li class="nav-item"><a class="nav-link" href="/admin/todo.html">To Do</a></li>
-            <li class="nav-item"><a class="nav-link" href="/admin/admins.html">Admins</a></li>
-          <li class="nav-item ms-2 me-3"><button class="btn btn-pink btn-sm " id="logoutButton">Logout</button></li>
-        </ul>
-      </div>
     </div>
-  </nav>
+  </div>
 
-  <main class="container my-5">
-    <div class="report-header mb-4">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
-        <div>
-          <h3 class="mb-1">Transactions</h3>
-          <div class="small text-muted">Overview of completed orders and revenue.</div>
+  <div class="main-content">
+  <main class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
+    <!-- Quick metrics -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-6">
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-dollar-sign text-success me-2"></i>Total Revenue
+          </div>
+          <div id="totalRevenue" class="fs-5 fw-bold text-success">₱0.00</div>
         </div>
-        <div class="d-flex gap-2 flex-wrap align-items-center">
-          <div class="kpi-card text-center">
-            <div class="kpi-label small text-muted">Total Revenue</div>
-            <div id="totalRevenue" class="kpi-value fs-4 fw-bold">₱0.00</div>
+      </div>
+      <div class="col-6 col-md-6">
+        <div class="card metric-card p-3 text-center">
+          <div class="h6 mb-1 text-muted">
+            <i class="fas fa-receipt text-pink me-2"></i>Transactions
           </div>
-          <div class="kpi-card text-center">
-            <div class="kpi-label small text-muted">Transactions</div>
-            <div id="totalTransactions" class="kpi-value fs-4 fw-bold">0</div>
-          </div>
-          <!-- Avg Order removed as requested -->
+          <div id="totalTransactions" class="fs-5 fw-bold text-pink">0</div>
         </div>
       </div>
     </div>
 
-    <div class="card p-3 report-card">
-      <div class="reports-toolbar d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-3">
-        <!-- Date filters removed (not required) -->
-        <div></div>
-
-        <div class="d-flex align-items-center gap-2">
-          <input id="reportsSearch" class="form-control form-control-sm" placeholder="Search by Order ID or customer">
-          <select id="reportsPageSize" class="form-select form-select-sm w-auto">
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+          <div>
+            <h2 class="card-title mb-0">
+              <i class="fas fa-chart-line text-pink me-2"></i>Transactions
+            </h2>
+            <div class="small text-muted">Overview of completed orders and revenue.</div>
+          </div>
         </div>
-      </div>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-3">
+          <div></div>
+          <div class="d-flex align-items-center gap-2">
+            <input id="reportsSearch" class="form-control form-control-sm" placeholder="Search by Order ID or customer">
+            <select id="reportsPageSize" class="form-select form-select-sm w-auto">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
 
-      <div class="table-responsive">
-        <table class="table table-sm align-middle admin-table" id="reportsTable">
+        <div class="table-responsive">
+          <table class="table table-hover table-striped align-middle" id="reportsTable">
           <thead>
             <tr>
               <th class="text-start">Order ID</th>
@@ -87,11 +199,14 @@
         <nav aria-label="Reports pagination" class="mt-2">
           <ul class="pagination justify-content-end mb-0" id="reportsPagination"></ul>
         </nav>
+        </div>
       </div>
     </div>
   </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/sidebar.js"></script>
   <script src="/js/admin-reports.js"></script>
   <!-- Delete Confirmation Modal (shared with dashboard) -->
   <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
