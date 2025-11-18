@@ -469,6 +469,8 @@ body.admin-page {
   z-index: 1040;
   transition: transform .3s ease;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-header {
@@ -503,6 +505,8 @@ body.admin-page {
   padding: 1.5rem 0;
   list-style: none;
   margin: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .sidebar-nav-item {
@@ -548,13 +552,15 @@ body.admin-page {
 }
 
 .sidebar-footer {
-  position: absolute;
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
   padding: 1rem;
   border-top: 1px solid rgba(16,24,40,0.06);
   background: #fff;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .main-content {
