@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chammy Florals</string>
+    <string name="title_activity_main">Chammy Florals</string>
+    <string name="package_name">com.chammyflorals.app</string>
+    <string name="custom_url_scheme">com.chammyflorals.app</string>
+</resources>

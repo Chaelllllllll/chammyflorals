@@ -8,6 +8,8 @@
   "scripts": {
     "start": "node dev.js",
     "dev": "nodemon dev.js",
+    "build": "cd mobile && npm install && npm run build",
+    "build:mobile": "cd mobile && npm run build",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --maxWorkers=2"
