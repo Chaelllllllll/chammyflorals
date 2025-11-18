@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   base: '/mobile/',
   build: {
-    outDir: 'dist',
+    outDir: '../public/mobile',
+    emptyOutDir: true,
     assetsDir: 'assets',
     rollupOptions: {
       output: {

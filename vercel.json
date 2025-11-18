@@ -1,13 +1,17 @@
 {
   "version": 2,
+  "buildCommand": "cd mobile && npm install && npm run build",
   "builds": [
     { "src": "api/**/*.js", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/mobile", "dest": "/mobile/dist/index.html" },
+    { "src": "/mobile/(.*)", "dest": "/mobile/dist/$1" },
     { "src": "/admin/(.*)", "dest": "/admin/$1" },
     { "handle": "filesystem" },
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/(.*)", "dest": "/public/$1" }
-  ]
+  ],
+  "outputDirectory": "."
 }
