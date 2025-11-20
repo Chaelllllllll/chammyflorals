@@ -17,7 +17,6 @@ export default function ProductsScreen({ navigation }: any) {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
     loadProducts();
@@ -25,7 +24,7 @@ export default function ProductsScreen({ navigation }: any) {
 
   useEffect(() => {
     filterProducts();
-  }, [searchQuery, selectedCategory, products]);
+  }, [searchQuery, products]);
 
   const loadProducts = async () => {
     try {
@@ -40,46 +39,79 @@ export default function ProductsScreen({ navigation }: any) {
   };
 
   const filterProducts = () => {
-    let filtered = products;
-
-    if (selectedCategory !== 'All') {
-      filtered = filtered.filter((p) => p.category === selectedCategory);
+    if (!searchQuery.trim()) {
+      setFilteredProducts(products);
+      return;
     }
 
-    if (searchQuery) {
-      filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+    const query = searchQuery.toLowerCase();
+    const filtered = products.filter((p) =>
+      p.name.toLowerCase().includes(query) ||
+      p.category.toLowerCase().includes(query)
+    );
 
     setFilteredProducts(filtered);
   };
 
-  const categories = ['All', ...Array.from(new Set(products.map((p) => p.category)))];
+  // Group products by category
+  const groupedProducts = filteredProducts.reduce((groups: { [key: string]: Product[] }, product) => {
+    const category = product.category || 'Uncategorized';
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(product);
+    return groups;
+  }, {});
 
   const renderProduct = ({ item }: { item: Product }) => (
     <TouchableOpacity
       style={styles.productCard}
       onPress={() => navigation.navigate('ProductDetail', { product: item })}
     >
-      <Image
-        source={{ uri: item.image_url || 'https://via.placeholder.com/150' }}
-        style={styles.productImage}
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: item.image_url || 'https://via.placeholder.com/150' }}
+          style={styles.productImage}
+        />
+        <View style={styles.badge}>
+          <Ionicons name="flower" size={16} color="#ff6f9b" />
+        </View>
+      </View>
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
         {item.pricing && item.pricing.length > 0 && (
           <Text style={styles.productPrice}>
             Starting at ₱{item.pricing[0].price}
           </Text>
         )}
       </View>
-      <TouchableOpacity style={styles.viewButton}>
+      <View style={styles.viewButton}>
+        <Ionicons name="eye" size={16} color="#fff" style={styles.viewIcon} />
         <Text style={styles.viewButtonText}>View Details</Text>
-      </TouchableOpacity>
+      </View>
     </TouchableOpacity>
   );
+
+  const renderCategory = ({ item }: { item: [string, Product[]] }) => {
+    const [category, categoryProducts] = item;
+    
+    return (
+      <View style={styles.categorySection}>
+        <View style={styles.categoryHeader}>
+          <View style={styles.decorativeLine} />
+          <Text style={styles.categoryTitle}>{category}</Text>
+          <View style={styles.decorativeLine} />
+        </View>
+        <View style={styles.categoryProducts}>
+          {categoryProducts.map((product) => (
+            <View key={product.id} style={styles.productWrapper}>
+              {renderProduct({ item: product })}
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -102,39 +134,11 @@ export default function ProductsScreen({ navigation }: any) {
         />
       </View>
 
-      {/* Category Filter */}
-      <View style={styles.categoryContainer}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={categories}
-          keyExtractor={(item) => item}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[
-                styles.categoryButton,
-                selectedCategory === item && styles.categoryButtonActive,
-              ]}
-              onPress={() => setSelectedCategory(item)}
-            >
-              <Text
-                style={[
-                  styles.categoryText,
-                  selectedCategory === item && styles.categoryTextActive,
-                ]}
-              >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          )}
-        />
-      </View>
-
-      {/* Products List */}
+      {/* Products List Grouped by Category */}
       <FlatList
-        data={filteredProducts}
-        renderItem={renderProduct}
-        keyExtractor={(item) => item.id.toString()}
+        data={Object.entries(groupedProducts)}
+        renderItem={renderCategory}
+        keyExtractor={(item) => item[0]}
         contentContainerStyle={styles.productsList}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -173,27 +177,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  categoryContainer: {
-    paddingHorizontal: 15,
-    marginBottom: 15,
+  categorySection: {
+    marginBottom: 30,
   },
-  categoryButton: {
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f8f8f8',
-    marginRight: 10,
   },
-  categoryButtonActive: {
-    backgroundColor: '#ff6f9b',
+  decorativeLine: {
+    width: 50,
+    height: 2,
+    backgroundColor: '#ff99bb',
   },
-  categoryText: {
-    fontSize: 14,
-    color: '#666',
+  categoryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ff6f9b',
+    marginHorizontal: 15,
   },
-  categoryTextActive: {
-    color: '#fff',
-    fontWeight: '600',
+  categoryProducts: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  productWrapper: {
+    width: '45%',
+    marginHorizontal: '2.5%',
+    marginBottom: 15,
   },
   productsList: {
     padding: 15,
@@ -201,7 +215,6 @@ const styles = StyleSheet.create({
   productCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -209,38 +222,57 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
   },
+  imageContainer: {
+    position: 'relative',
+    height: 150,
+  },
   productImage: {
     width: '100%',
-    height: 200,
+    height: '100%',
     resizeMode: 'cover',
   },
+  badge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   productInfo: {
-    padding: 15,
+    padding: 12,
+    alignItems: 'center',
   },
   productName: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: '#333',
     marginBottom: 5,
-  },
-  productCategory: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    textAlign: 'center',
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: '#ff6f9b',
   },
   viewButton: {
     backgroundColor: '#ff6f9b',
-    padding: 12,
+    padding: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  viewIcon: {
+    marginRight: 5,
   },
   viewButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   emptyContainer: {

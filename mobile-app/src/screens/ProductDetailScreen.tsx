@@ -13,32 +13,6 @@ import { Product } from '../services/api';
 
 export default function ProductDetailScreen({ route, navigation }: any) {
   const { product }: { product: Product } = route.params;
-  const { addItem } = useCart();
-  const [selectedVariant, setSelectedVariant] = useState(
-    product.pricing && product.pricing.length > 0 ? product.pricing[0] : null
-  );
-  const [quantity, setQuantity] = useState(1);
-
-  const handleAddToCart = () => {
-    if (!selectedVariant) {
-      Alert.alert('Error', 'Please select a variant');
-      return;
-    }
-
-    addItem({
-      id: product.id,
-      name: product.name,
-      price: selectedVariant.price,
-      quantity,
-      variant: selectedVariant.label || selectedVariant.set,
-      image_url: product.image_url,
-    });
-
-    Alert.alert('Success', 'Added to cart!', [
-      { text: 'Continue Shopping', style: 'cancel' },
-      { text: 'View Cart', onPress: () => navigation.navigate('Cart') },
-    ]);
-  };
 
   return (
     <ScrollView style={styles.container}>
@@ -48,69 +22,104 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       />
 
       <View style={styles.contentContainer}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productCategory}>{product.category}</Text>
-        <Text style={styles.productDescription}>{product.description}</Text>
+        <View style={styles.headerSection}>
+          <View style={styles.iconBadge}>
+            <Text style={styles.iconText}>🌸</Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.productName}>{product.name}</Text>
+            <Text style={styles.productCategory}>{product.category}</Text>
+          </View>
+        </View>
+
+        {product.description && (
+          <View style={styles.descriptionSection}>
+            <Text style={styles.descriptionText}>{product.description}</Text>
+          </View>
+        )}
 
         {/* Pricing Options */}
         {product.pricing && product.pricing.length > 0 && (
           <View style={styles.pricingSection}>
-            <Text style={styles.sectionTitle}>Select Option:</Text>
-            {product.pricing.map((price, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.variantButton,
-                  selectedVariant === price && styles.variantButtonActive,
-                ]}
-                onPress={() => setSelectedVariant(price)}
-              >
-                <Text
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionIcon}>🏷️</Text>
+              <Text style={styles.sectionTitle}>Pricing Options</Text>
+            </View>
+            <View style={styles.priceTable}>
+              <View style={styles.priceTableHeader}>
+                <Text style={styles.priceTableHeaderText}>Flower Type</Text>
+                <Text style={styles.priceTableHeaderText}>Set</Text>
+                <Text style={[styles.priceTableHeaderText, styles.textRight]}>Price</Text>
+              </View>
+              {product.pricing.map((price, index) => (
+                <View 
+                  key={index} 
                   style={[
-                    styles.variantText,
-                    selectedVariant === price && styles.variantTextActive,
+                    styles.priceTableRow,
+                    index % 2 === 0 ? styles.priceTableRowEven : styles.priceTableRowOdd
                   ]}
                 >
-                  {price.label || price.set} - ₱{price.price}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.priceTableCell}>{price.label || '-'}</Text>
+                  <Text style={styles.priceTableCellMuted}>{price.set || '-'}</Text>
+                  <View style={styles.priceBadgeContainer}>
+                    <Text style={styles.priceBadge}>₱{price.price}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Quantity Selector */}
-        <View style={styles.quantitySection}>
-          <Text style={styles.sectionTitle}>Quantity:</Text>
-          <View style={styles.quantityControls}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Text style={styles.quantityButtonText}>-</Text>
-            </TouchableOpacity>
-            <Text style={styles.quantityValue}>{quantity}</Text>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => setQuantity(quantity + 1)}
-            >
-              <Text style={styles.quantityButtonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Total Price */}
-        {selectedVariant && (
-          <View style={styles.totalSection}>
-            <Text style={styles.totalLabel}>Total:</Text>
-            <Text style={styles.totalPrice}>
-              ₱{(selectedVariant.price * quantity).toFixed(2)}
-            </Text>
+        {/* Available Colors */}
+        {product.colors && Array.isArray(product.colors) && product.colors.length > 0 && (
+          <View style={styles.colorsSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionIcon}>🎨</Text>
+              <Text style={styles.sectionTitle}>Available Colors</Text>
+            </View>
+            <View style={styles.colorsGrid}>
+              {product.colors.map((color: any, index: number) => (
+                <View key={index} style={styles.colorCard}>
+                  <View style={[styles.colorCircle, { backgroundColor: color.value }]} />
+                  <Text style={styles.colorName}>{color.name}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Add to Cart Button */}
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+        {/* Add-ons */}
+        {product.addons && Array.isArray(product.addons) && product.addons.length > 0 && (
+          <View style={styles.addonsSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionIcon}>🎁</Text>
+              <Text style={styles.sectionTitle}>Available Add-ons</Text>
+            </View>
+            <View style={styles.addonsGrid}>
+              {product.addons.map((addon: any, index: number) => {
+                const label = typeof addon === 'string' ? addon : addon.label;
+                const price = typeof addon === 'string' ? null : addon.price;
+                
+                return (
+                  <View key={index} style={styles.addonCard}>
+                    <View style={styles.addonContent}>
+                      <Text style={styles.addonIcon}>🎁</Text>
+                      <Text style={styles.addonLabel}>{label}</Text>
+                    </View>
+                    {price && <Text style={styles.addonPrice}>₱{price}</Text>}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Order Button */}
+        <TouchableOpacity 
+          style={styles.orderButton} 
+          onPress={() => navigation.navigate('Inquiry', { product })}
+        >
+          <Text style={styles.orderButtonText}>🛍️ Order Now</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -130,107 +139,206 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
   },
-  productName: {
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    backgroundColor: '#fff6f9',
+    padding: 15,
+    borderRadius: 12,
+  },
+  iconBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  iconText: {
     fontSize: 24,
+  },
+  headerText: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 5,
   },
   productCategory: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#ff6f9b',
-    marginBottom: 15,
+    fontWeight: '600',
   },
-  productDescription: {
+  descriptionSection: {
+    marginBottom: 20,
+  },
+  descriptionText: {
     fontSize: 14,
     color: '#666',
-    lineHeight: 22,
-    marginBottom: 20,
+    lineHeight: 20,
   },
   pricingSection: {
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 10,
-  },
-  variantButton: {
-    backgroundColor: '#f8f8f8',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  variantButtonActive: {
-    backgroundColor: '#fff6f9',
-    borderColor: '#ff6f9b',
-  },
-  variantText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  variantTextActive: {
-    color: '#ff6f9b',
-    fontWeight: '600',
-  },
-  quantitySection: {
-    marginBottom: 20,
-  },
-  quantityControls: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  quantityButton: {
-    backgroundColor: '#ff6f9b',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  sectionIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  priceTable: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  priceTableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#fff6f9',
+    padding: 12,
+  },
+  priceTableHeaderText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ff6f9b',
+  },
+  priceTableRow: {
+    flexDirection: 'row',
+    padding: 12,
     alignItems: 'center',
   },
-  quantityButtonText: {
-    fontSize: 20,
+  priceTableRowEven: {
+    backgroundColor: '#fff',
+  },
+  priceTableRowOdd: {
+    backgroundColor: '#f8f9fa',
+  },
+  priceTableCell: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  priceTableCellMuted: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+  },
+  priceBadgeContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  priceBadge: {
+    backgroundColor: '#ff6f9b',
     color: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  quantityValue: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginHorizontal: 20,
-    minWidth: 30,
-    textAlign: 'center',
+  textRight: {
+    textAlign: 'right',
   },
-  totalSection: {
+  colorsSection: {
+    marginBottom: 20,
+  },
+  colorsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  colorCard: {
+    width: '22%',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  colorCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  colorName: {
+    fontSize: 12,
+    color: '#333',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  addonsSection: {
+    marginBottom: 20,
+  },
+  addonsGrid: {
+    gap: 8,
+  },
+  addonCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 8,
   },
-  totalLabel: {
-    fontSize: 20,
+  addonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  addonIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  addonLabel: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#333',
   },
-  totalPrice: {
-    fontSize: 24,
+  addonPrice: {
+    backgroundColor: '#ff6f9b',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#ff6f9b',
   },
-  addToCartButton: {
+  orderButton: {
     backgroundColor: '#ff6f9b',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
   },
-  addToCartText: {
+  orderButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

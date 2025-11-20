@@ -19,16 +19,29 @@ export default function TrackOrderScreen() {
 
   const handleTrack = async () => {
     if (!orderId.trim()) {
-      Alert.alert('Error', 'Please enter an order ID');
+      Alert.alert('Enter Order ID', 'Please enter your order ID to track your order.');
       return;
     }
 
     setLoading(true);
+    setOrder(null);
     try {
       const orderData = await ApiService.trackOrder(orderId.trim());
       setOrder(orderData);
-    } catch (error) {
-      Alert.alert('Error', 'Order not found. Please check your order ID.');
+    } catch (error: any) {
+      if (error.message === 'ORDER_NOT_FOUND') {
+        Alert.alert(
+          'Order Not Found',
+          `No order found with ID "${orderId.trim()}". Please check your order ID and try again.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Connection Error',
+          'Unable to track your order. Please check your internet connection and try again.',
+          [{ text: 'OK' }]
+        );
+      }
       setOrder(null);
     } finally {
       setLoading(false);
@@ -109,34 +122,36 @@ export default function TrackOrderScreen() {
               <Text style={styles.detailTitle}>Order Information</Text>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Order ID:</Text>
-                <Text style={styles.detailValue}>#{order.id}</Text>
+                <Text style={styles.detailValue}>#{order.orderId}</Text>
               </View>
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Customer Name:</Text>
-                <Text style={styles.detailValue}>{order.customer_name}</Text>
+                <Text style={styles.detailValue}>{order.name}</Text>
               </View>
-              {order.customer_phone && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Flower Type:</Text>
+                <Text style={styles.detailValue}>{order.flower_type}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Quantity:</Text>
+                <Text style={styles.detailValue}>{order.quantity}</Text>
+              </View>
+              {order.addons && (
                 <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Phone:</Text>
-                  <Text style={styles.detailValue}>{order.customer_phone}</Text>
-                </View>
-              )}
-              {order.delivery_address && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Delivery Address:</Text>
-                  <Text style={styles.detailValue}>{order.delivery_address}</Text>
-                </View>
-              )}
-              {order.delivery_date && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Delivery Date:</Text>
-                  <Text style={styles.detailValue}>{order.delivery_date}</Text>
+                  <Text style={styles.detailLabel}>Add-ons:</Text>
+                  <Text style={styles.detailValue}>{order.addons}</Text>
                 </View>
               )}
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Total Amount:</Text>
                 <Text style={[styles.detailValue, styles.priceText]}>
-                  ₱{order.price || order.total_amount || 0}
+                  ₱{order.total_fee || 0}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Order Date:</Text>
+                <Text style={styles.detailValue}>
+                  {new Date(order.created_at).toLocaleDateString()}
                 </Text>
               </View>
             </View>

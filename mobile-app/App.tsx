@@ -15,6 +15,7 @@ import CheckoutScreen from './src/screens/CheckoutScreen';
 import OrderSuccessScreen from './src/screens/OrderSuccessScreen';
 import TrackOrderScreen from './src/screens/TrackOrderScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
+import InquiryScreen from './src/screens/InquiryScreen';
 import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
 
@@ -81,6 +82,11 @@ export default function App() {
               name="ProductDetail" 
               component={ProductDetailScreen} 
               options={{ title: 'Product Details' }}
+            />
+            <Stack.Screen 
+              name="Inquiry" 
+              component={InquiryScreen}
+              options={{ title: 'Place Order' }}
             />
             <Stack.Screen 
               name="Checkout" 

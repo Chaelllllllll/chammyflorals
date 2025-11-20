@@ -11,6 +11,14 @@ export interface Product {
     set?: string;
     price: number;
   }>;
+  colors?: Array<{
+    name: string;
+    value: string;
+  }>;
+  addons?: Array<{
+    label: string;
+    price: number;
+  } | string>;
   created_at?: string;
 }
 
@@ -31,10 +39,12 @@ export interface Order {
 
 export interface Review {
   id: number;
-  customer_name: string;
-  rating: number;
-  comment: string;
+  order_id?: string;
+  name: string;
+  stars: number;
+  message: string;
   created_at: string;
+  image_url?: string;
 }
 
 class ApiService {
@@ -97,17 +107,34 @@ class ApiService {
     return response.json();
   }
 
-  async trackOrder(orderId: string): Promise<Order> {
+  async trackOrder(orderId: string): Promise<any> {
     try {
-      const response = await fetch(`${API_URL}/api/orders/track/${orderId}`, {
+      const response = await fetch(`${API_URL}/api/track/${orderId}`, {
         headers: this.getHeaders(),
         timeout: 10000,
       } as any);
-      if (!response.ok) throw new Error('Failed to track order');
-      return response.json();
-    } catch (error) {
+      
+      if (response.status === 404) {
+        throw new Error('ORDER_NOT_FOUND');
+      }
+      
+      if (!response.ok) {
+        console.error('Track order API error:', response.status);
+        throw new Error('NETWORK_ERROR');
+      }
+      
+      const data = await response.json();
+      if (!data || Object.keys(data).length === 0) {
+        throw new Error('ORDER_NOT_FOUND');
+      }
+      
+      return data;
+    } catch (error: any) {
       console.error('Failed to track order:', error);
-      throw error;
+      if (error.message === 'ORDER_NOT_FOUND') {
+        throw new Error('ORDER_NOT_FOUND');
+      }
+      throw new Error('NETWORK_ERROR');
     }
   }
 
@@ -141,13 +168,48 @@ class ApiService {
   }
 
   async createReview(reviewData: any): Promise<Review> {
-    const response = await fetch(`${API_URL}/api/reviews`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(reviewData),
-    });
-    if (!response.ok) throw new Error('Failed to create review');
-    return response.json();
+    try {
+      const response = await fetch(`${API_URL}/api/reviews`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(reviewData),
+        timeout: 15000,
+      } as any);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Create review error:', response.status, errorText);
+        throw new Error('REVIEW_SUBMISSION_FAILED');
+      }
+      
+      return response.json();
+    } catch (error: any) {
+      console.error('Failed to create review:', error);
+      throw new Error('REVIEW_SUBMISSION_FAILED');
+    }
+  }
+
+  // Inquiry/Custom Orders
+  async createInquiry(inquiryData: any): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}/api/orders`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(inquiryData),
+        timeout: 15000,
+      } as any);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Create inquiry error:', response.status, errorText);
+        throw new Error('SUBMISSION_FAILED');
+      }
+      
+      return response.json();
+    } catch (error: any) {
+      console.error('Failed to create inquiry:', error);
+      throw new Error('SUBMISSION_FAILED');
+    }
   }
 
   // Admin
