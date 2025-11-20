@@ -1,4 +1,6 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chammyflorals.vercel.app';
+
+console.log('API URL:', API_URL);
 
 export interface Product {
   id: number;
