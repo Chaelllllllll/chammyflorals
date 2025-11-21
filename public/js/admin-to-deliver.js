@@ -355,3 +355,411 @@ document.getElementById('logoutButton')?.addEventListener('click', () => {
 
 // Initialize
 loadDeliveryOrders();
+
+// Manual Order Form Functionality
+let _manualProductsCache = null;
+
+// Load products for manual order form
+async function loadProductsForManualOrder() {
+  try {
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error('Failed to fetch products');
+    const products = await res.json();
+    _manualProductsCache = products || [];
+
+    // Populate all flower type selects
+    const flowerSelects = document.querySelectorAll('#manualOrderForm .item-flower');
+    flowerSelects.forEach(select => {
+      populateFlowerSelect(select);
+      
+      // Add change listener to populate colors and add-ons
+      select.addEventListener('change', function(e) {
+        const row = this.closest('.order-item');
+        if (row) populateColorSelectForRow(row);
+        onManualFlowerTypeChange(e);
+      });
+      
+      // Populate colors for initial item if already selected
+      const row = select.closest('.order-item');
+      if (row && select.value) {
+        populateColorSelectForRow(row);
+      }
+    });
+
+    return products;
+  } catch (err) {
+    console.error('Failed loading products for manual order:', err);
+    return [];
+  }
+}
+
+// Populate a single flower select element
+function populateFlowerSelect(selectElement) {
+  const seen = new Set();
+  selectElement.innerHTML = '<option value="">Select Flower Type</option>';
+
+  // Group pricing rows by category
+  const groups = {};
+  _manualProductsCache.forEach(p => {
+    const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+    if (!groups[cat]) groups[cat] = [];
+    if (Array.isArray(p.pricing)) {
+      p.pricing.forEach(r => {
+        const code = String(r.label || r.set || '').trim();
+        if (!code) return;
+        if (seen.has(code)) return;
+        seen.add(code);
+        const parts = [];
+        if (r.set) parts.push(String(r.set));
+        if (r.price != null) parts.push('\u20B1' + Number(r.price));
+        const text = `${code}${parts.length ? ' - ' + parts.join(' - ') : ''}`;
+        groups[cat].push({ code, text, productId: p.id });
+      });
+    }
+  });
+
+  Object.keys(groups).sort().forEach(cat => {
+    const items = groups[cat];
+    if (!items.length) return;
+    const og = document.createElement('optgroup');
+    og.label = cat;
+    items.forEach(it => {
+      const opt = document.createElement('option');
+      opt.value = it.code;
+      opt.textContent = it.text;
+      opt.dataset.productId = it.productId;
+      selectElement.appendChild(opt);
+    });
+  });
+
+  // Fallback: if no pricing rows, group by product name
+  if (selectElement.options.length <= 1 && _manualProductsCache.length) {
+    const namesByCat = {};
+    _manualProductsCache.forEach(p => {
+      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+      if (!namesByCat[cat]) namesByCat[cat] = [];
+      const code = String(p.name || '').trim();
+      if (!code || seen.has(code)) return;
+      seen.add(code);
+      namesByCat[cat].push({ code, text: code, productId: p.id });
+    });
+    Object.keys(namesByCat).sort().forEach(cat => {
+      const og = document.createElement('optgroup');
+      og.label = cat;
+      namesByCat[cat].forEach(it => {
+        const opt = document.createElement('option');
+        opt.value = it.code;
+        opt.textContent = it.text;
+        opt.dataset.productId = it.productId;
+        selectElement.appendChild(opt);
+      });
+    });
+  }
+}
+
+// Populate color select for a specific row
+function populateColorSelectForRow(row) {
+  try {
+    const select = row.querySelector('.item-flower');
+    const colorSelect = row.querySelector('.item-color');
+    if (!select || !colorSelect) return;
+    const opt = select.selectedOptions && select.selectedOptions[0];
+    const productId = opt && opt.dataset && opt.dataset.productId;
+    
+    // Clear and reset
+    colorSelect.innerHTML = '<option value="">Select Color</option>';
+    if (!productId || !_manualProductsCache) return;
+    
+    const prod = (_manualProductsCache || []).find(p => String(p.id) === String(productId));
+    if (!prod || !Array.isArray(prod.colors) || !prod.colors.length) return;
+    
+    prod.colors.forEach(c => {
+      let value = c.value || c.hex || c.color || '';
+      // Normalize rgb(...) to hex
+      if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
+        const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+        if (m) {
+          const r = Math.max(0, Math.min(255, Number(m[1]||0)));
+          const g = Math.max(0, Math.min(255, Number(m[2]||0)));
+          const b = Math.max(0, Math.min(255, Number(m[3]||0)));
+          value = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+        }
+      }
+      const name = c.name || value || '';
+      const optEl = document.createElement('option');
+      optEl.value = value;
+      // Use a colored bullet in the option
+      optEl.textContent = `● ${name}`;
+      if (value) optEl.style.color = value;
+      optEl.dataset.colorName = name;
+      colorSelect.appendChild(optEl);
+    });
+  } catch (err) {
+    console.error('Error populating color select:', err);
+  }
+}
+
+// Handle flower type change to show add-ons
+async function onManualFlowerTypeChange(e) {
+  const code = (e.target.value || '').trim();
+  const addonsContainer = document.getElementById('manualAddonsContainer');
+  const addonsSection = document.getElementById('manualAddonsSection');
+  
+  if (!code) {
+    if (addonsSection) addonsSection.style.display = 'none';
+    return;
+  }
+
+  try {
+    const products = _manualProductsCache || (await (await fetch('/api/products')).json());
+    if (!_manualProductsCache) _manualProductsCache = products || [];
+
+    // Find product that matches the selected code
+    let match = null;
+    for (const p of products) {
+      if (p.pricing && Array.isArray(p.pricing)) {
+        const row = p.pricing.find(r => {
+          const label = String(r.label || '');
+          const set = String(r.set || '');
+          return label === code || label.includes(code) || set === code || set.includes(code);
+        });
+        if (row) { match = { product: p, row }; break; }
+      }
+      if (String(p.name || '').toUpperCase().includes(code.toUpperCase())) {
+        match = { product: p, row: null };
+        break;
+      }
+    }
+
+    if (!match) {
+      if (addonsSection) addonsSection.style.display = 'none';
+      return;
+    }
+
+    const { product } = match;
+    
+    // Show add-ons if available
+    if (product.addons && Array.isArray(product.addons) && product.addons.length > 0) {
+      let addonsHtml = '<div class="row g-3">';
+      product.addons.forEach((addon, idx) => {
+        const label = escapeHtml(String(addon.label || addon.name || addon));
+        const price = addon.price != null ? `₱${Number(addon.price).toLocaleString()}` : '';
+        addonsHtml += `
+          <div class="col-md-6">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="addons[]" value="${escapeHtml(label)}" id="manualAddon${idx}">
+              <label class="form-check-label" for="manualAddon${idx}">
+                ${label} ${price ? `<span class="text-success fw-semibold">(${price})</span>` : ''}
+              </label>
+            </div>
+          </div>
+        `;
+      });
+      addonsHtml += '</div>';
+      addonsContainer.innerHTML = addonsHtml;
+      addonsSection.style.display = 'block';
+    } else {
+      addonsSection.style.display = 'none';
+    }
+  } catch (err) {
+    console.error('Error loading add-ons:', err);
+    if (addonsSection) addonsSection.style.display = 'none';
+  }
+}
+
+// Add item button handler
+document.getElementById('manualAddItemBtn')?.addEventListener('click', function() {
+  const container = document.getElementById('manualItemsContainer');
+  const items = container.querySelectorAll('.order-item');
+  const newIndex = items.length;
+
+  const newItem = document.createElement('div');
+  newItem.className = 'order-item mb-2';
+  newItem.innerHTML = `
+    <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
+      <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${newIndex + 1}</span>
+      <select class="form-select form-select-sm item-flower" name="flower_type_${newIndex}" required style="flex: 3;">
+        <option value="">Flower Type</option>
+      </select>
+      <select class="form-select form-select-sm item-color" name="color_${newIndex}" aria-label="Color" style="flex: 2;">
+        <option value="">Color</option>
+      </select>
+      <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${newIndex}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
+      <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+  `;
+
+  container.appendChild(newItem);
+
+  // Populate the new select
+  const newSelect = newItem.querySelector('.item-flower');
+  populateFlowerSelect(newSelect);
+  
+  // Add change listener to populate colors and add-ons
+  newSelect.addEventListener('change', function(e) {
+    const row = this.closest('.order-item');
+    if (row) populateColorSelectForRow(row);
+    onManualFlowerTypeChange(e);
+  });
+
+  // Add remove handler
+  newItem.querySelector('.remove-item').addEventListener('click', function() {
+    newItem.remove();
+    updateItemBadges();
+  });
+
+  updateItemBadges();
+});
+
+// Remove item handlers for initial item
+document.querySelectorAll('#manualItemsContainer .remove-item').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const item = this.closest('.order-item');
+    item.remove();
+    updateItemBadges();
+  });
+});
+
+// Update item badges
+function updateItemBadges() {
+  const items = document.querySelectorAll('#manualItemsContainer .order-item');
+  items.forEach((item, index) => {
+    const badge = item.querySelector('.badge');
+    if (badge) badge.textContent = `Item ${index + 1}`;
+    
+    // Show/hide remove button (hide for first item if it's the only one)
+    const removeBtn = item.querySelector('.remove-item');
+    if (removeBtn) {
+      removeBtn.style.display = items.length > 1 ? 'block' : 'none';
+    }
+  });
+}
+
+// Handle manual order form submission
+document.getElementById('manualOrderForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
+  const form = e.target;
+
+  // Validate form
+  if (!form.checkValidity()) {
+    form.classList.add('was-validated');
+    return;
+  }
+
+  const data = {};
+  data.user_name = form.querySelector('input[name="user_name"]').value;
+  data.user_email = form.querySelector('input[name="user_email"]').value;
+  data.fb_link = 'Manual Order'; // Set default value since we removed the field
+  data.message = ''; // No message field
+  data.rush = 'No'; // No rush field
+  data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
+
+  // Collect items
+  const items = [];
+  const itemRows = document.querySelectorAll('#manualItemsContainer .order-item');
+  itemRows.forEach((row, i) => {
+    const flower = row.querySelector('.item-flower').value;
+    const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+    const colorEl = row.querySelector('.item-color');
+    const colorValue = colorEl ? (colorEl.value || '') : '';
+    const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
+    if (!flower) return;
+    const itemObj = { flower_type: flower, quantity: qty };
+    if (colorValue) itemObj.color = { name: colorName, value: colorValue };
+    items.push(itemObj);
+  });
+
+  if (!items.length) {
+    alert('Please add at least one item to the order');
+    return;
+  }
+
+  data.items = items;
+  data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
+  data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
+
+  // Set status to Delivered for manual orders
+  data.status = 'Delivered';
+  data.manual_order = true;
+
+  console.log('Creating manual order with data:', { status: data.status, manual_order: data.manual_order });
+
+  // Add timestamps
+  try {
+    const now = new Date();
+    data.created_at = now.toISOString();
+    data.created_at_local = now.toLocaleString();
+    data.tz_offset_minutes = now.getTimezoneOffset();
+    const pad = (n) => String(n).padStart(2, '0');
+    data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  } catch (e) { /* ignore */ }
+
+  try {
+    // Show loading state
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating...';
+    }
+
+    const token = localStorage.getItem('adminToken');
+    const response = await fetch('/api/inquiry', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}` 
+      },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+
+    if (response.ok) {
+      // Hide manual order modal
+      const manualModalEl = document.getElementById('manualOrderModal');
+      if (manualModalEl) {
+        const manualModalInstance = bootstrap.Modal.getInstance(manualModalEl) || new bootstrap.Modal(manualModalEl);
+        manualModalInstance.hide();
+      }
+
+      // Show success with order ID
+      const orderId = result.orderId || result.order_id || '';
+      if (orderId) {
+        document.getElementById('createdOrderId').textContent = orderId;
+        const successModal = new bootstrap.Modal(document.getElementById('orderCreatedModal'));
+        successModal.show();
+        
+        // Reset form
+        form.reset();
+        form.classList.remove('was-validated');
+        
+        // Reload delivery orders
+        loadDeliveryOrders();
+      }
+    } else {
+      showErrorModal(result.error || 'Failed to create order. Please try again.');
+    }
+  } catch (error) {
+    showErrorModal('Failed to create order. Please try again.');
+    console.error('Error:', error);
+  } finally {
+    // Restore button
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute('aria-busy');
+      if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml;
+    }
+  }
+});
+
+// Initialize manual order form when modal is shown
+document.getElementById('manualOrderModal')?.addEventListener('shown.bs.modal', function() {
+  if (!_manualProductsCache) {
+    loadProductsForManualOrder();
+  }
+  updateItemBadges();
+});

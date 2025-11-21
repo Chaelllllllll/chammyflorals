@@ -52,7 +52,12 @@ const inquiryLimiter = rateLimit({
 router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
   try {
     // Log minimal info to avoid leaking PII in logs
-    const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');// SECURITY FIX: Sanitize user inputs
+    const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');
+    
+    // Check what we're receiving
+    console.log('Received inquiry request with manual_order:', req.body.manual_order, 'type:', typeof req.body.manual_order);
+    
+    // SECURITY FIX: Sanitize user inputs
     const {
       user_name,
       user_email,
@@ -232,6 +237,14 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
       rush,
       total_fee: totalFee,
     };
+    
+    // Set status to Delivered for manual orders (from admin dashboard)
+    const isManualOrder = req.body.manual_order === true || req.body.manual_order === 'true';
+    if (req.body.status && isManualOrder) {
+      orderData.status = sanitizeString(req.body.status, 50);
+      console.log('Manual order - setting status to:', orderData.status);
+    }
+    
     // Prefer client's local ISO datetime when provided (reflects user's OS time exactly)
     try {
       if (req.body.created_at_local_iso) {
@@ -286,6 +299,39 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     if (error) {
       console.error('Supabase insert error:', error);
       return res.status(500).json({ error: 'Failed to save order to database' });
+    }
+
+    console.log('Order inserted, returned data:', data && data[0] ? { order_id: data[0].order_id, status: data[0].status } : 'no data');
+
+    // If this is a manual order, update the status to Delivered immediately after insert
+    const isManualOrder = req.body.manual_order === true || req.body.manual_order === 'true';
+    console.log('Manual order check:', { manual_order: req.body.manual_order, isManualOrder, hasData: !!(data && data[0]) });
+    
+    if (isManualOrder && data && data[0]) {
+      console.log('Attempting to update order status to Delivered...');
+      try {
+        const { data: updatedData, error: updateError } = await supabase
+          .from('orders')
+          .update({ status: 'Delivered' })
+          .eq('order_id', data[0].order_id)
+          .select();
+        
+        if (updateError) {
+          console.error('Failed to update manual order status:', updateError);
+        } else {
+          console.log('Manual order status updated successfully:', updatedData);
+          // Update the local data object so the response reflects the correct status
+          if (updatedData && updatedData[0]) {
+            data[0].status = updatedData[0].status;
+          } else {
+            data[0].status = 'Delivered';
+          }
+        }
+      } catch (updateErr) {
+        console.error('Error updating manual order status:', updateErr);
+      }
+    } else {
+      console.log('Skipping status update - not a manual order or no data');
     }
 
     // Send order confirmation email (best-effort)
