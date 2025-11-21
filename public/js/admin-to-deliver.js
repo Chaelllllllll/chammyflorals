@@ -544,10 +544,12 @@ async function onManualFlowerTypeChange(e) {
       product.addons.forEach((addon, idx) => {
         const label = escapeHtml(String(addon.label || addon.name || addon));
         const price = addon.price != null ? `₱${Number(addon.price).toLocaleString()}` : '';
+        // Include price in value so backend can parse it
+        const value = escapeHtml(label + (price ? ` - ${price}` : ''));
         addonsHtml += `
           <div class="col-md-6">
             <div class="form-check">
-              <input class="form-check-input" type="checkbox" name="addons[]" value="${escapeHtml(label)}" id="manualAddon${idx}">
+              <input class="form-check-input" type="checkbox" name="addons[]" value="${value}" id="manualAddon${idx}">
               <label class="form-check-label" for="manualAddon${idx}">
                 ${label} ${price ? `<span class="text-success fw-semibold">(${price})</span>` : ''}
               </label>
