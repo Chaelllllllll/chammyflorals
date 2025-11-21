@@ -307,9 +307,12 @@ function setupMobileStatusDropdown() {
 
 function updateStatusCounts() {
   const all = window.ordersData || [];
-  // count only non-delivered orders as the table shows not-delivered by default
-  const filtered = all.filter(o => String((o.status || '')).toLowerCase() !== 'delivered');
-  const counts = { All: filtered.length, Pending: 0, Processing: 0, 'To Receive': 0 };
+  // count only orders that are not delivered or to receive
+  const filtered = all.filter(o => {
+    const status = String((o.status || '')).toLowerCase();
+    return status !== 'delivered' && status !== 'to receive';
+  });
+  const counts = { All: filtered.length, Pending: 0, Processing: 0 };
   filtered.forEach(o => {
     const s = String(o.status || '');
     if (s in counts) counts[s] = (counts[s] || 0) + 1;
@@ -381,8 +384,11 @@ function applyOrderFilters() {
   const all = window.ordersData || [];
   const searchVal = (document.getElementById('ordersSearch')?.value || '').trim().toLowerCase();
   const statusVal = (window.orderStatusFilter || '').trim();
-  // start with not-delivered
-  let list = all.filter(o => String((o.status || '')).toLowerCase() !== 'delivered');
+  // start with orders that are not delivered or to receive
+  let list = all.filter(o => {
+    const status = String((o.status || '')).toLowerCase();
+    return status !== 'delivered' && status !== 'to receive';
+  });
   if (statusVal) {
     list = list.filter(o => String(o.status || '') === statusVal);
   }
