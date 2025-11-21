@@ -304,7 +304,6 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     console.log('Order inserted, returned data:', data && data[0] ? { order_id: data[0].order_id, status: data[0].status } : 'no data');
 
     // If this is a manual order, update the status to Delivered immediately after insert
-    const isManualOrder = req.body.manual_order === true || req.body.manual_order === 'true';
     console.log('Manual order check:', { manual_order: req.body.manual_order, isManualOrder, hasData: !!(data && data[0]) });
     
     if (isManualOrder && data && data[0]) {
