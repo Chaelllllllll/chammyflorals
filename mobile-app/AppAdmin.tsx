@@ -6,13 +6,14 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import UpdateModal from './src/components/UpdateModal';
 import SplashScreen from './src/components/SplashScreen';
 
-// Import existing screens
-import OrdersScreen from './src/screens/OrdersScreen';
+// Import admin screens
+import AdminDashboardScreen from './src/screens/AdminDashboardScreen';
 import AccountScreen from './src/screens/AccountScreen';
 
 const Stack = createNativeStackNavigator();
@@ -147,17 +148,45 @@ export default function AppAdmin() {
           }}
         >
           <Stack.Screen 
-            name="Account" 
+            name="Login" 
             component={AccountScreen}
             options={{ 
-              title: 'Chammy Florals - Admin',
+              title: 'Admin Login',
               headerShown: false
             }}
           />
           <Stack.Screen 
-            name="Orders" 
-            component={OrdersScreen}
-            options={{ title: 'All Orders' }}
+            name="Dashboard" 
+            component={AdminDashboardScreen}
+            options={({ navigation }) => ({ 
+              title: 'Dashboard',
+              headerLeft: () => null,
+              gestureEnabled: false,
+              headerRight: () => (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Logout',
+                      'Are you sure you want to logout?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Logout',
+                          style: 'destructive',
+                          onPress: async () => {
+                            await AsyncStorage.multiRemove(['adminToken', 'adminUserName', 'adminUserEmail']);
+                            navigation.navigate('Login');
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                  style={{ marginRight: 16 }}
+                >
+                  <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+                </TouchableOpacity>
+              )
+            })}
           />
         </Stack.Navigator>
       </NavigationContainer>

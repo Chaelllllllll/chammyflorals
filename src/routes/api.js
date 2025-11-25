@@ -486,6 +486,28 @@ router.get('/track/:orderId', async (req, res) => {
   }
 });
 
+// Get orders by email (for My Orders screen)
+router.get('/orders/by-email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .or(`email.eq.${email},customer_email.eq.${email}`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching orders by email:', error);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
 // Public endpoint: recompute total for an orderId using current products/pricing logic
 // This is used by the order success page to show customers their order total
 router.get('/recompute-total/:orderId', async (req, res) => {

@@ -54,23 +54,24 @@ export default function AccountScreen({ navigation }: any) {
       console.error('[AccountScreen] Saved data:', { hasToken: !!savedToken, hasName: !!savedUserName, hasEmail: !!savedUserEmail });
 
       if (savedToken && savedUserName && savedUserEmail) {
-        console.error('[AccountScreen] Admin already logged in - restoring session');
-        // Use a slight delay to ensure component is fully mounted
+        console.error('[AccountScreen] Admin already logged in - navigating to dashboard');
+        // Use a slight delay to ensure navigator is ready
         setTimeout(() => {
           try {
             setUserName(savedUserName);
             setUserEmail(savedUserEmail);
             setIsLoggedIn(true);
-            console.error('[AccountScreen] Login state restored successfully');
+            console.error('[AccountScreen] Navigating to dashboard');
+            navigation.navigate('Dashboard');
           } catch (error) {
-            console.error('Error setting login state:', error);
+            console.error('Error navigating to dashboard:', error);
             if (Sentry && typeof Sentry.captureException === 'function') {
               Sentry.captureException(error, {
-                tags: { screen: 'AccountScreen', action: 'restoreSession' }
+                tags: { screen: 'AccountScreen', action: 'restoreSessionNavigate' }
               });
             }
           }
-        }, 100);
+        }, 200);
       }
     } catch (error) {
       console.error('Error checking login status:', error);
@@ -174,29 +175,21 @@ export default function AccountScreen({ navigation }: any) {
           // Then update state
           setUserName(adminName);
           setUserEmail(adminEmail);
-          // Show success alert before changing login state
-          console.error('[AccountScreen] Login successful, showing alert');
-          showAlert('Success', 'Login successful!', [
-            {
-              text: 'OK',
-              onPress: () => {
-                try {
-                  console.error('[AccountScreen] Setting logged in state, current:', isLoggedIn);
-                  if (!isLoggedIn) {
-                    setIsLoggedIn(true);
-                    console.error('[AccountScreen] Login state set to true');
-                  }
-                } catch (error) {
-                  console.error('Error setting login state:', error);
-                  if (Sentry && typeof Sentry.captureException === 'function') {
-                    Sentry.captureException(error, {
-                      tags: { screen: 'AccountScreen', action: 'setLoginState' }
-                    });
-                  }
-                }
+          // Navigate to dashboard after successful login
+          console.error('[AccountScreen] Login successful, navigating to dashboard');
+          setIsLoggedIn(true);
+          setTimeout(() => {
+            try {
+              navigation.navigate('Dashboard');
+            } catch (error) {
+              console.error('Error navigating to dashboard:', error);
+              if (Sentry && typeof Sentry.captureException === 'function') {
+                Sentry.captureException(error, {
+                  tags: { screen: 'AccountScreen', action: 'navigateDashboard' }
+                });
               }
             }
-          ], 'success');
+          }, 150);
           return;
         }
       }
@@ -274,30 +267,22 @@ export default function AccountScreen({ navigation }: any) {
         // Set user info
         setUserName(adminName);
         setUserEmail(adminEmail);
-        // Show success alert and change state after user acknowledges
-        console.error('[AccountScreen] 2FA login successful, showing alert');
-        showAlert('Success', 'Login successful!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              try {
-                console.error('[AccountScreen] Setting 2FA login state, current:', isLoggedIn);
-                setShow2FA(false);
-                if (!isLoggedIn) {
-                  setIsLoggedIn(true);
-                  console.error('[AccountScreen] 2FA login state set to true');
-                }
-              } catch (error) {
-                console.error('Error setting 2FA login state:', error);
-                if (Sentry && typeof Sentry.captureException === 'function') {
-                  Sentry.captureException(error, {
-                    tags: { screen: 'AccountScreen', action: 'set2FALoginState' }
-                  });
-                }
-              }
+        // Navigate to dashboard after successful 2FA verification
+        console.error('[AccountScreen] 2FA verified, navigating to dashboard');
+        setShow2FA(false);
+        setIsLoggedIn(true);
+        setTimeout(() => {
+          try {
+            navigation.navigate('Dashboard');
+          } catch (error) {
+            console.error('Error navigating to dashboard after 2FA:', error);
+            if (Sentry && typeof Sentry.captureException === 'function') {
+              Sentry.captureException(error, {
+                tags: { screen: 'AccountScreen', action: 'navigate2FADashboard' }
+              });
             }
           }
-        ], 'success');
+        }, 150);
         return;
       }
 
@@ -317,40 +302,6 @@ export default function AccountScreen({ navigation }: any) {
 
 
 
-  const handleLogout = () => {
-    showAlert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            // Clear stored login data
-            try {
-              await AsyncStorage.multiRemove(['adminToken', 'adminUserName', 'adminUserEmail']);
-            } catch (error) {
-              console.error('Error clearing login state:', error);
-            }
-            
-            setIsLoggedIn(false);
-            setUserName('');
-            setUserEmail('');
-            setEmail('');
-            setPassword('');
-            setShow2FA(false);
-            setCode2FA('');
-            setPendingEmail('');
-            setPendingPassword('');
-            showAlert('Success', 'Logged out successfully', undefined, 'success');
-          },
-        },
-      ],
-      'warning'
-    );
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -359,89 +310,7 @@ export default function AccountScreen({ navigation }: any) {
     );
   }
 
-  // If logged in, show admin profile
-  if (isLoggedIn) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#FF99BB', '#FF6F9B']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <View style={styles.adminAvatar}>
-            <Ionicons name="person" size={48} color="#fff" />
-          </View>
-          <Text style={styles.welcomeText}>Welcome back!</Text>
-          <Text style={styles.adminName}>{userName}</Text>
-          <Text style={styles.adminEmail}>{userEmail}</Text>
-        </LinearGradient>
-
-        <ScrollView style={styles.content}>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Settings</Text>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="person-outline" size={24} color="#FF6F9B" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Profile</Text>
-                <Text style={styles.menuSubtext}>Manage your profile</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="notifications-outline" size={24} color="#FF6F9B" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Notifications</Text>
-                <Text style={styles.menuSubtext}>Manage notifications</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="settings-outline" size={24} color="#FF6F9B" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Settings</Text>
-                <Text style={styles.menuSubtext}>App preferences</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </ScrollView>
-        <CustomAlert
-          visible={visible}
-          title={alertConfig?.title || ''}
-          message={alertConfig?.message}
-          buttons={alertConfig?.buttons}
-          onDismiss={hideAlert}
-          type={alertConfig?.type}
-        />
-      </View>
-    );
-  }
-
-  // Not logged in - show login form
+  // Show login form
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -453,7 +322,6 @@ export default function AccountScreen({ navigation }: any) {
             <Ionicons name="person-circle-outline" size={64} color="#FF6F9B" />
           </View>
           <Text style={styles.loginTitle}>Chammy Florals</Text>
-          <Text style={styles.loginSubtext}>Admin Login</Text>
 
           {!show2FA ? (
             <>
@@ -558,105 +426,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  adminAvatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: '#fff',
-    opacity: 0.95,
-    marginBottom: 4,
-  },
-  adminName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  adminEmail: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  menuIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#FCE4EC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  menuTextContainer: {
-    flex: 1,
-  },
-  menuText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  menuSubtext: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#FEE2E2',
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FF3B30',
   },
   loginContainer: {
     alignItems: 'center',

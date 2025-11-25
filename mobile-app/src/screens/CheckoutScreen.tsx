@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCart } from '../contexts/CartContext';
 import ApiService from '../services/api';
 import Sentry from '../../sentry.config';
@@ -35,6 +36,9 @@ export default function CheckoutScreen({ navigation }: any) {
 
     setLoading(true);
     try {
+      // Get push notification token from storage
+      const pushToken = await AsyncStorage.getItem('expoPushToken');
+      
       const orderData = {
         ...formData,
         items: items.map((item) => ({
@@ -43,9 +47,20 @@ export default function CheckoutScreen({ navigation }: any) {
           price: item.price,
         })),
         total_amount: total,
+        expo_push_token: pushToken || undefined,
       };
 
       const order = await ApiService.createOrder(orderData);
+      
+      // Save user email to AsyncStorage for viewing orders later
+      if (formData.customer_email) {
+        await AsyncStorage.setItem('userEmail', formData.customer_email);
+      }
+      // Also save phone as backup
+      if (formData.customer_phone) {
+        await AsyncStorage.setItem('userPhone', formData.customer_phone);
+      }
+      
       clearCart();
       navigation.replace('OrderSuccess', { orderId: order.id });
     } catch (error: any) {

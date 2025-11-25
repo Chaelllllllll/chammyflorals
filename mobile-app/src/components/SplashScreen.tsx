@@ -83,7 +83,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
               },
             ]}
           >
-            <Ionicons name="flower" size={80} color="#d946ef" />
+            <Ionicons name="flower" size={80} color="#ff69b4" />
           </Animated.View>
           
           <Text style={styles.brandName}>Chammy Florals</Text>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#d946ef',
+    shadowColor: '#ff69b4',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#d946ef',
+    color: '#ff1493',
     marginBottom: 8,
     textAlign: 'center',
     letterSpacing: 1,
   },
   tagline: {
     fontSize: 14,
-    color: '#a855f7',
+    color: '#ff69b4',
     fontStyle: 'italic',
     textAlign: 'center',
     opacity: 0.8,
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#d946ef',
+    backgroundColor: '#ff69b4',
     marginHorizontal: 4,
   },
   dot1: {
