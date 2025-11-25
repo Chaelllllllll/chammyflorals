@@ -5,97 +5,90 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import ApiService, { Order } from '../../services/api';
 
 export default function AdminTodoScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadOrders();
-    }, [])
-  );
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const data = await ApiService.getAdminOrders();
-      // Filter only orders with status "To Do" or "Pending"
-      const todoOrders = data.filter(
-        (order: Order) => order.status === 'To Do' || order.status === 'Pending'
+      const todoOrders = (data || []).filter(
+        o => o.status === 'Pending' || o.status === 'Processing'
       );
       setOrders(todoOrders);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load orders');
+      Alert.alert('Error', 'Failed to load to-do orders');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
+  const updateStatus = async (orderId: string, newStatus: string) => {
     try {
       await ApiService.updateOrderStatus(orderId, newStatus);
-      Alert.alert('Success', `Order marked as ${newStatus}`);
+      Alert.alert('Success', `Order updated to ${newStatus}`);
       loadOrders();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update order status');
+      Alert.alert('Error', 'Failed to update order');
     }
   };
 
   const renderOrder = ({ item }: { item: Order }) => (
-    <TouchableOpacity 
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item.order_id })}
-    >
+    <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderId}>#{item.order_id}</Text>
-          {item.rush === 'yes' && (
-            <View style={styles.rushBadge}>
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.rushText}>RUSH</Text>
-            </View>
-          )}
+        <Text style={styles.orderId}>#{item.order_id}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: item.status === 'Pending' ? '#FFA50020' : '#2196F320' }]}>
+          <Text style={[styles.statusText, { color: item.status === 'Pending' ? '#FFA500' : '#2196F3' }]}>
+            {item.status}
+          </Text>
         </View>
-        <Text style={styles.orderDate}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
       </View>
-
-      <Text style={styles.customerName}>{item.name}</Text>
-      <Text style={styles.orderDetails}>{item.flower_type}</Text>
-      <Text style={styles.orderDetails}>Qty: {item.quantity}</Text>
+      <Text style={styles.orderName}>{item.name || item.customer_name}</Text>
+      <Text style={styles.orderFlower}>
+        {Array.isArray(item.flower_type) ? item.flower_type.join(', ') : item.flower_type}
+      </Text>
       <Text style={styles.orderTotal}>₱{(item.total_fee || 0).toFixed(2)}</Text>
-
+      
       <View style={styles.actions}>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.deliverBtn]}
-          onPress={() => item.order_id && handleStatusChange(item.order_id, 'To Deliver')}
+          style={[styles.actionBtn, { backgroundColor: '#2196F3' }]}
+          onPress={() => item.order_id && updateStatus(item.order_id, 'Processing')}
         >
-          <Ionicons name="car" size={20} color="#fff" />
-          <Text style={styles.actionBtnText}>To Deliver</Text>
+          <Text style={styles.actionText}>Process</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.actionBtn, styles.cancelBtn]}
-          onPress={() => item.order_id && handleStatusChange(item.order_id, 'Cancelled')}
+          style={[styles.actionBtn, { backgroundColor: '#34C759' }]}
+          onPress={() => item.order_id && updateStatus(item.order_id, 'To Receive')}
         >
-          <Ionicons name="close-circle" size={20} color="#fff" />
-          <Text style={styles.actionBtnText}>Cancel</Text>
+          <Text style={styles.actionText}>Ready</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ff6f9b" />
+        <ActivityIndicator size="large" color="#FF6F9B" />
       </View>
     );
   }
@@ -104,27 +97,26 @@ export default function AdminTodoScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.title}>To Do ({orders.length})</Text>
-        <TouchableOpacity onPress={loadOrders} style={styles.refreshBtn}>
-          <Ionicons name="refresh" size={24} color="#333" />
-        </TouchableOpacity>
+        <Text style={styles.title}>To Do</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {orders.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="checkmark-done-circle" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>No pending orders</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={orders}
-          renderItem={renderOrder}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
-        />
-      )}
+      <FlatList
+        data={orders}
+        renderItem={renderOrder}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6F9B']} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="checkmark-circle-outline" size={64} color="#4CAF50" />
+            <Text style={styles.emptyText}>All caught up!</Text>
+            <Text style={styles.emptySubtext}>No pending orders</Text>
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -132,96 +124,84 @@ export default function AdminTodoScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FFF5F8',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFF5F8',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E7EB',
   },
   backBtn: {
     padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
   },
-  refreshBtn: {
-    padding: 8,
+  placeholder: {
+    width: 40,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   list: {
     padding: 16,
   },
   orderCard: {
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 14,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    elevation: 3,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   orderId: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#FF6F9B',
   },
-  rushBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FF6347',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
-    marginTop: 4,
-    alignSelf: 'flex-start',
   },
-  rushText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  orderDate: {
+  statusText: {
     fontSize: 12,
-    color: '#666',
+    fontWeight: '700',
   },
-  customerName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
-  orderDetails: {
+  orderName: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginBottom: 4,
+  },
+  orderFlower: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 8,
   },
   orderTotal: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ff6f9b',
-    marginTop: 8,
+    fontWeight: '800',
+    color: '#1F2937',
     marginBottom: 12,
   },
   actions: {
@@ -230,33 +210,28 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
   },
-  deliverBtn: {
-    backgroundColor: '#007AFF',
-  },
-  cancelBtn: {
-    backgroundColor: '#FF3B30',
-  },
-  actionBtnText: {
+  actionText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
     marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
   },
 });

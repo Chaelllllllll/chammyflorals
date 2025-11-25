@@ -5,32 +5,28 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import ApiService, { Order } from '../../services/api';
 
 export default function AdminToDeliverScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadOrders();
-    }, [])
-  );
+  useEffect(() => {
+    loadOrders();
+  }, []);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const data = await ApiService.getAdminOrders();
-      // Filter only orders with status "To Deliver"
-      const toDeliverOrders = data.filter(
-        (order: Order) => order.status === 'To Deliver'
-      );
-      setOrders(toDeliverOrders);
+      const deliverOrders = (data || []).filter(o => o.status === 'To Receive');
+      setOrders(deliverOrders);
     } catch (error) {
       Alert.alert('Error', 'Failed to load orders');
     } finally {
@@ -38,57 +34,62 @@ export default function AdminToDeliverScreen({ navigation }: any) {
     }
   };
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
+
+  const markAsDelivered = async (orderId: string) => {
     try {
-      await ApiService.updateOrderStatus(orderId, newStatus);
-      Alert.alert('Success', `Order marked as ${newStatus}`);
+      await ApiService.updateOrderStatus(orderId, 'Delivered');
+      Alert.alert('Success', 'Order marked as delivered');
       loadOrders();
     } catch (error) {
-      Alert.alert('Error', 'Failed to update order status');
+      Alert.alert('Error', 'Failed to update order');
     }
   };
 
   const renderOrder = ({ item }: { item: Order }) => (
-    <TouchableOpacity 
-      style={styles.orderCard}
-      onPress={() => navigation.navigate('OrderDetails', { orderId: item.order_id })}
-    >
+    <View style={styles.orderCard}>
       <View style={styles.orderHeader}>
-        <View>
-          <Text style={styles.orderId}>#{item.order_id}</Text>
-          {item.rush === 'yes' && (
-            <View style={styles.rushBadge}>
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.rushText}>RUSH</Text>
-            </View>
-          )}
+        <Text style={styles.orderId}>#{item.order_id}</Text>
+        <View style={styles.statusBadge}>
+          <Ionicons name="cube" size={14} color="#34C759" />
+          <Text style={styles.statusText}>To Receive</Text>
         </View>
-        <Text style={styles.orderDate}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
       </View>
-
-      <Text style={styles.customerName}>{item.name}</Text>
-      <Text style={styles.orderDetails}>{item.flower_type}</Text>
-      <Text style={styles.orderDetails}>Qty: {item.quantity}</Text>
+      <Text style={styles.orderName}>{item.name || item.customer_name}</Text>
+      {item.delivery_address && (
+        <View style={styles.addressRow}>
+          <Ionicons name="location-outline" size={16} color="#6B7280" />
+          <Text style={styles.orderAddress}>{item.delivery_address}</Text>
+        </View>
+      )}
+      {item.delivery_date && (
+        <View style={styles.dateRow}>
+          <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+          <Text style={styles.orderDate}>
+            {new Date(item.delivery_date).toLocaleDateString()}
+          </Text>
+        </View>
+      )}
       <Text style={styles.orderTotal}>₱{(item.total_fee || 0).toFixed(2)}</Text>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.actionBtn, styles.deliveredBtn]}
-          onPress={() => item.order_id && handleStatusChange(item.order_id, 'Delivered')}
-        >
-          <Ionicons name="checkmark-circle" size={20} color="#fff" />
-          <Text style={styles.actionBtnText}>Mark Delivered</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={styles.deliveredBtn}
+        onPress={() => item.order_id && markAsDelivered(item.order_id)}
+      >
+        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+        <Text style={styles.deliveredText}>Mark as Delivered</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ff6f9b" />
+        <ActivityIndicator size="large" color="#FF6F9B" />
       </View>
     );
   }
@@ -97,27 +98,25 @@ export default function AdminToDeliverScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.title}>To Deliver ({orders.length})</Text>
-        <TouchableOpacity onPress={loadOrders} style={styles.refreshBtn}>
-          <Ionicons name="refresh" size={24} color="#333" />
-        </TouchableOpacity>
+        <Text style={styles.title}>To Deliver</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {orders.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="checkmark-done-circle" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>No orders to deliver</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={orders}
-          renderItem={renderOrder}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.list}
-        />
-      )}
+      <FlatList
+        data={orders}
+        renderItem={renderOrder}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6F9B']} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="car-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No deliveries pending</Text>
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -125,128 +124,131 @@ export default function AdminToDeliverScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#FFF5F8',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFF5F8',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E7EB',
   },
   backBtn: {
     padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
   },
-  refreshBtn: {
-    padding: 8,
+  placeholder: {
+    width: 40,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   list: {
     padding: 16,
   },
   orderCard: {
     backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 14,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    elevation: 3,
   },
   orderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   orderId: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#FF6F9B',
   },
-  rushBadge: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF6347',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
-    marginTop: 4,
-    alignSelf: 'flex-start',
+    backgroundColor: '#34C75920',
   },
-  rushText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 4,
-  },
-  orderDate: {
+  statusText: {
     fontSize: 12,
-    color: '#666',
+    fontWeight: '700',
+    color: '#34C759',
   },
-  customerName: {
+  orderName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '600',
+    color: '#1F2937',
     marginBottom: 8,
   },
-  orderDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  orderAddress: {
+    flex: 1,
+    fontSize: 13,
+    color: '#4B5563',
+    lineHeight: 18,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  orderDate: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   orderTotal: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ff6f9b',
-    marginTop: 8,
+    fontWeight: '800',
+    color: '#1F2937',
     marginBottom: 12,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionBtn: {
-    flex: 1,
+  deliveredBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 8,
     gap: 8,
+    backgroundColor: '#4CAF50',
+    padding: 14,
+    borderRadius: 10,
   },
-  deliveredBtn: {
-    backgroundColor: '#34C759',
-  },
-  actionBtnText: {
+  deliveredText: {
     color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 15,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
     marginTop: 16,
   },
 });

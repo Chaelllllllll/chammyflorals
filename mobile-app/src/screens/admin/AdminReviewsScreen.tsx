@@ -5,39 +5,27 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
-  Image,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../../services/api';
 
-interface Review {
-  id: number;
-  order_id?: string;
-  name: string;
-  stars: number;
-  message: string;
-  image_url?: string;
-  created_at: string;
-}
-
 export default function AdminReviewsScreen({ navigation }: any) {
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadReviews();
-    }, [])
-  );
+  useEffect(() => {
+    loadReviews();
+  }, []);
 
   const loadReviews = async () => {
     try {
       setLoading(true);
       const data = await ApiService.getReviews();
-      setReviews(data);
+      setReviews(data || []);
     } catch (error) {
       Alert.alert('Error', 'Failed to load reviews');
     } finally {
@@ -45,63 +33,50 @@ export default function AdminReviewsScreen({ navigation }: any) {
     }
   };
 
-  const handleDelete = (review: Review) => {
-    Alert.alert(
-      'Delete Review',
-      `Are you sure you want to delete this review from ${review.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ApiService.deleteReview(review.id);
-              Alert.alert('Success', 'Review deleted');
-              loadReviews();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete review');
-            }
-          },
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadReviews();
+    setRefreshing(false);
+  };
+
+  const handleDelete = (reviewId: number) => {
+    Alert.alert('Delete Review', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await ApiService.deleteReview(reviewId);
+            Alert.alert('Success', 'Review deleted');
+            loadReviews();
+          } catch (error) {
+            Alert.alert('Error', 'Failed to delete review');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  const renderStars = (stars: number) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Ionicons
-            key={star}
-            name={star <= stars ? 'star' : 'star-outline'}
-            size={16}
-            color="#FFD700"
-          />
-        ))}
-      </View>
-    );
-  };
-
-  const renderReview = ({ item }: { item: Review }) => (
+  const renderReview = ({ item }: any) => (
     <View style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
-        <View style={styles.reviewInfo}>
-          <Text style={styles.reviewName}>{item.name}</Text>
-          {renderStars(item.stars)}
-          <Text style={styles.orderId}>Order: {item.order_id}</Text>
+        <View style={styles.starContainer}>
+          {[...Array(5)].map((_, i) => (
+            <Ionicons
+              key={i}
+              name={i < item.rating ? 'star' : 'star-outline'}
+              size={16}
+              color="#FFB300"
+            />
+          ))}
         </View>
-        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn}>
-          <Ionicons name="trash" size={20} color="#FF3B30" />
+        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
+          <Ionicons name="trash" size={18} color="#FF3B30" />
         </TouchableOpacity>
       </View>
-
-      {item.image_url && (
-        <Image source={{ uri: item.image_url }} style={styles.reviewImage} />
-      )}
-
-      <Text style={styles.reviewMessage}>{item.message}</Text>
-
+      <Text style={styles.reviewName}>{item.customer_name}</Text>
+      <Text style={styles.reviewText}>{item.review}</Text>
       <Text style={styles.reviewDate}>
         {new Date(item.created_at).toLocaleDateString()}
       </Text>
@@ -111,7 +86,7 @@ export default function AdminReviewsScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ff6f9b" />
+        <ActivityIndicator size="large" color="#FF6F9B" />
       </View>
     );
   }
@@ -120,10 +95,10 @@ export default function AdminReviewsScreen({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.title}>Customer Reviews</Text>
-        <View style={{ width: 40 }} />
+        <Text style={styles.title}>Reviews</Text>
+        <View style={styles.placeholder} />
       </View>
 
       <FlatList
@@ -131,6 +106,13 @@ export default function AdminReviewsScreen({ navigation }: any) {
         renderItem={renderReview}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6F9B']} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="star-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No reviews yet</Text>
+          </View>
+        }
       />
     </View>
   );
@@ -139,13 +121,13 @@ export default function AdminReviewsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF5F8',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF5F8',
   },
   header: {
     flexDirection: 'row',
@@ -155,16 +137,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
   },
   backBtn: {
     padding: 8,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
+  },
+  placeholder: {
+    width: 40,
   },
   title: {
     fontSize: 24,
@@ -176,62 +156,54 @@ const styles = StyleSheet.create({
   },
   reviewCard: {
     backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 14,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    elevation: 3,
   },
   reviewHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  reviewInfo: {
-    flex: 1,
-  },
-  reviewName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 6,
-  },
-  starsContainer: {
+  starContainer: {
     flexDirection: 'row',
-    marginBottom: 6,
-    gap: 2,
-  },
-  orderId: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
+    gap: 4,
   },
   deleteBtn: {
-    padding: 10,
+    padding: 8,
     backgroundColor: '#FEE2E2',
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  reviewImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: 12,
-    marginBottom: 14,
-    backgroundColor: '#F3F4F6',
+  reviewName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
   },
-  reviewMessage: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 22,
-    marginBottom: 10,
+  reviewText: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 8,
   },
   reviewDate: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#9CA3AF',
-    fontWeight: '500',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
   },
 });

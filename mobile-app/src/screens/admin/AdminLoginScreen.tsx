@@ -28,17 +28,6 @@ export default function AdminLoginScreen({ navigation }: any) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [totpSecret, setTotpSecret] = useState('');
 
-  // Check if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && user && user.role === 'admin') {
-      // Navigate to AdminDashboard in the parent navigator
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.navigate('AdminDashboard');
-      }
-    }
-  }, [isAuthenticated, user]);
-
   const validateInput = () => {
     const email = credentials.email.trim();
     const password = credentials.password.trim();
@@ -97,11 +86,12 @@ export default function AdminLoginScreen({ navigation }: any) {
           await login(result.token, result.user);
           setCredentials({ email: '', password: '' });
           setTotpCode('');
-          // Navigate to AdminDashboard in parent navigator
-          const parent = navigation.getParent();
-          if (parent) {
-            parent.navigate('AdminDashboard');
-          }
+          Alert.alert('Success', 'Logged in successfully!', [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ]);
           return;
         }
       }
@@ -139,12 +129,12 @@ export default function AdminLoginScreen({ navigation }: any) {
         setCredentials({ email: '', password: '' });
         setTotpCode('');
         setSetupRequired(false);
-        Alert.alert('Success', 'Google Authenticator enabled successfully');
-        // Navigate to AdminDashboard in parent navigator
-        const parent = navigation.getParent();
-        if (parent) {
-          parent.navigate('AdminDashboard');
-        }
+        Alert.alert('Success', 'Google Authenticator enabled successfully', [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack(),
+          },
+        ]);
       } else {
         Alert.alert('Verification Failed', result.error || 'Invalid code');
       }

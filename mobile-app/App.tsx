@@ -23,14 +23,15 @@ import OrderSuccessScreen from './src/screens/OrderSuccessScreen';
 import TrackOrderScreen from './src/screens/TrackOrderScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import InquiryScreen from './src/screens/InquiryScreen';
+import AccountScreen from './src/screens/AccountScreen';
 import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
 import AdminProductsScreen from './src/screens/admin/AdminProductsScreen';
 import AdminReviewsScreen from './src/screens/admin/AdminReviewsScreen';
-import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
+import AdminTransactionsScreen from './src/screens/admin/AdminTransactionsScreen';
 import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
-import AdminReportsScreen from './src/screens/admin/AdminReportsScreen';
-import OrderDetailsScreen from './src/screens/admin/OrderDetailsScreen';
+import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
+import AdminManageScreen from './src/screens/admin/AdminManageScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -68,7 +69,7 @@ function MainTabs() {
       <Tab.Screen name="Products" component={ProductsScreen} />
       <Tab.Screen name="Reviews" component={ReviewsScreen} />
       <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
-      <Tab.Screen name="Account" component={AdminLoginScreen} options={{ title: 'Account' }} />
+      <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );
 }
@@ -231,42 +232,37 @@ export default function App() {
             <Stack.Screen 
               name="AdminDashboard" 
               component={AdminDashboardScreen}
-              options={{ title: 'Admin Dashboard' }}
-            />
-            <Stack.Screen 
-              name="AdminOrders" 
-              component={OrdersScreen}
-              options={{ title: 'Manage Orders' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
               name="AdminProducts" 
               component={AdminProductsScreen}
-              options={{ title: 'Manage Products' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
               name="AdminReviews" 
               component={AdminReviewsScreen}
-              options={{ title: 'Manage Reviews' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
-              name="AdminToDeliver" 
-              component={AdminToDeliverScreen}
-              options={{ title: 'To Deliver' }}
+              name="AdminTransactions" 
+              component={AdminTransactionsScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
               name="AdminTodo" 
               component={AdminTodoScreen}
-              options={{ title: 'To Do' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
-              name="AdminReports" 
-              component={AdminReportsScreen}
-              options={{ title: 'Reports' }}
+              name="AdminToDeliver" 
+              component={AdminToDeliverScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen 
-              name="OrderDetails" 
-              component={OrderDetailsScreen}
-              options={{ title: 'Order Details' }}
+              name="AdminManage" 
+              component={AdminManageScreen}
+              options={{ headerShown: false }}
             />
           </Stack.Navigator>
         </NavigationContainer>

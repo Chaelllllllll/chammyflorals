@@ -7,24 +7,22 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  Modal,
-  ScrollView,
   ActivityIndicator,
   Image,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Product } from '../../services/api';
 
 export default function AdminProductsScreen({ navigation }: any) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    image_url: '',
-  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [categories, setCategories] = useState<string[]>(['All']);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -33,49 +31,50 @@ export default function AdminProductsScreen({ navigation }: any) {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      console.log('Loading admin products...');
       const data = await ApiService.getAdminProducts();
-      console.log('Products loaded:', data?.length || 0);
       setProducts(data || []);
+      
+      const uniqueCategories = ['All', ...Array.from(new Set(
+        (data || []).map(p => p.category).filter(Boolean)
+      )).sort()];
+      setCategories(uniqueCategories);
+      
+      applyFilters(data || [], searchQuery, selectedCategory);
     } catch (error: any) {
       console.error('Failed to load products:', error);
-      Alert.alert('Error', `Failed to load products: ${error.message || 'Unknown error'}`);
-      setProducts([]);
+      Alert.alert('Error', 'Failed to load products');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (product: Product) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      category: product.category,
-      image_url: product.image_url || '',
-    });
-    setModalVisible(true);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProducts();
+    setRefreshing(false);
   };
 
-  const handleSave = async () => {
-    if (!formData.name || !formData.category) {
-      Alert.alert('Error', 'Name and category are required');
-      return;
+  const applyFilters = (productList: Product[], search: string, category: string) => {
+    let filtered = productList;
+    
+    if (category && category !== 'All') {
+      filtered = filtered.filter(p => p.category === category);
     }
-
-    try {
-      if (editingProduct) {
-        await ApiService.updateProduct(editingProduct.id, formData);
-        Alert.alert('Success', 'Product updated successfully');
-      } else {
-        await ApiService.createProduct(formData);
-        Alert.alert('Success', 'Product created successfully');
-      }
-      setModalVisible(false);
-      loadProducts();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save product');
+    
+    if (search.trim()) {
+      const query = search.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        (p.category || '').toLowerCase().includes(query)
+      );
     }
+    
+    setFilteredProducts(filtered);
   };
+
+  useEffect(() => {
+    applyFilters(products, searchQuery, selectedCategory);
+  }, [searchQuery, selectedCategory, products]);
 
   const handleDelete = (product: Product) => {
     Alert.alert(
@@ -107,26 +106,21 @@ export default function AdminProductsScreen({ navigation }: any) {
       )}
       <View style={styles.productInfo}>
         <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.category}</Text>
+        {item.category && <Text style={styles.productCategory}>{item.category}</Text>}
         <Text style={styles.productPricing}>
           {item.pricing?.length || 0} pricing options
         </Text>
       </View>
-      <View style={styles.actions}>
-        <TouchableOpacity onPress={() => handleEdit(item)} style={styles.actionBtn}>
-          <Ionicons name="pencil" size={20} color="#007AFF" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionBtn}>
-          <Ionicons name="trash" size={20} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn}>
+        <Ionicons name="trash" size={20} color="#FF3B30" />
+      </TouchableOpacity>
     </View>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ff6f9b" />
+        <ActivityIndicator size="large" color="#FF6F9B" />
       </View>
     );
   }
@@ -134,76 +128,60 @@ export default function AdminProductsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Products</Text>
-        <TouchableOpacity
-          onPress={() => {
-            setEditingProduct(null);
-            setFormData({ name: '', category: '', image_url: '' });
-            setModalVisible(true);
-          }}
-          style={styles.addBtn}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Products</Text>
+          <View style={styles.placeholder} />
+        </View>
+        
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search products..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#9CA3AF"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer}>
+          {categories.map(category => (
+            <TouchableOpacity
+              key={category}
+              onPress={() => setSelectedCategory(category)}
+              style={[styles.filterChip, selectedCategory === category && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterChipText, selectedCategory === category && styles.filterChipTextActive]}>
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        
+        <Text style={styles.countText}>{filteredProducts.length} products</Text>
       </View>
 
       <FlatList
-        data={products}
+        data={filteredProducts}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
-      />
-
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingProduct ? 'Edit Product' : 'Add Product'}
-            </Text>
-
-            <ScrollView>
-              <TextInput
-                style={styles.input}
-                placeholder="Product Name"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Category"
-                value={formData.category}
-                onChangeText={(text) => setFormData({ ...formData, category: text })}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Image URL"
-                value={formData.image_url}
-                onChangeText={(text) => setFormData({ ...formData, image_url: text })}
-              />
-            </ScrollView>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={[styles.modalBtn, styles.cancelBtn]}
-              >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                style={[styles.modalBtn, styles.saveBtn]}
-              >
-                <Text style={styles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6F9B']} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="cube-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No products found</Text>
           </View>
-        </View>
-      </Modal>
+        }
+      />
     </View>
   );
 }
@@ -211,50 +189,87 @@ export default function AdminProductsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF5F8',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FFF5F8',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 20,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   backBtn: {
     padding: 8,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
   },
+  placeholder: {
+    width: 40,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
   },
-  addBtn: {
-    backgroundColor: '#FF6F9B',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+  searchContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#FF6F9B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    marginBottom: 14,
+  },
+  filterChip: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActive: {
+    backgroundColor: '#FF6F9B',
+    borderColor: '#FF6F9B',
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
+  countText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '600',
   },
   list: {
     padding: 16,
@@ -262,117 +277,55 @@ const styles = StyleSheet.create({
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    padding: 18,
-    borderRadius: 16,
-    marginBottom: 14,
+    padding: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    elevation: 3,
   },
   productImage: {
     width: 70,
     height: 70,
     borderRadius: 12,
     marginRight: 14,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
     marginBottom: 6,
   },
   productCategory: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#FF6F9B',
+    marginBottom: 6,
+    fontWeight: '600',
   },
   productPricing: {
-    fontSize: 13,
-    color: '#9CA3AF',
+    fontSize: 12,
+    color: '#6B7280',
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  actionBtn: {
+  deleteBtn: {
     padding: 10,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FEE2E2',
     borderRadius: 10,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyContainer: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingVertical: 60,
   },
-  modalContent: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 24,
-    color: '#1F2937',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 24,
-  },
-  modalBtn: {
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-  },
-  cancelBtn: {
-    backgroundColor: '#F3F4F6',
-  },
-  saveBtn: {
-    backgroundColor: '#FF6F9B',
-    shadowColor: '#FF6F9B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  cancelBtnText: {
-    color: '#4B5563',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 16,
   },
 });

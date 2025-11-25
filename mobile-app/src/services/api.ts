@@ -46,6 +46,7 @@ export interface Order {
   items?: any[];
   rush?: string;
   addons?: string[];
+  fb_link?: string;
 }
 
 export interface Review {
