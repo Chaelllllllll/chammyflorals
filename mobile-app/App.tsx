@@ -3,6 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import * as Updates from 'expo-updates';
+import { Alert } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 
@@ -61,6 +63,43 @@ function MainTabs() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    async function onFetchUpdateAsync() {
+      try {
+        // Only check for updates in production builds
+        if (!__DEV__) {
+          const update = await Updates.checkForUpdateAsync();
+
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            // Notify user about the update
+            Alert.alert(
+              'Update Available',
+              'A new version has been downloaded. Restart the app to apply the update.',
+              [
+                {
+                  text: 'Restart Now',
+                  onPress: async () => {
+                    await Updates.reloadAsync();
+                  },
+                },
+                {
+                  text: 'Later',
+                  style: 'cancel',
+                },
+              ]
+            );
+          }
+        }
+      } catch (error) {
+        // Handle error silently - don't disrupt user experience
+        console.log('Error checking for updates:', error);
+      }
+    }
+
+    onFetchUpdateAsync();
+  }, []);
+
   return (
     <AuthProvider>
       <CartProvider>

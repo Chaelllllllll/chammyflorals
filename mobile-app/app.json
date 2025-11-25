@@ -12,6 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#fff6f9"
     },
+    "assetBundlePatterns": [
+      "assets/**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.chammyflorals.app"
@@ -27,7 +30,9 @@
         "ACCESS_NETWORK_STATE"
       ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResourcesInReleaseBuilds": true
     },
     "web": {
       "favicon": "./assets/favicon.png"

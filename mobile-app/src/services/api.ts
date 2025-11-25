@@ -222,12 +222,18 @@ class ApiService {
   // Inquiry/Custom Orders
   async createInquiry(inquiryData: any): Promise<any> {
     try {
-      const response = await fetch(`${API_URL}/api/orders`, {
+      console.log('Creating inquiry...', inquiryData);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(`${API_URL}/api/inquiry`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(inquiryData),
-        timeout: 15000,
-      } as any);
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();
