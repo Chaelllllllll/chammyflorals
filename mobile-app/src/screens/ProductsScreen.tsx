@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Product } from '../services/api';
+import Logger from '../utils/logger';
 
 export default function ProductsScreen({ navigation }: any) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -19,6 +20,7 @@ export default function ProductsScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    Logger.info('ProductsScreen mounted', {}, 'ProductsScreen', 'mount');
     loadProducts();
   }, []);
 
@@ -28,15 +30,19 @@ export default function ProductsScreen({ navigation }: any) {
 
   const loadProducts = async () => {
     try {
+      Logger.debug('Loading products', {}, 'ProductsScreen', 'loadProducts');
       console.log('Loading products...');
       const data = await ApiService.getProducts();
       console.log('Products loaded:', data?.length || 0);
+      Logger.info('Products loaded', { count: data?.length || 0 }, 'ProductsScreen', 'productsLoaded');
       if (!data || data.length === 0) {
+        Logger.warning('No products returned', {}, 'ProductsScreen', 'noProducts');
         console.warn('No products returned from API');
       }
       setProducts(data || []);
       setFilteredProducts(data || []);
-    } catch (error) {
+    } catch (error: any) {
+      Logger.error('Failed to load products', { error: error.message }, 'ProductsScreen', 'loadError');
       console.error('Failed to load products:', error);
       setProducts([]);
       setFilteredProducts([]);
@@ -73,7 +79,10 @@ export default function ProductsScreen({ navigation }: any) {
   const renderProduct = ({ item }: { item: Product }) => (
     <TouchableOpacity
       style={styles.productCard}
-      onPress={() => navigation.navigate('ProductDetail', { product: item })}
+      onPress={() => {
+        Logger.info('Product selected', { productId: item.id, productName: item.name }, 'ProductsScreen', 'selectProduct');
+        navigation.navigate('ProductDetail', { product: item });
+      }}
     >
       <View style={styles.imageContainer}>
         <Image

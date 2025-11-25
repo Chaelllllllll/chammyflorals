@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../contexts/AuthContext';
 import ApiService from '../../services/api';
+import Logger from '../../utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -32,11 +33,13 @@ export default function AdminDashboardScreen({ navigation }: any) {
   });
 
   useEffect(() => {
+    Logger.info('AdminDashboard mounted', { userId: user?.id }, 'AdminDashboard', 'mount');
     loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
     try {
+      Logger.debug('Loading dashboard data', {}, 'AdminDashboard', 'loadData');
       setLoading(true);
       const [orders, products, reviews] = await Promise.all([
         ApiService.getAdminOrders().catch(() => []),
@@ -48,13 +51,21 @@ export default function AdminDashboardScreen({ navigation }: any) {
         o.status === 'Pending' || o.status === 'Processing'
       ).length || 0;
 
+      Logger.info('Dashboard data loaded', { 
+        totalOrders: orders?.length || 0,
+        pendingOrders: pendingCount,
+        totalProducts: products?.length || 0,
+        totalReviews: reviews?.length || 0
+      }, 'AdminDashboard', 'dataLoaded');
+
       setStats({
         totalOrders: orders?.length || 0,
         pendingOrders: pendingCount,
         totalProducts: products?.length || 0,
         totalReviews: reviews?.length || 0,
       });
-    } catch (error) {
+    } catch (error: any) {
+      Logger.error('Failed to load dashboard data', { error: error.message }, 'AdminDashboard', 'loadError');
       console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
@@ -62,12 +73,14 @@ export default function AdminDashboardScreen({ navigation }: any) {
   };
 
   const onRefresh = async () => {
+    Logger.debug('Refreshing dashboard', {}, 'AdminDashboard', 'refresh');
     setRefreshing(true);
     await loadDashboardData();
     setRefreshing(false);
   };
 
   const toggleMenu = () => {
+    Logger.debug('Toggling menu', { menuVisible }, 'AdminDashboard', 'toggleMenu');
     if (menuVisible) {
       Animated.timing(slideAnim, {
         toValue: -width * 0.75,
@@ -85,9 +98,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
   };
 
   const navigateTo = (screen: string) => {
+    Logger.info('Navigating to screen', { screen }, 'AdminDashboard', 'navigate');
     toggleMenu();
     setTimeout(() => {
       if (screen === 'Logout') {
+        Logger.info('Logging out admin', { userId: user?.id }, 'AdminDashboard', 'logout');
         logout();
         navigation.replace('Home');
       } else {

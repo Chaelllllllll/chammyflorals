@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 import UpdateModal from './src/components/UpdateModal';
+import Logger from './src/utils/logger';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -134,16 +135,43 @@ export default function App() {
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
+    Logger.info('App started', { 
+      platform: Platform.OS,
+      version: Constants.expoConfig?.version 
+    }, 'App', 'startup');
+    
+    // Set up global error handler
+    const errorHandler = (error: Error, isFatal?: boolean) => {
+      Logger.error('Global error caught', { 
+        error: error.message,
+        stack: error.stack,
+        isFatal 
+      }, 'App', 'globalError');
+    };
+    
     // Register for push notifications
-    registerForPushNotificationsAsync();
+    registerForPushNotificationsAsync().then(token => {
+      if (token) {
+        Logger.info('Push notification token registered', { token: token.substring(0, 20) + '...' }, 'App', 'pushToken');
+      }
+    }).catch(error => {
+      Logger.error('Failed to register push notifications', { error: error.message }, 'App', 'pushTokenError');
+    });
 
     // Listen for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      Logger.info('Notification received', { 
+        title: notification.request.content.title,
+        body: notification.request.content.body 
+      }, 'App', 'notificationReceived');
       console.log('Notification received:', notification);
     });
 
     // Listen for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      Logger.info('Notification tapped', { 
+        title: response.notification.request.content.title 
+      }, 'App', 'notificationTapped');
       console.log('Notification tapped:', response);
       // You can navigate to specific screens based on notification data
       const data = response.notification.request.content.data;
@@ -156,18 +184,24 @@ export default function App() {
     // Check for app updates
     async function onFetchUpdateAsync() {
       try {
+        Logger.debug('Checking for updates', { isDev: __DEV__ }, 'App', 'updateCheck');
+        
         // Only check for updates in production builds
         if (!__DEV__) {
           const update = await Updates.checkForUpdateAsync();
 
           if (update.isAvailable) {
+            Logger.info('Update available, fetching', {}, 'App', 'updateAvailable');
             await Updates.fetchUpdateAsync();
             // Show custom update modal
             setUpdateAvailable(true);
+          } else {
+            Logger.debug('No updates available', {}, 'App', 'noUpdate');
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         // Handle error silently - don't disrupt user experience
+        Logger.error('Error checking for updates', { error: error.message }, 'App', 'updateError');
         console.log('Error checking for updates:', error);
       }
     }
@@ -189,7 +223,17 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <StatusBar barStyle="dark-content" backgroundColor="#fff6f9" />
-        <NavigationContainer>
+        <NavigationContainer
+          onStateChange={(state) => {
+            if (state) {
+              const currentRoute = state.routes[state.index];
+              Logger.info('Navigation changed', { 
+                routeName: currentRoute?.name,
+                params: currentRoute?.params 
+              }, 'App', 'navigation');
+            }
+          }}
+        >
           <Stack.Navigator
             screenOptions={{
               headerStyle: {

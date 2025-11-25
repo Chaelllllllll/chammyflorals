@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,15 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Logger from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
+  useEffect(() => {
+    Logger.info('HomeScreen mounted', {}, 'HomeScreen', 'mount');
+  }, []);
+
   return (
     <ScrollView style={styles.container}>
       {/* Hero Section */}
@@ -24,7 +29,10 @@ export default function HomeScreen({ navigation }: any) {
           </Text>
           <TouchableOpacity
             style={styles.heroButton}
-            onPress={() => navigation.navigate('Products')}
+            onPress={() => {
+              Logger.info('Navigate to Products', {}, 'HomeScreen', 'navigate');
+              navigation.navigate('Products');
+            }}
           >
             <Text style={styles.heroButtonText}>Shop Now</Text>
           </TouchableOpacity>
