@@ -413,7 +413,7 @@ router.get('/verify-token', auth, async (req, res) => {
 router.get('/dashboard', auth, async (req, res) => {
   try {
     console.log('Dashboard endpoint hit by:', req.headers.authorization ? 'authenticated user' : 'unauthenticated');
-    const { data: orders, error: ordersError } = await supabase.from('orders').select('status, price');
+    const { data: orders, error: ordersError } = await supabase.from('orders').select('status, total_fee');
     if (ordersError) {
       console.error('Supabase orders query error:', ordersError);
       throw ordersError;
@@ -424,7 +424,7 @@ router.get('/dashboard', auth, async (req, res) => {
       total_orders: orders?.length || 0,
       pending_orders: orders?.filter(o => o.status === 'Todo').length || 0,
       completed_orders: orders?.filter(o => o.status === 'Delivered').length || 0,
-      total_revenue: orders?.reduce((sum, o) => sum + (parseFloat(o.price) || 0), 0) || 0,
+      total_revenue: orders?.reduce((sum, o) => sum + (parseFloat(o.total_fee) || 0), 0) || 0,
     };
 
     console.log('Dashboard stats calculated:', stats);

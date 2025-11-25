@@ -13,7 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ApiService from '../../services/api';
 
 export default function AdminDashboardScreen({ navigation }: any) {
-  const { logout, user } = useAuth();
+  const { logout, user, token } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +24,11 @@ export default function AdminDashboardScreen({ navigation }: any) {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      console.log('=== loadDashboardData START ===');
+      console.log('User:', user);
+      console.log('Token from AuthContext:', token);
+      console.log('ApiService token check...');
+      
       const data = await ApiService.getDashboardStats();
       console.log('Dashboard stats:', data);
       setStats(data);
