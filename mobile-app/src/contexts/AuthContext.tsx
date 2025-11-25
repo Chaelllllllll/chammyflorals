@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../services/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -23,6 +24,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     loadAuthState();
   }, []);
+
+  // Update ApiService token whenever token changes
+  useEffect(() => {
+    ApiService.setToken(token);
+  }, [token]);
 
   const loadAuthState = async () => {
     try {

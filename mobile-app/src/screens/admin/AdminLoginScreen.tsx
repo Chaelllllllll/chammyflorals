@@ -30,8 +30,12 @@ export default function AdminLoginScreen({ navigation }: any) {
 
   // Check if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
-      navigation.replace('AdminDashboard');
+    if (isAuthenticated && user && user.role === 'admin') {
+      // Navigate to AdminDashboard in the parent navigator
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.navigate('AdminDashboard');
+      }
     }
   }, [isAuthenticated, user]);
 
@@ -93,7 +97,11 @@ export default function AdminLoginScreen({ navigation }: any) {
           await login(result.token, result.user);
           setCredentials({ email: '', password: '' });
           setTotpCode('');
-          navigation.replace('AdminDashboard');
+          // Navigate to AdminDashboard in parent navigator
+          const parent = navigation.getParent();
+          if (parent) {
+            parent.navigate('AdminDashboard');
+          }
           return;
         }
       }
@@ -132,7 +140,11 @@ export default function AdminLoginScreen({ navigation }: any) {
         setTotpCode('');
         setSetupRequired(false);
         Alert.alert('Success', 'Google Authenticator enabled successfully');
-        navigation.replace('AdminDashboard');
+        // Navigate to AdminDashboard in parent navigator
+        const parent = navigation.getParent();
+        if (parent) {
+          parent.navigate('AdminDashboard');
+        }
       } else {
         Alert.alert('Verification Failed', result.error || 'Invalid code');
       }
@@ -254,8 +266,12 @@ export default function AdminLoginScreen({ navigation }: any) {
             </View>
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity onPress={() => navigation.goBack()} disabled={loading}>
-                <Text style={styles.backLink}>← Back</Text>
+              <TouchableOpacity onPress={() => {
+                // Just stay on this tab, don't navigate away
+                setCredentials({ email: '', password: '' });
+                setTotpCode('');
+              }} disabled={loading}>
+                <Text style={styles.backLink}>← Clear</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.loginButton, loading && styles.loginButtonDisabled]}

@@ -59,15 +59,18 @@ export interface Review {
 }
 
 class ApiService {
+  private token: string | null = null;
+
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
   private getHeaders(includeAuth = false): HeadersInit {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    if (includeAuth) {
-      const token = ''; // Token will be managed by AuthContext
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+    if (includeAuth && this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
     }
     return headers;
   }
