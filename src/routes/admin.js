@@ -112,16 +112,18 @@ router.post('/login', loginLimiter, async (req, res) => {
     let totpSecret = null;
     let adminId = null;
     let token = null;
+    let adminRow = null;
     
     try {
-      const { data: adminRow, error: adminErr } = await supabase
+      const { data: dbAdminRow, error: adminErr } = await supabase
         .from('admins')
-        .select('id,email,password_hash,totp_secret,totp_enabled,status')
+        .select('id,email,name,password_hash,totp_secret,totp_enabled,status')
         .eq('email', normEmail)
         .limit(1)
         .single();
       
-      if (!adminErr && adminRow && adminRow.email) {
+      if (!adminErr && dbAdminRow && dbAdminRow.email) {
+        adminRow = dbAdminRow;
         // Admin row exists in DB; verify password_hash using scrypt
         const ph = adminRow.password_hash || '';
         if (!ph) {
@@ -216,7 +218,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Success - return token
     res.json({
       token,
-      user: { email: normEmail, role: 'admin' }
+      user: { email: normEmail, name: adminRow?.name || 'Admin', role: 'admin' }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -237,7 +239,7 @@ router.post('/login/enable-totp', loginLimiter, async (req, res) => {
     // Verify password first
     const { data: adminRow, error: adminErr } = await supabase
       .from('admins')
-      .select('id,email,password_hash,totp_secret,totp_enabled')
+      .select('id,email,name,password_hash,totp_secret,totp_enabled')
       .eq('email', normEmail)
       .limit(1)
       .single();
@@ -294,7 +296,7 @@ router.post('/login/enable-totp', loginLimiter, async (req, res) => {
     res.json({
       success: true,
       token,
-      user: { email: normEmail, role: 'admin' },
+      user: { email: normEmail, name: adminRow?.name || 'Admin', role: 'admin' },
       message: 'Google Authenticator enabled successfully'
     });
   } catch (error) {
@@ -410,9 +412,14 @@ router.get('/verify-token', auth, async (req, res) => {
 // Dashboard stats
 router.get('/dashboard', auth, async (req, res) => {
   try {
+    console.log('Dashboard endpoint hit by:', req.headers.authorization ? 'authenticated user' : 'unauthenticated');
     const { data: orders, error: ordersError } = await supabase.from('orders').select('status, price');
-    if (ordersError) throw ordersError;
+    if (ordersError) {
+      console.error('Supabase orders query error:', ordersError);
+      throw ordersError;
+    }
 
+    console.log('Orders fetched successfully:', orders?.length || 0);
     const stats = {
       total_orders: orders?.length || 0,
       pending_orders: orders?.filter(o => o.status === 'Todo').length || 0,
@@ -420,10 +427,12 @@ router.get('/dashboard', auth, async (req, res) => {
       total_revenue: orders?.reduce((sum, o) => sum + (parseFloat(o.price) || 0), 0) || 0,
     };
 
+    console.log('Dashboard stats calculated:', stats);
     res.json(stats);
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
-    res.status(500).json({ error: 'Failed to fetch dashboard stats' });
+    console.error('Error details:', error.message, error.stack);
+    res.status(500).json({ error: 'Failed to fetch dashboard stats', details: error.message });
   }
 });
 

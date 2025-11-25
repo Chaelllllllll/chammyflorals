@@ -70,7 +70,7 @@ export default function AdminDashboardScreen({ navigation }: any) {
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.email || 'Admin'}</Text>
+          <Text style={styles.userName}>{user?.name || 'Admin'}</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <TouchableOpacity onPress={loadDashboardData} style={styles.refreshButton}>
