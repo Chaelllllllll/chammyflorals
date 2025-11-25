@@ -22,9 +22,11 @@ export default function AdminLoginScreen({ navigation }: any) {
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [twoFactorRequired, setTwoFactorRequired] = useState(false);
-  const [twoFactorCode, setTwoFactorCode] = useState('');
-  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [requiresTOTP, setRequiresTOTP] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [totpSecret, setTotpSecret] = useState('');
 
   // Check if already authenticated
   useEffect(() => {
@@ -32,16 +34,6 @@ export default function AdminLoginScreen({ navigation }: any) {
       navigation.replace('AdminDashboard');
     }
   }, [isAuthenticated, user]);
-
-  // Handle countdown timer
-  useEffect(() => {
-    if (remainingSeconds > 0) {
-      const timer = setTimeout(() => {
-        setRemainingSeconds(remainingSeconds - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [remainingSeconds]);
 
   const validateInput = () => {
     const email = credentials.email.trim();
@@ -73,24 +65,34 @@ export default function AdminLoginScreen({ navigation }: any) {
         body: JSON.stringify({
           email: credentials.email.trim(),
           password: credentials.password.trim(),
+          totp: totpCode || undefined,
         }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        // Check if 2FA is required
-        if (result.twoFactorRequired) {
-          setTwoFactorRequired(true);
-          setRemainingSeconds(result.remainingSeconds || 60);
-          Alert.alert('2FA Required', result.message || 'A 6-digit code was sent to your Messenger.');
+        // Check if TOTP setup is required
+        if (result.setupRequired) {
+          setSetupRequired(true);
+          setQrCodeUrl(result.qrCode);
+          setTotpSecret(result.secret);
+          Alert.alert('Setup Required', result.message || 'Scan QR code with Google Authenticator');
           return;
         }
 
-        // Normal login without 2FA
+        // Check if TOTP is required
+        if (result.requiresTOTP) {
+          setRequiresTOTP(true);
+          Alert.alert('Authentication Required', result.message || 'Enter your Google Authenticator code');
+          return;
+        }
+
+        // Normal login without TOTP or successful TOTP verification
         if (result.token) {
           await login(result.token, result.user);
           setCredentials({ email: '', password: '' });
+          setTotpCode('');
           navigation.replace('AdminDashboard');
           return;
         }
@@ -104,20 +106,21 @@ export default function AdminLoginScreen({ navigation }: any) {
     }
   };
 
-  const handleVerify2FA = async () => {
-    if (!twoFactorCode || !/^[0-9]{6}$/.test(twoFactorCode)) {
-      Alert.alert('Error', 'Please enter the 6-digit code');
+  const handleEnableTOTP = async () => {
+    if (!totpCode || !/^[0-9]{6}$/.test(totpCode)) {
+      Alert.alert('Error', 'Please enter the 6-digit code from Google Authenticator');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch('https://chammyflorals.vercel.app/api/admin/login/verify', {
+      const response = await fetch('https://chammyflorals.vercel.app/api/admin/login/enable-totp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: credentials.email.trim(),
-          code: twoFactorCode,
+          password: credentials.password.trim(),
+          totp: totpCode,
         }),
       });
 
@@ -126,45 +129,15 @@ export default function AdminLoginScreen({ navigation }: any) {
       if (response.ok && result.token) {
         await login(result.token, result.user);
         setCredentials({ email: '', password: '' });
-        setTwoFactorCode('');
-        setTwoFactorRequired(false);
+        setTotpCode('');
+        setSetupRequired(false);
+        Alert.alert('Success', 'Google Authenticator enabled successfully');
         navigation.replace('AdminDashboard');
       } else {
         Alert.alert('Verification Failed', result.error || 'Invalid code');
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to verify code. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend2FA = async () => {
-    if (remainingSeconds > 0) {
-      Alert.alert('Please Wait', `Wait ${remainingSeconds} seconds before requesting a new code.`);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('https://chammyflorals.vercel.app/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: credentials.email.trim(),
-          password: credentials.password.trim(),
-        }),
-      });
-
-      const result = await response.json();
-      if (response.ok && result.twoFactorRequired) {
-        setRemainingSeconds(result.remainingSeconds || 60);
-        Alert.alert('Code Resent', result.message || 'A new code was sent to your Messenger.');
-      } else {
-        Alert.alert('Error', result.error || 'Failed to resend code');
-      }
-    } catch (error: any) {
-      Alert.alert('Error', 'Failed to resend code. Please try again.');
+      Alert.alert('Error', 'Failed to enable Google Authenticator');
     } finally {
       setLoading(false);
     }
@@ -180,7 +153,75 @@ export default function AdminLoginScreen({ navigation }: any) {
           <Text style={styles.brandTitle}>Chammy Florals</Text>
         </View>
 
-        {!twoFactorRequired ? (
+        {setupRequired ? (
+          <View style={styles.setupContainer}>
+            <Text style={styles.setupTitle}>Setup Google Authenticator</Text>
+            <Text style={styles.setupText}>1. Download Google Authenticator app</Text>
+            <Text style={styles.setupText}>2. Scan this QR code or enter secret manually</Text>
+            
+            {qrCodeUrl && (
+              <View style={styles.qrContainer}>
+                <Text style={styles.secretLabel}>QR Code:</Text>
+                <Text style={styles.secretText}>(Display QR in web version)</Text>
+                <Text style={styles.secretLabel}>Or enter manually:</Text>
+                <Text style={styles.secretText}>{totpSecret}</Text>
+              </View>
+            )}
+
+            <Text style={styles.label}>Enter code from app:</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="6-digit code"
+              placeholderTextColor="#999"
+              value={totpCode}
+              onChangeText={setTotpCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              editable={!loading}
+            />
+
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleEnableTOTP}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Enable Authenticator</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : requiresTOTP ? (
+          <View style={styles.formContainer}>
+            <Text style={styles.totpMessage}>Enter your Google Authenticator code</Text>
+
+            <Text style={styles.label}>Authenticator Code</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="6-digit code"
+              placeholderTextColor="#999"
+              value={totpCode}
+              onChangeText={setTotpCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              editable={!loading}
+              autoFocus
+            />
+
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Verify</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
           <View style={styles.formContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -214,7 +255,7 @@ export default function AdminLoginScreen({ navigation }: any) {
 
             <View style={styles.buttonRow}>
               <TouchableOpacity onPress={() => navigation.goBack()} disabled={loading}>
-                <Text style={styles.backLink}>← Back to site</Text>
+                <Text style={styles.backLink}>← Back</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.loginButton, loading && styles.loginButtonDisabled]}
@@ -228,51 +269,6 @@ export default function AdminLoginScreen({ navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        ) : (
-          <View style={styles.twoFactorContainer}>
-            <Text style={styles.twoFactorMessage}>
-              A 6-digit code was sent to your Messenger. Enter it below to complete login.
-            </Text>
-
-            <Text style={styles.label}>2FA Code</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="6-digit code"
-              placeholderTextColor="#999"
-              value={twoFactorCode}
-              onChangeText={setTwoFactorCode}
-              keyboardType="number-pad"
-              maxLength={6}
-              editable={!loading}
-            />
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={[styles.secondaryButton, (loading || remainingSeconds > 0) && styles.loginButtonDisabled]}
-                onPress={handleResend2FA}
-                disabled={loading || remainingSeconds > 0}
-              >
-                <Text style={styles.secondaryButtonText}>Resend</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.loginButton, loading && styles.loginButtonDisabled]}
-                onPress={handleVerify2FA}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.loginButtonText}>Verify & Login</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {remainingSeconds > 0 && (
-              <Text style={styles.countdownText}>
-                Please wait {remainingSeconds} second{remainingSeconds !== 1 ? 's' : ''} before requesting a new code.
-              </Text>
-            )}
           </View>
         )}
       </View>
@@ -364,34 +360,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  twoFactorContainer: {
+  setupContainer: {
     width: '100%',
   },
-  twoFactorMessage: {
+  setupTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  setupText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  qrContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  secretLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  secretText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'monospace',
+    marginBottom: 8,
+  },
+  totpMessage: {
     fontSize: 14,
     color: '#666',
     marginBottom: 20,
-    lineHeight: 20,
-  },
-  secondaryButton: {
-    backgroundColor: '#f8f8f8',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  countdownText: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 10,
-    textAlign: 'center',
   },
 });

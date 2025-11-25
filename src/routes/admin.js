@@ -13,12 +13,9 @@ const messenger = require('../lib/messenger');
 const { setSession } = require('../lib/sessionStore');
 const path = require('path');
 const crypto = require('crypto');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state.json');
-
-// In-memory two-factor store: { email => { code, expires, token } }
-// NOTE: This is a simple in-memory store. In a multi-instance deployment you should
-// persist codes in a shared store (DB, Redis) to avoid losing codes between instances.
-const twofaStore = new Map();
 
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
 
@@ -93,7 +90,7 @@ const loginLimiter = rateLimit({
 
 router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, totp } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -112,10 +109,18 @@ router.post('/login', loginLimiter, async (req, res) => {
     // Validate credentials against admins table (preferred) or fall back to
     // environment variables for legacy single-admin setups.
     const normEmail = String(email).trim().toLowerCase();
-    let psid = null;
+    let totpSecret = null;
+    let adminId = null;
     let token = null;
+    
     try {
-      const { data: adminRow, error: adminErr } = await supabase.from('admins').select('id,email,password_hash,psid,status').eq('email', normEmail).limit(1).single();
+      const { data: adminRow, error: adminErr } = await supabase
+        .from('admins')
+        .select('id,email,password_hash,totp_secret,totp_enabled,status')
+        .eq('email', normEmail)
+        .limit(1)
+        .single();
+      
       if (!adminErr && adminRow && adminRow.email) {
         // Admin row exists in DB; verify password_hash using scrypt
         const ph = adminRow.password_hash || '';
@@ -135,153 +140,176 @@ router.post('/login', loginLimiter, async (req, res) => {
           console.log('Login failed for admin (db):', { email });
           return res.status(401).json({ error: 'Invalid email or password' });
         }
-        // password ok — use PSID from DB
-        psid = adminRow.psid || null;
+        
+        // Password OK
+        adminId = adminRow.id;
+        totpSecret = adminRow.totp_secret;
+        const totpEnabled = adminRow.totp_enabled;
+        
+        // Check if TOTP is required
+        if (totpEnabled && totpSecret) {
+          // TOTP is enabled, verify code
+          if (!totp) {
+            return res.status(200).json({ 
+              requiresTOTP: true,
+              message: 'Please enter your Google Authenticator code'
+            });
+          }
+          
+          // Verify TOTP code
+          const verified = speakeasy.totp.verify({
+            secret: totpSecret,
+            encoding: 'base32',
+            token: totp,
+            window: 2 // Allow 2 steps before/after for clock skew
+          });
+          
+          if (!verified) {
+            return res.status(401).json({ error: 'Invalid authenticator code' });
+          }
+        } else if (!totpEnabled || !totpSecret) {
+          // TOTP not setup yet - generate secret and return QR code
+          const secret = speakeasy.generateSecret({
+            name: `Chammy Florals (${normEmail})`,
+            issuer: 'Chammy Florals'
+          });
+          
+          // Save secret to database
+          await supabase
+            .from('admins')
+            .update({ totp_secret: secret.base32, totp_enabled: false })
+            .eq('id', adminId);
+          
+          // Generate QR code
+          const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
+          
+          return res.status(200).json({
+            setupRequired: true,
+            secret: secret.base32,
+            qrCode: qrCodeUrl,
+            message: 'Scan this QR code with Google Authenticator'
+          });
+        }
+        
+        // Generate session token
         token = Buffer.from(`${normEmail}:${password}`).toString('base64');
       } else {
         // No admin row found — fall back to legacy env var check
+        console.log('No admin row in DB, checking env vars for:', normEmail);
         if (!safeEqual(normEmail, process.env.ADMIN_EMAIL) || !safeEqual(password, process.env.ADMIN_PASSWORD)) {
           console.log('Login failed (env fallback) for:', { email });
           return res.status(401).json({ error: 'Invalid email or password' });
         }
+        // Env login successful - but no TOTP for env-only admins
         token = Buffer.from(`${normEmail}:${password}`).toString('base64');
-        try {
-          const { data: adminRow2 } = await supabase.from('admins').select('psid').eq('email', normEmail).limit(1).single();
-          if (adminRow2 && adminRow2.psid) psid = String(adminRow2.psid);
-        } catch (dbErr) {
-          console.warn('Failed to lookup admin PSID (env fallback):', dbErr && dbErr.message ? dbErr.message : dbErr);
-        }
       }
     } catch (dbErr) {
       console.warn('Failed to lookup admin in DB:', dbErr && dbErr.message ? dbErr.message : dbErr);
       // As a last resort allow env check
+      console.log('DB error, checking env vars for:', normEmail);
       if (!safeEqual(normEmail, process.env.ADMIN_EMAIL) || !safeEqual(password, process.env.ADMIN_PASSWORD)) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
       token = Buffer.from(`${normEmail}:${password}`).toString('base64');
     }
 
-    if (!psid) {
-      console.warn('No PSID found for admin to send 2FA code');
-      return res.status(500).json({ error: 'Unable to send 2FA code' });
-    }
-
-    // Check for existing unexpired 2FA code in DB (to avoid re-sending while user is typing)
-    try {
-      const { data: existingRow } = await supabase.from('admins').select('twofa_code,twofa_expires').eq('email', normEmail).limit(1).single();
-      if (existingRow && existingRow.twofa_code && existingRow.twofa_expires) {
-        const existingExpires = new Date(existingRow.twofa_expires).getTime();
-        if (Date.now() < existingExpires) {
-          const remaining = Math.ceil((existingExpires - Date.now()) / 1000);
-          // Ensure we also keep an in-memory fallback so client can verify timing
-          const mem = twofaStore.get(normEmail);
-          if (!mem || mem.expires < Date.now()) {
-            const expires = Date.now() + remaining * 1000;
-            twofaStore.set(normEmail, { code: String(existingRow.twofa_code), expires });
-            setTimeout(() => { if (twofaStore.has(normEmail)) twofaStore.delete(normEmail); }, Math.min(2 * 60 * 1000, remaining * 1000 + 1000));
-          }
-          return res.json({ twoFactorRequired: true, message: `A code has already been sent. Please wait ${remaining} seconds before requesting a new code.`, remainingSeconds: remaining });
-        }
-      }
-    } catch (chkErr) {
-      // if DB read fails, fall through and rely on in-memory check below
-      console.warn('Failed to check existing 2FA row (proceeding):', chkErr && chkErr.message ? chkErr.message : chkErr);
-    }
-
-    // Also check in-memory store to avoid duplicate sends in this process
-    const existingMem = twofaStore.get(normEmail);
-    if (existingMem && existingMem.expires && Date.now() < existingMem.expires) {
-      const remaining = Math.ceil((existingMem.expires - Date.now()) / 1000);
-      return res.json({ twoFactorRequired: true, message: `A code has already been sent. Please wait ${remaining} seconds before requesting a new code.`, remainingSeconds: remaining });
-    }
-
-  // SECURITY FIX: Generate cryptographically secure 6-digit code
-  const randomNum = crypto.randomInt(100000, 1000000); // crypto.randomInt is cryptographically secure
-  const code = String(randomNum);
-  const expiresAt = new Date(Date.now() + (1 * 60 * 1000)).toISOString(); // 1 minute
-
-    // Try to persist code to DB for reliability across instances (do not store session token yet)
-    let persistedToDb = false;
-    let dbPersistError = null;
-    try {
-      // Try to update the admin row with the two-factor code
-      const { data: found, error: updErr } = await supabase.from('admins').update({ twofa_code: code, twofa_expires: expiresAt, twofa_token: null }).eq('email', normEmail).select('id').limit(1);
-      if (updErr) {
-        dbPersistError = updErr && updErr.message ? updErr.message : String(updErr);
-        console.warn('Supabase update error when persisting 2FA:', dbPersistError);
-        persistedToDb = false;
-      } else if (found && ((Array.isArray(found) && found.length > 0) || (found.id || found[0] || found.length === 1))) {
-        // update returned at least one row
-        persistedToDb = true;
-      } else {
-        // no rows returned — likely no matching admin row or insufficient permissions
-        persistedToDb = false;
-        dbPersistError = 'No rows updated (no matching admin row or insufficient permissions)';
-      }
-    } catch (dbUpdErr) {
-      dbPersistError = dbUpdErr && dbUpdErr.message ? dbUpdErr.message : String(dbUpdErr);
-      console.warn('Failed to persist 2FA code to DB (falling back to mem):', dbPersistError);
-      persistedToDb = false;
-    }
-
-  // Always set in-memory as fallback/redundancy (use normalized email as key)
-  const expires = Date.now() + (1 * 60 * 1000);
-  twofaStore.set(normEmail, { code, expires });
-  // schedule cleanup
-  setTimeout(() => { if (twofaStore.has(normEmail)) twofaStore.delete(normEmail); }, 2 * 60 * 1000);
-
-    // Send 2FA via Messenger AND Email concurrently; succeed if at least one works
-    const mailer = require('../lib/mailer');
-    const messengerPromise = (async () => {
-      try {
-        // Use tagged send to allow out-of-window delivery for account updates (Facebook policy compliant)
-        const sendResp = await messenger.sendTwoFactor(psid, code);
-        // If explicit tagged send fails, fall back to generic send (which may succeed if window open)
-        if (!sendResp.ok) {
-          const fallback = await messenger.sendToPsid(psid, `Your login code is: ${code}\nIt will expire in 1 minute.`);
-          return fallback.ok ? { ok: true, channel: 'messenger', tagged: false } : { ok: false, channel: 'messenger', result: { tagged: sendResp, fallback } };
-        }
-        return { ok: true, channel: 'messenger', tagged: true };
-      } catch (err) {
-        return { ok: false, channel: 'messenger', error: err };
-      }
-    })();
-    const emailPromise = (async () => {
-      try {
-        await mailer.sendMail({
-          to: normEmail,
-          subject: 'Your Chammy Florals 2FA Code',
-          html: `<p>Your login code is: <strong>${code}</strong></p><p>It will expire in 1 minute.</p>`,
-          text: `Your login code is: ${code}\nIt will expire in 1 minute.`,
-        });
-        return { ok: true, channel: 'email' };
-      } catch (err) {
-        return { ok: false, channel: 'email', error: err };
-      }
-    })();
-    const settled = await Promise.allSettled([messengerPromise, emailPromise]);
-    const results = settled.map(s => s.status === 'fulfilled' ? s.value : { ok: false, error: s.reason });
-    const successChannels = results.filter(r => r.ok).map(r => r.channel);
-    if (!successChannels.length) {
-      console.error('2FA failed on both channels', results);
-      if (persistedToDb) {
-        try { await supabase.from('admins').update({ twofa_code: null, twofa_expires: null, twofa_token: null }).eq('email', normEmail); } catch (e) {}
-      }
-      return res.status(500).json({ error: 'Failed to send 2FA on messenger and email' });
-    }
-    const remainingSeconds = Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
-    const resp = { twoFactorRequired: true, message: `2FA code sent via: ${successChannels.join(', ')}`, channels: successChannels, remainingSeconds, persistedToDb };
-    if (process.env.DEBUG) resp.details = results;
-    if (process.env.DEBUG && dbPersistError) resp.dbError = dbPersistError;
-    return res.json(resp);
+    // Success - return token
+    res.json({
+      token,
+      user: { email: normEmail, role: 'admin' }
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Failed to process login' });
   }
 });
 
-// Verify 2FA code and issue token
+// Setup TOTP - Enable TOTP after scanning QR code
+router.post('/login/enable-totp', loginLimiter, async (req, res) => {
+  try {
+    const { email, password, totp } = req.body;
+    if (!email || !password || !totp) {
+      return res.status(400).json({ error: 'Email, password, and TOTP code are required' });
+    }
+
+    const normEmail = String(email).trim().toLowerCase();
+    
+    // Verify password first
+    const { data: adminRow, error: adminErr } = await supabase
+      .from('admins')
+      .select('id,email,password_hash,totp_secret,totp_enabled')
+      .eq('email', normEmail)
+      .limit(1)
+      .single();
+    
+    if (adminErr || !adminRow) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const ph = adminRow.password_hash || '';
+    const parts = String(ph).split('$');
+    if (parts.length !== 2) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    const salt = parts[0];
+    const stored = parts[1];
+    const derived = crypto.scryptSync(String(password), String(salt), 64).toString('hex');
+    
+    const safeEqual = (a, b) => {
+      try {
+        const aa = Buffer.from(String(a));
+        const bb = Buffer.from(String(b));
+        if (aa.length !== bb.length) return false;
+        return crypto.timingSafeEqual(aa, bb);
+      } catch (err) {
+        return false;
+      }
+    };
+    
+    if (!safeEqual(derived, stored)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Verify TOTP code
+    const verified = speakeasy.totp.verify({
+      secret: adminRow.totp_secret,
+      encoding: 'base32',
+      token: totp,
+      window: 2
+    });
+
+    if (!verified) {
+      return res.status(401).json({ error: 'Invalid authenticator code' });
+    }
+
+    // Enable TOTP
+    await supabase
+      .from('admins')
+      .update({ totp_enabled: true })
+      .eq('id', adminRow.id);
+
+    const token = Buffer.from(`${normEmail}:${password}`).toString('base64');
+    
+    res.json({
+      success: true,
+      token,
+      user: { email: normEmail, role: 'admin' },
+      message: 'Google Authenticator enabled successfully'
+    });
+  } catch (error) {
+    console.error('Enable TOTP error:', error);
+    res.status(500).json({ error: 'Failed to enable TOTP' });
+  }
+});
+
+// Verify 2FA code and issue token (kept for backwards compatibility, but now unused)
 router.post('/login/verify', loginLimiter, async (req, res) => {
+  res.status(404).json({ error: 'This endpoint is deprecated. Use Google Authenticator instead.' });
+});
+
+// Old verify endpoint - remove after migration
+router.post('/login/verify-old', loginLimiter, async (req, res) => {
   try {
   const { email, code } = req.body || {};
   if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
