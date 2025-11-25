@@ -6,9 +6,13 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.warn('Supabase: SUPABASE_URL or SUPABASE_KEY (or SUPABASE_SERVICE_ROLE_KEY) is not set. Some operations may fail.');
+  console.error('CRITICAL: Supabase configuration missing!');
+  console.error('SUPABASE_URL:', SUPABASE_URL ? 'SET' : 'MISSING');
+  console.error('SUPABASE_KEY:', SUPABASE_KEY ? 'SET' : 'MISSING');
+  throw new Error('Supabase configuration is required. Please set SUPABASE_URL and SUPABASE_KEY environment variables.');
 }
 
+console.log('Supabase initialized successfully');
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 module.exports = supabase;

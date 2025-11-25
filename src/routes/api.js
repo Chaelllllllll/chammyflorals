@@ -743,18 +743,22 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
 // Cache for 10 minutes to reduce database load
 router.get('/products', cacheMiddleware(600), async (req, res) => {
   try {
+    console.log('Fetching products from Supabase...');
     const { data, error } = await supabase
       .from('products')
       .select('id,name,image_url,category,pricing,addons,colors')
       .order('id', { ascending: true });
+    
     if (error) {
-      console.error('Error fetching public products:', error);
-      return res.status(500).json({ error: 'Failed to fetch products' });
+      console.error('Supabase error fetching products:', error);
+      return res.status(500).json({ error: 'Failed to fetch products', details: error.message });
     }
+    
+    console.log(`Products fetched successfully: ${data?.length || 0} items`);
     res.json(data || []);
   } catch (err) {
     console.error('Unexpected error fetching products:', err);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: 'Failed to fetch products', details: err.message });
   }
 });
 
@@ -780,19 +784,23 @@ router.get('/categories', cacheMiddleware(600), async (req, res) => {
 // Cache for 5 minutes (reviews change less frequently)
 router.get('/reviews', cacheMiddleware(300), async (req, res) => {
   try {
+    console.log('Fetching reviews from Supabase...');
     const { data, error } = await supabase
       .from('reviews')
       .select('id,order_id,name,stars,message,image_url,created_at')
       .order('created_at', { ascending: false })
       .limit(100);
+    
     if (error) {
-      console.error('Error fetching reviews:', error);
-      return res.status(500).json({ error: 'Failed to fetch reviews' });
+      console.error('Supabase error fetching reviews:', error);
+      return res.status(500).json({ error: 'Failed to fetch reviews', details: error.message });
     }
+    
+    console.log(`Reviews fetched successfully: ${data?.length || 0} items`);
     res.json(data || []);
   } catch (err) {
     console.error('Unexpected error fetching reviews:', err);
-    res.status(500).json({ error: 'Failed to fetch reviews' });
+    res.status(500).json({ error: 'Failed to fetch reviews', details: err.message });
   }
 });
 
