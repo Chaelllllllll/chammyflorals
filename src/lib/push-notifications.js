@@ -1,4 +1,5 @@
-const fetch = require('node-fetch');
+// Node.js 18+ has built-in fetch, no need for node-fetch
+// If running on older Node versions, uncomment: const fetch = require('node-fetch');
 
 /**
  * Send push notification via Expo Push Service
