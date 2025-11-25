@@ -175,6 +175,7 @@ export default function ReviewsScreen() {
           <TextInput
             style={styles.input}
             placeholder="Order ID (e.g., A5DW7DW)"
+            placeholderTextColor="#999"
             value={formData.order_id}
             onChangeText={(text) =>
               setFormData({ ...formData, order_id: text })
@@ -187,6 +188,7 @@ export default function ReviewsScreen() {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Share your experience..."
+            placeholderTextColor="#999"
             value={formData.message}
             onChangeText={(text) => setFormData({ ...formData, message: text })}
             multiline

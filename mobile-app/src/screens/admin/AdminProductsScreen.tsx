@@ -13,17 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ApiService from '../../services/api';
-
-interface Product {
-  id: number;
-  name: string;
-  category: string;
-  image_url?: string;
-  pricing: any[];
-  addons?: string[];
-  colors?: any[];
-}
+import ApiService, { Product } from '../../services/api';
 
 export default function AdminProductsScreen({ navigation }: any) {
   const [products, setProducts] = useState<Product[]>([]);

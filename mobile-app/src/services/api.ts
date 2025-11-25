@@ -28,18 +28,24 @@ export interface Order {
   id: number;
   order_id?: string;
   customer_name: string;
+  name?: string; // Alias for customer_name
   customer_email?: string;
+  email?: string; // Alias for customer_email
   customer_phone?: string;
+  phone?: string; // Alias for customer_phone
   flower_type: string;
   quantity: number;
   price: number;
   total_price?: number;
+  total_fee?: number; // Alias for price/total_price
   delivery_date?: string;
   delivery_address?: string;
   message?: string;
   status: string;
   created_at: string;
   items?: any[];
+  rush?: string;
+  addons?: string[];
 }
 
 export interface Review {
@@ -175,8 +181,8 @@ class ApiService {
     }
   }
 
-  async updateOrderStatus(orderId: number, status: string): Promise<Order> {
-    const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
+  async updateOrderStatus(orderId: string | number, status: string): Promise<Order> {
+    const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
       method: 'PATCH',
       headers: this.getHeaders(true),
       body: JSON.stringify({ status }),
@@ -285,6 +291,62 @@ class ApiService {
       headers: this.getHeaders(true),
     });
     if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+    return response.json();
+  }
+
+  // Admin Orders
+  async getAdminOrders(): Promise<Order[]> {
+    return this.getOrders();
+  }
+
+  // Admin Products
+  async getAdminProducts(): Promise<Product[]> {
+    return this.getProducts();
+  }
+
+  async createProduct(productData: any): Promise<Product> {
+    const response = await fetch(`${API_URL}/api/admin/products`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(productData),
+    });
+    if (!response.ok) throw new Error('Failed to create product');
+    return response.json();
+  }
+
+  async updateProduct(id: number, productData: any): Promise<Product> {
+    const response = await fetch(`${API_URL}/api/admin/products/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(productData),
+    });
+    if (!response.ok) throw new Error('Failed to update product');
+    return response.json();
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    const response = await fetch(`${API_URL}/api/admin/products/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) throw new Error('Failed to delete product');
+  }
+
+  // Admin Reviews
+  async deleteReview(id: number): Promise<void> {
+    const response = await fetch(`${API_URL}/api/admin/reviews/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) throw new Error('Failed to delete review');
+  }
+
+  // Admin Reports
+  async getAdminReports(period: 'daily' | 'weekly' | 'monthly'): Promise<any[]> {
+    const response = await fetch(`${API_URL}/api/admin/reports?period=${period}`, {
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) throw new Error('Failed to fetch reports');
     return response.json();
   }
 }

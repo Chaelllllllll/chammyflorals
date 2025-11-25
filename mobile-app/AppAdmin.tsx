@@ -28,6 +28,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -72,8 +74,8 @@ async function registerForPushNotificationsAsync() {
 }
 
 export default function AppAdmin() {
-  const notificationListener = React.useRef<any>();
-  const responseListener = React.useRef<any>();
+  const notificationListener = React.useRef<any>(null);
+  const responseListener = React.useRef<any>(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
@@ -115,10 +117,10 @@ export default function AppAdmin() {
     // Cleanup listeners
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);

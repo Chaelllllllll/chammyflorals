@@ -136,6 +136,7 @@ export default function ProductsScreen({ navigation }: any) {
         <TextInput
           style={styles.searchInput}
           placeholder="Search flowers..."
+          placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />

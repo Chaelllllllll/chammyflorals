@@ -9,20 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ApiService from '../../services/api';
-
-interface Order {
-  id: number;
-  order_id: string;
-  name: string;
-  email: string;
-  flower_type: string;
-  quantity: number;
-  total_fee: number;
-  status: string;
-  created_at: string;
-  rush?: string;
-}
+import ApiService, { Order } from '../../services/api';
 
 export default function AdminToDeliverScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -78,12 +65,12 @@ export default function AdminToDeliverScreen({ navigation }: any) {
       <Text style={styles.customerName}>{item.name}</Text>
       <Text style={styles.orderDetails}>{item.flower_type}</Text>
       <Text style={styles.orderDetails}>Qty: {item.quantity}</Text>
-      <Text style={styles.orderTotal}>₱{item.total_fee.toFixed(2)}</Text>
+      <Text style={styles.orderTotal}>₱{(item.total_fee || 0).toFixed(2)}</Text>
 
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.actionBtn, styles.deliveredBtn]}
-          onPress={() => handleStatusChange(item.order_id, 'Delivered')}
+          onPress={() => item.order_id && handleStatusChange(item.order_id, 'Delivered')}
         >
           <Ionicons name="checkmark-circle" size={20} color="#fff" />
           <Text style={styles.actionBtnText}>Mark Delivered</Text>

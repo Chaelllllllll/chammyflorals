@@ -246,6 +246,7 @@ export default function InquiryScreen({ route, navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="Enter your name"
+            placeholderTextColor="#999"
             value={formData.user_name}
             onChangeText={(text) => setFormData({ ...formData, user_name: text })}
           />
@@ -254,6 +255,7 @@ export default function InquiryScreen({ route, navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="your@email.com"
+            placeholderTextColor="#999"
             keyboardType="email-address"
             autoCapitalize="none"
             value={formData.user_email}
@@ -264,6 +266,7 @@ export default function InquiryScreen({ route, navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="https://facebook.com/yourprofile"
+            placeholderTextColor="#999"
             autoCapitalize="none"
             value={formData.fb_link}
             onChangeText={(text) => setFormData({ ...formData, fb_link: text })}
@@ -351,6 +354,7 @@ export default function InquiryScreen({ route, navigation }: any) {
               <TextInput
                 style={styles.input}
                 placeholder="1"
+                placeholderTextColor="#999"
                 keyboardType="numeric"
                 value={item.quantity.toString()}
                 onChangeText={(text) => updateItem(index, 'quantity', parseInt(text) || 1)}
@@ -431,6 +435,7 @@ export default function InquiryScreen({ route, navigation }: any) {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Add any special requests or messages for your order..."
+            placeholderTextColor="#999"
             multiline
             numberOfLines={4}
             textAlignVertical="top"

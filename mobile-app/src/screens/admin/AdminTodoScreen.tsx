@@ -9,20 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ApiService from '../../services/api';
-
-interface Order {
-  id: number;
-  order_id: string;
-  name: string;
-  email: string;
-  flower_type: string;
-  quantity: number;
-  total_fee: number;
-  status: string;
-  created_at: string;
-  rush?: string;
-}
+import ApiService, { Order } from '../../services/api';
 
 export default function AdminTodoScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -78,19 +65,19 @@ export default function AdminTodoScreen({ navigation }: any) {
       <Text style={styles.customerName}>{item.name}</Text>
       <Text style={styles.orderDetails}>{item.flower_type}</Text>
       <Text style={styles.orderDetails}>Qty: {item.quantity}</Text>
-      <Text style={styles.orderTotal}>₱{item.total_fee.toFixed(2)}</Text>
+      <Text style={styles.orderTotal}>₱{(item.total_fee || 0).toFixed(2)}</Text>
 
       <View style={styles.actions}>
         <TouchableOpacity
           style={[styles.actionBtn, styles.deliverBtn]}
-          onPress={() => handleStatusChange(item.order_id, 'To Deliver')}
+          onPress={() => item.order_id && handleStatusChange(item.order_id, 'To Deliver')}
         >
           <Ionicons name="car" size={20} color="#fff" />
           <Text style={styles.actionBtnText}>To Deliver</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.cancelBtn]}
-          onPress={() => handleStatusChange(item.order_id, 'Cancelled')}
+          onPress={() => item.order_id && handleStatusChange(item.order_id, 'Cancelled')}
         >
           <Ionicons name="close-circle" size={20} color="#fff" />
           <Text style={styles.actionBtnText}>Cancel</Text>

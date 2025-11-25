@@ -7,7 +7,7 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
@@ -49,6 +49,8 @@ function MainTabs() {
             iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Track') {
             iconName = focused ? 'location' : 'location-outline';
+          } else if (route.name === 'Account') {
+            iconName = focused ? 'person' : 'person-outline';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -65,6 +67,7 @@ function MainTabs() {
       <Tab.Screen name="Products" component={ProductsScreen} />
       <Tab.Screen name="Reviews" component={ReviewsScreen} />
       <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
+      <Tab.Screen name="Account" component={AdminLoginScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );
 }
@@ -75,6 +78,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -122,8 +127,8 @@ async function registerForPushNotificationsAsync() {
 }
 
 export default function App() {
-  const notificationListener = React.useRef<any>();
-  const responseListener = React.useRef<any>();
+  const notificationListener = React.useRef<any>(null);
+  const responseListener = React.useRef<any>(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
@@ -170,10 +175,10 @@ export default function App() {
     // Cleanup listeners
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
@@ -181,6 +186,7 @@ export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff6f9" />
         <NavigationContainer>
           <Stack.Navigator
             screenOptions={{
@@ -188,6 +194,7 @@ export default function App() {
                 backgroundColor: '#fff6f9',
               },
               headerTintColor: '#333',
+              contentStyle: { backgroundColor: '#fff' },
             }}
           >
             <Stack.Screen 

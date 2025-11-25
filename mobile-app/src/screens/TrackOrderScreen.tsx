@@ -82,6 +82,7 @@ export default function TrackOrderScreen() {
           <TextInput
             style={styles.input}
             placeholder="Enter Order ID"
+            placeholderTextColor="#999"
             value={orderId}
             onChangeText={setOrderId}
             autoCapitalize="none"

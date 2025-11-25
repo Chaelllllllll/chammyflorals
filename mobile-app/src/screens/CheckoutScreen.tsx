@@ -76,6 +76,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Full Name *"
+          placeholderTextColor="#999"
           value={formData.customer_name}
           onChangeText={(text) => setFormData({ ...formData, customer_name: text })}
         />
@@ -83,6 +84,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Email Address"
+          placeholderTextColor="#999"
           value={formData.customer_email}
           onChangeText={(text) => setFormData({ ...formData, customer_email: text })}
           keyboardType="email-address"
@@ -92,6 +94,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Phone Number *"
+          placeholderTextColor="#999"
           value={formData.customer_phone}
           onChangeText={(text) => setFormData({ ...formData, customer_phone: text })}
           keyboardType="phone-pad"
@@ -100,6 +103,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Delivery Address"
+          placeholderTextColor="#999"
           value={formData.delivery_address}
           onChangeText={(text) => setFormData({ ...formData, delivery_address: text })}
           multiline
@@ -109,6 +113,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Preferred Delivery Date (e.g., Dec 25, 2025)"
+          placeholderTextColor="#999"
           value={formData.delivery_date}
           onChangeText={(text) => setFormData({ ...formData, delivery_date: text })}
         />
@@ -116,6 +121,7 @@ export default function CheckoutScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder="Special Message or Instructions"
+          placeholderTextColor="#999"
           value={formData.message}
           onChangeText={(text) => setFormData({ ...formData, message: text })}
           multiline

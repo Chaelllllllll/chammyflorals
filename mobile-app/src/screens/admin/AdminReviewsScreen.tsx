@@ -14,7 +14,7 @@ import ApiService from '../../services/api';
 
 interface Review {
   id: number;
-  order_id: string;
+  order_id?: string;
   name: string;
   stars: number;
   message: string;
