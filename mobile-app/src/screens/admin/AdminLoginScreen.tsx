@@ -31,6 +31,23 @@ export default function AdminLoginScreen({ navigation }: any) {
 
   useEffect(() => {
     // Component mounted
+    console.log('AdminLoginScreen mounted');
+    
+    // Add global error handler
+    const errorHandler = (error: Error, isFatal?: boolean) => {
+      console.error('Uncaught error in AdminLoginScreen:', error);
+      Sentry.captureException(error, {
+        tags: { 
+          screen: 'AdminLoginScreen', 
+          isFatal: isFatal || false,
+          action: 'uncaughtError'
+        }
+      });
+    };
+    
+    return () => {
+      console.log('AdminLoginScreen unmounted');
+    };
   }, []);
 
   const validateInput = () => {
@@ -89,27 +106,51 @@ export default function AdminLoginScreen({ navigation }: any) {
 
         // Normal login without TOTP or successful TOTP verification
         if (result.token) {
-          await login(result.token, result.user);
+          console.log('Login successful, token received');
+          console.log('User data:', result.user);
+          
+          try {
+            await login(result.token, result.user);
+            console.log('Auth context updated successfully');
+          } catch (loginError: any) {
+            console.error('Failed to save auth state:', loginError);
+            Alert.alert('Error', 'Failed to save login state. Please try again.');
+            return;
+          }
+          
           setCredentials({ email: '', password: '' });
           setTotpCode('');
           
-          Alert.alert('Success', 'Logged in successfully!', [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.goBack();
-              },
-            },
-          ]);
+          console.log('Attempting to navigate to AdminDashboard');
+          
+          try {
+            // Try to navigate to AdminDashboard
+            navigation.replace('AdminDashboard');
+          } catch (navError: any) {
+            console.error('Navigation error:', navError);
+            // Fallback: try regular navigate or goBack
+            try {
+              navigation.navigate('AdminDashboard');
+            } catch {
+              Alert.alert('Success', 'Logged in successfully! Please go to Account tab to access admin panel.');
+              navigation.goBack();
+            }
+          }
           return;
         }
       }
 
       Alert.alert('Login Failed', result.error || 'Invalid credentials');
     } catch (error: any) {
+      console.error('Login error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       Sentry.captureException(error, {
         tags: { screen: 'AdminLoginScreen', action: 'login' },
-        extra: { email: credentials.email }
+        extra: { email: credentials.email, errorType: error.name }
       });
       Alert.alert('Error', error.message || 'Login failed. Please try again.');
     } finally {
@@ -118,6 +159,8 @@ export default function AdminLoginScreen({ navigation }: any) {
   };
 
   const handleEnableTOTP = async () => {
+    console.log('=== TOTP Enable Started ===');
+    
     if (!totpCode || !/^[0-9]{6}$/.test(totpCode)) {
       Alert.alert('Error', 'Please enter the 6-digit code from Google Authenticator');
       return;
@@ -125,6 +168,7 @@ export default function AdminLoginScreen({ navigation }: any) {
 
     setLoading(true);
     try {
+      console.log('Sending TOTP enable request...');
       
       const response = await fetch('https://chammyflorals.vercel.app/api/admin/login/enable-totp', {
         method: 'POST',
@@ -136,32 +180,76 @@ export default function AdminLoginScreen({ navigation }: any) {
         }),
       });
 
+      console.log('TOTP response status:', response.status);
       const result = await response.json();
+      console.log('TOTP response data:', result);
 
       if (response.ok && result.token) {
-        await login(result.token, result.user);
+        console.log('TOTP verification successful, token received');
+        console.log('User data:', result.user);
+        
+        try {
+          await login(result.token, result.user);
+          console.log('Auth context updated after TOTP');
+        } catch (loginError: any) {
+          console.error('Failed to save auth state after TOTP:', loginError);
+          Sentry.captureException(loginError, {
+            tags: { screen: 'AdminLoginScreen', action: 'enableTOTP-saveAuth' },
+            extra: { email: credentials.email }
+          });
+          Alert.alert('Error', 'Failed to save login state. Please try logging in again.');
+          setLoading(false);
+          return;
+        }
+        
         setCredentials({ email: '', password: '' });
         setTotpCode('');
         setSetupRequired(false);
         
-        Alert.alert('Success', 'Google Authenticator enabled successfully', [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.goBack();
-            },
-          },
-        ]);
+        console.log('Attempting to navigate to AdminDashboard from TOTP');
+        
+        try {
+          // Use setTimeout to ensure state updates are complete before navigation
+          setTimeout(() => {
+            try {
+              navigation.replace('AdminDashboard');
+              console.log('Navigation to AdminDashboard successful');
+            } catch (navError: any) {
+              console.error('Navigation.replace failed:', navError);
+              try {
+                navigation.navigate('AdminDashboard');
+                console.log('Navigation.navigate successful');
+              } catch (navError2: any) {
+                console.error('Navigation.navigate also failed:', navError2);
+                Alert.alert('Success', 'TOTP enabled! Please go to Account tab to access admin panel.');
+                navigation.goBack();
+              }
+            }
+          }, 100);
+        } catch (error: any) {
+          console.error('setTimeout error:', error);
+          Sentry.captureException(error, {
+            tags: { screen: 'AdminLoginScreen', action: 'enableTOTP-navigation' }
+          });
+        }
       } else {
+        console.log('TOTP verification failed:', result.error);
         Alert.alert('Verification Failed', result.error || 'Invalid code');
       }
     } catch (error: any) {
+      console.error('TOTP enable error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       Sentry.captureException(error, {
         tags: { screen: 'AdminLoginScreen', action: 'enableTOTP' },
-        extra: { email: credentials.email }
+        extra: { email: credentials.email, errorType: error.name }
       });
-      Alert.alert('Error', 'Failed to enable Google Authenticator');
+      Alert.alert('Error', 'Failed to enable Google Authenticator. Please try again.');
     } finally {
+      console.log('=== TOTP Enable Finished ===');
       setLoading(false);
     }
   };

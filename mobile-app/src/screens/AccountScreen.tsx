@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
+import Sentry from '../../sentry.config';
 
 export default function AccountScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
@@ -19,45 +20,65 @@ export default function AccountScreen({ navigation }: any) {
   const [userEmail, setUserEmail] = useState('');
 
   const authContext = useAuth();
+  const user = authContext?.user;
+  const isAuthenticated = authContext?.isAuthenticated;
 
   useEffect(() => {
+    console.log('AccountScreen mounted');
+    console.log('Auth state:', { isAuthenticated, userId: user?.id, userRole: user?.role });
+    
     try {
       if (authContext) {
-        const { user, isAuthenticated } = authContext;
         const adminStatus = isAuthenticated && user && user.role === 'admin';
         
+        console.log('Setting admin status:', adminStatus);
         setIsAdmin(adminStatus);
         setUserName(user?.name || '');
         setUserEmail(user?.email || '');
       }
     } catch (error: any) {
-      console.error('Auth context error:', error);
+      console.error('Auth context error in AccountScreen:', error);
+      Sentry.captureException(error, {
+        tags: { screen: 'AccountScreen', action: 'loadAuthState' }
+      });
     } finally {
       setLoading(false);
     }
-  }, [authContext]);
+  }, [user?.id, isAuthenticated, user?.role, user?.name, user?.email]);
 
   const handleLogout = () => {
+    console.log('Logout initiated');
     try {
       if (authContext?.logout) {
         authContext.logout();
         setIsAdmin(false);
+        console.log('Logout successful');
         Alert.alert('Success', 'Logged out successfully');
       }
     } catch (error: any) {
       console.error('Logout error:', error);
+      Sentry.captureException(error, {
+        tags: { screen: 'AccountScreen', action: 'logout' }
+      });
       Alert.alert('Error', 'Failed to logout');
     }
   };
 
   const navigateToScreen = (screenName: string) => {
+    console.log('Navigating to:', screenName);
     try {
       const parent = navigation.getParent();
       if (parent) {
         parent.navigate(screenName);
+        console.log('Navigation successful');
+      } else {
+        console.warn('Parent navigator not found');
       }
     } catch (error: any) {
       console.error('Navigation error:', error);
+      Sentry.captureException(error, {
+        tags: { screen: 'AccountScreen', action: 'navigate', targetScreen: screenName }
+      });
       Alert.alert('Error', 'Failed to navigate');
     }
   };
