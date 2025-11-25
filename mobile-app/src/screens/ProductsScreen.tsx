@@ -28,11 +28,18 @@ export default function ProductsScreen({ navigation }: any) {
 
   const loadProducts = async () => {
     try {
+      console.log('Loading products...');
       const data = await ApiService.getProducts();
-      setProducts(data);
-      setFilteredProducts(data);
+      console.log('Products loaded:', data?.length || 0);
+      if (!data || data.length === 0) {
+        console.warn('No products returned from API');
+      }
+      setProducts(data || []);
+      setFilteredProducts(data || []);
     } catch (error) {
       console.error('Failed to load products:', error);
+      setProducts([]);
+      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }

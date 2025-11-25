@@ -32,10 +32,16 @@ export default function ReviewsScreen() {
 
   const loadReviews = async () => {
     try {
+      console.log('Loading reviews...');
       const data = await ApiService.getReviews();
-      setReviews(data);
+      console.log('Reviews loaded:', data?.length || 0);
+      if (!data || data.length === 0) {
+        console.warn('No reviews returned from API');
+      }
+      setReviews(data || []);
     } catch (error) {
       console.error('Failed to load reviews:', error);
+      setReviews([]);
     } finally {
       setLoading(false);
     }

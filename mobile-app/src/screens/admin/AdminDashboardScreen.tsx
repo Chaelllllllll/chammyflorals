@@ -95,7 +95,10 @@ export default function AdminDashboardScreen({ navigation }: any) {
       <View style={styles.quickActionsContainer}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
 
-        <TouchableOpacity style={styles.actionCard}>
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminOrders')}
+        >
           <Ionicons name="list-outline" size={30} color="#ff6f9b" />
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Manage Orders</Text>

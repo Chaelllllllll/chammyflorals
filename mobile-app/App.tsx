@@ -11,6 +11,7 @@ import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
+import UpdateModal from './src/components/UpdateModal';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -39,8 +40,6 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Products') {
             iconName = focused ? 'flower' : 'flower-outline';
-          } else if (route.name === 'Orders') {
-            iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Reviews') {
             iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Track') {
@@ -59,7 +58,6 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Chammy Florals' }} />
       <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Orders" component={OrdersScreen} options={{ title: 'My Orders' }} />
       <Tab.Screen name="Reviews" component={ReviewsScreen} />
       <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
     </Tab.Navigator>
@@ -121,6 +119,7 @@ async function registerForPushNotificationsAsync() {
 export default function App() {
   const notificationListener = React.useRef<any>();
   const responseListener = React.useRef<any>();
+  const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
     // Register for push notifications
@@ -151,23 +150,8 @@ export default function App() {
 
           if (update.isAvailable) {
             await Updates.fetchUpdateAsync();
-            // Notify user about the update
-            Alert.alert(
-              'Update Available',
-              'A new version has been downloaded. Restart the app to apply the update.',
-              [
-                {
-                  text: 'Restart Now',
-                  onPress: async () => {
-                    await Updates.reloadAsync();
-                  },
-                },
-                {
-                  text: 'Later',
-                  style: 'cancel',
-                },
-              ]
-            );
+            // Show custom update modal
+            setUpdateAvailable(true);
           }
         }
       } catch (error) {
@@ -236,8 +220,21 @@ export default function App() {
               component={AdminDashboardScreen}
               options={{ title: 'Admin Dashboard' }}
             />
+            <Stack.Screen 
+              name="AdminOrders" 
+              component={OrdersScreen}
+              options={{ title: 'Manage Orders' }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
+
+        <UpdateModal
+          visible={updateAvailable}
+          onRestart={async () => {
+            await Updates.reloadAsync();
+          }}
+          onLater={() => setUpdateAvailable(false)}
+        />
       </CartProvider>
     </AuthProvider>
   );

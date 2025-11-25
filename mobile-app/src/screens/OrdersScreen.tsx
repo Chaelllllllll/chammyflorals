@@ -50,32 +50,20 @@ export default function OrdersScreen({ navigation }: any) {
 
   const loadOrders = async () => {
     try {
-      // Get user's phone number or email from AsyncStorage
-      const userPhone = await AsyncStorage.getItem('userPhone');
-      const userEmail = await AsyncStorage.getItem('userEmail');
-
-      if (!userPhone && !userEmail) {
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all orders and filter by user
+      console.log('Loading all orders for admin...');
+      // Fetch all orders for admin view
       const allOrders = await ApiService.getOrders();
-      const userOrders = allOrders.filter((order: any) => 
-        order.customer_phone === userPhone || 
-        order.customer_email === userEmail
-      );
+      console.log('Orders loaded:', allOrders?.length || 0);
 
       // Sort by created_at descending
-      userOrders.sort((a: any, b: any) => 
+      allOrders.sort((a: any, b: any) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      setOrders(userOrders);
+      setOrders(allOrders || []);
     } catch (error) {
       console.error('Failed to load orders:', error);
-      Alert.alert('Error', 'Failed to load your orders');
+      Alert.alert('Error', 'Failed to load orders');
     } finally {
       setLoading(false);
       setRefreshing(false);
