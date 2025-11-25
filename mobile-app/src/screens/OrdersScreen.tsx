@@ -10,21 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import ApiService from '../services/api';
-
-interface Order {
-  id: number;
-  order_id: string;
-  customer_name: string;
-  flower_type: string;
-  quantity: number;
-  total_price: number;
-  status: string;
-  delivery_date?: string;
-  created_at: string;
-  items?: any[];
-}
+import ApiService, { Order } from '../services/api';
 
 const STATUS_COLORS: { [key: string]: string } = {
   pending: '#ffc107',
@@ -128,11 +114,11 @@ export default function OrdersScreen({ navigation }: any) {
         onPress={() => {
           Alert.alert(
             'Order Details',
-            `Order ID: ${item.order_id}\n` +
+            `Order ID: ${item.order_id || item.id}\n` +
             `Status: ${item.status}\n` +
             `Items: ${item.flower_type}\n` +
             `Quantity: ${item.quantity}\n` +
-            `Total: ₱${item.total_price}\n` +
+            `Total: ₱${item.total_price || item.price}\n` +
             `Date: ${new Date(item.created_at).toLocaleDateString()}`,
             [{ text: 'OK' }]
           );
@@ -141,7 +127,7 @@ export default function OrdersScreen({ navigation }: any) {
         <View style={styles.orderHeader}>
           <View style={styles.orderIdContainer}>
             <Text style={styles.orderIdLabel}>Order ID</Text>
-            <Text style={styles.orderIdText}>{item.order_id}</Text>
+            <Text style={styles.orderIdText}>{item.order_id || item.id}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Ionicons name={statusIcon} size={14} color="#fff" />
@@ -160,7 +146,7 @@ export default function OrdersScreen({ navigation }: any) {
         </View>
 
         <View style={styles.orderFooter}>
-          <Text style={styles.orderTotal}>₱{item.total_price}</Text>
+          <Text style={styles.orderTotal}>₱{item.total_price || item.price}</Text>
           <Text style={styles.orderCreated}>
             {new Date(item.created_at).toLocaleDateString()}
           </Text>

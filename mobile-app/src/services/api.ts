@@ -26,17 +26,20 @@ export interface Product {
 
 export interface Order {
   id: number;
+  order_id?: string;
   customer_name: string;
   customer_email?: string;
   customer_phone?: string;
   flower_type: string;
   quantity: number;
   price: number;
+  total_price?: number;
   delivery_date?: string;
   delivery_address?: string;
   message?: string;
   status: string;
   created_at: string;
+  items?: any[];
 }
 
 export interface Review {
