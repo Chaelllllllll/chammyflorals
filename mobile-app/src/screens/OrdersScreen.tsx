@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService, { Order } from '../services/api';
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -33,6 +35,13 @@ export default function OrdersScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadOrders();
+    }, [])
+  );
 
   const loadOrders = async () => {
     try {
@@ -66,8 +75,21 @@ export default function OrdersScreen({ navigation }: any) {
   }, []);
 
   const getFilteredOrders = () => {
-    if (filterStatus === 'all') return orders;
-    return orders.filter(order => order.status.toLowerCase() === filterStatus);
+    let filtered = filterStatus === 'all' ? orders : orders.filter(order => order.status.toLowerCase() === filterStatus);
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.order_id?.toLowerCase().includes(query) ||
+        order.name?.toLowerCase().includes(query) ||
+        order.customer_name?.toLowerCase().includes(query) ||
+        order.email?.toLowerCase().includes(query) ||
+        order.customer_email?.toLowerCase().includes(query) ||
+        order.flower_type?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
   };
 
   const renderStatusFilter = () => {
@@ -111,18 +133,7 @@ export default function OrdersScreen({ navigation }: any) {
     return (
       <TouchableOpacity
         style={styles.orderCard}
-        onPress={() => {
-          Alert.alert(
-            'Order Details',
-            `Order ID: ${item.order_id || item.id}\n` +
-            `Status: ${item.status}\n` +
-            `Items: ${item.flower_type}\n` +
-            `Quantity: ${item.quantity}\n` +
-            `Total: ₱${item.total_price || item.price}\n` +
-            `Date: ${new Date(item.created_at).toLocaleDateString()}`,
-            [{ text: 'OK' }]
-          );
-        }}
+        onPress={() => navigation.navigate('OrderDetails', { orderId: item.order_id || item.id })}
       >
         <View style={styles.orderHeader}>
           <View style={styles.orderIdContainer}>
@@ -168,6 +179,22 @@ export default function OrdersScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search orders..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#9CA3AF"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+            <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        )}
+      </View>
+      
       {renderStatusFilter()}
 
       {filteredOrders.length === 0 ? (
@@ -209,7 +236,35 @@ export default function OrdersScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F8F9FA',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    margin: 16,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  clearBtn: {
+    padding: 4,
   },
   centerContainer: {
     flex: 1,

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../../services/api';
 
 interface Report {
@@ -24,9 +25,11 @@ export default function AdminReportsScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
 
-  useEffect(() => {
-    loadReports();
-  }, [selectedPeriod]);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadReports();
+    }, [selectedPeriod])
+  );
 
   const loadReports = async () => {
     try {
@@ -196,19 +199,21 @@ const styles = StyleSheet.create({
   },
   reportCard: {
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   period: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
     marginBottom: 16,
   },
   statsGrid: {

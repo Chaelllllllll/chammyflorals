@@ -30,6 +30,7 @@ import AdminReviewsScreen from './src/screens/admin/AdminReviewsScreen';
 import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
 import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
 import AdminReportsScreen from './src/screens/admin/AdminReportsScreen';
+import OrderDetailsScreen from './src/screens/admin/OrderDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -261,6 +262,11 @@ export default function App() {
               name="AdminReports" 
               component={AdminReportsScreen}
               options={{ title: 'Reports' }}
+            />
+            <Stack.Screen 
+              name="OrderDetails" 
+              component={OrderDetailsScreen}
+              options={{ title: 'Order Details' }}
             />
           </Stack.Navigator>
         </NavigationContainer>

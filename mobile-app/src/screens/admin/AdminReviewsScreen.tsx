@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../../services/api';
 
 interface Review {
@@ -26,9 +27,11 @@ export default function AdminReviewsScreen({ navigation }: any) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadReviews();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadReviews();
+    }, [])
+  );
 
   const loadReviews = async () => {
     try {

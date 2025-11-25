@@ -184,6 +184,14 @@ class ApiService {
     }
   }
 
+  async getOrderById(orderId: string): Promise<Order> {
+    const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) throw new Error('Failed to fetch order');
+    return response.json();
+  }
+
   async updateOrderStatus(orderId: string | number, status: string): Promise<Order> {
     const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
       method: 'PATCH',
@@ -192,6 +200,24 @@ class ApiService {
     });
     if (!response.ok) throw new Error('Failed to update order status');
     return response.json();
+  }
+
+  async updateOrder(orderId: string | number, orderData: Partial<Order>): Promise<Order> {
+    const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(orderData),
+    });
+    if (!response.ok) throw new Error('Failed to update order');
+    return response.json();
+  }
+
+  async deleteOrder(orderId: string | number): Promise<void> {
+    const response = await fetch(`${API_URL}/api/admin/orders/${orderId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(true),
+    });
+    if (!response.ok) throw new Error('Failed to delete order');
   }
 
   // Reviews
