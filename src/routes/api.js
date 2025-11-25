@@ -12,28 +12,26 @@ const multer = require('multer');
 const crypto = require('crypto');
 
 // Health check endpoint to verify API and database connectivity
+// Returns minimal info - safe for public access
 router.get('/health', async (req, res) => {
   try {
     const checks = {
-      api: 'OK',
+      status: 'OK',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      supabaseConfigured: !!(process.env.SUPABASE_URL && (process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)),
     };
     
-    // Test database connection
+    // Test database connection (don't expose error details in production)
     try {
       const { data, error } = await supabase.from('products').select('id').limit(1);
-      checks.database = error ? `ERROR: ${error.message}` : 'OK';
+      checks.database = error ? 'ERROR' : 'OK';
     } catch (dbErr) {
-      checks.database = `ERROR: ${dbErr.message}`;
+      checks.database = 'ERROR';
     }
     
     res.json(checks);
   } catch (err) {
     res.status(500).json({ 
-      api: 'ERROR', 
-      error: err.message,
+      status: 'ERROR',
       timestamp: new Date().toISOString()
     });
   }

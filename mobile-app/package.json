@@ -6,7 +6,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "start:admin": "powershell -ExecutionPolicy Bypass -File switch-to-admin.ps1 && expo start",
+    "start:customer": "powershell -ExecutionPolicy Bypass -File switch-to-customer.ps1 && expo start",
+    "build:admin": "powershell -ExecutionPolicy Bypass -File build-admin.ps1",
+    "build:admin:android": "powershell -ExecutionPolicy Bypass -File build-admin.ps1 -Platform android",
+    "build:admin:ios": "powershell -ExecutionPolicy Bypass -File build-admin.ps1 -Platform ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

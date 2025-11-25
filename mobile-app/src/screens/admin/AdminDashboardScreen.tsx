@@ -97,31 +97,65 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
         <TouchableOpacity 
           style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminTodo')}
+        >
+          <Ionicons name="clipboard-outline" size={30} color="#FF9500" />
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>To Do</Text>
+            <Text style={styles.actionDescription}>
+              View pending orders
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward-outline" size={24} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminToDeliver')}
+        >
+          <Ionicons name="car-outline" size={30} color="#007AFF" />
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>To Deliver</Text>
+            <Text style={styles.actionDescription}>
+              Ready for delivery orders
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward-outline" size={24} color="#999" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionCard}
           onPress={() => navigation.navigate('AdminOrders')}
         >
           <Ionicons name="list-outline" size={30} color="#ff6f9b" />
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Manage Orders</Text>
+            <Text style={styles.actionTitle}>All Orders</Text>
             <Text style={styles.actionDescription}>
-              View and update order status
+              View and manage all orders
             </Text>
           </View>
           <Ionicons name="chevron-forward-outline" size={24} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="flower-outline" size={30} color="#ff6f9b" />
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminProducts')}
+        >
+          <Ionicons name="flower-outline" size={30} color="#34C759" />
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Manage Products</Text>
+            <Text style={styles.actionTitle}>Products</Text>
             <Text style={styles.actionDescription}>
-              Add, edit, or remove products
+              Manage product catalog
             </Text>
           </View>
           <Ionicons name="chevron-forward-outline" size={24} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="star-outline" size={30} color="#ff6f9b" />
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminReviews')}
+        >
+          <Ionicons name="star-outline" size={30} color="#FFD700" />
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Reviews</Text>
             <Text style={styles.actionDescription}>
@@ -131,12 +165,15 @@ export default function AdminDashboardScreen({ navigation }: any) {
           <Ionicons name="chevron-forward-outline" size={24} color="#999" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionCard}>
-          <Ionicons name="bar-chart-outline" size={30} color="#ff6f9b" />
+        <TouchableOpacity 
+          style={styles.actionCard}
+          onPress={() => navigation.navigate('AdminReports')}
+        >
+          <Ionicons name="bar-chart-outline" size={30} color="#5856D6" />
           <View style={styles.actionContent}>
             <Text style={styles.actionTitle}>Reports</Text>
             <Text style={styles.actionDescription}>
-              View sales and analytics
+              View sales analytics
             </Text>
           </View>
           <Ionicons name="chevron-forward-outline" size={24} color="#999" />

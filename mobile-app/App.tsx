@@ -25,6 +25,11 @@ import ReviewsScreen from './src/screens/ReviewsScreen';
 import InquiryScreen from './src/screens/InquiryScreen';
 import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
 import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
+import AdminProductsScreen from './src/screens/admin/AdminProductsScreen';
+import AdminReviewsScreen from './src/screens/admin/AdminReviewsScreen';
+import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
+import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
+import AdminReportsScreen from './src/screens/admin/AdminReportsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -224,6 +229,31 @@ export default function App() {
               name="AdminOrders" 
               component={OrdersScreen}
               options={{ title: 'Manage Orders' }}
+            />
+            <Stack.Screen 
+              name="AdminProducts" 
+              component={AdminProductsScreen}
+              options={{ title: 'Manage Products' }}
+            />
+            <Stack.Screen 
+              name="AdminReviews" 
+              component={AdminReviewsScreen}
+              options={{ title: 'Manage Reviews' }}
+            />
+            <Stack.Screen 
+              name="AdminToDeliver" 
+              component={AdminToDeliverScreen}
+              options={{ title: 'To Deliver' }}
+            />
+            <Stack.Screen 
+              name="AdminTodo" 
+              component={AdminTodoScreen}
+              options={{ title: 'To Do' }}
+            />
+            <Stack.Screen 
+              name="AdminReports" 
+              component={AdminReportsScreen}
+              options={{ title: 'Reports' }}
             />
           </Stack.Navigator>
         </NavigationContainer>

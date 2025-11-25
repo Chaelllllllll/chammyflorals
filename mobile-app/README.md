@@ -1,16 +1,76 @@
-# Chammy Florals - React Native Mobile App
+# Chammy Florals Mobile Apps
 
-A beautiful flower shop mobile application built with React Native and Expo, mirroring the functionality of the Chammy Florals website.
+This repository contains **two separate mobile applications**:
+
+## 📱 Applications
+
+### 1. Customer App (Default)
+Browse products, place orders, track deliveries, and leave reviews.
+
+### 2. Admin App
+Manage orders, products, reviews, and view business reports with secure login.
+
+---
 
 ## Features
 
+### Customer App Features
 - 🌸 **Product Catalog**: Browse and search beautiful flower arrangements
 - 🛒 **Shopping Cart**: Add items, adjust quantities, and manage cart
 - 📦 **Order Placement**: Easy checkout process with delivery details
 - 📍 **Order Tracking**: Track order status in real-time
-- ⭐ **Reviews**: Read and write customer reviews
-- 👨‍💼 **Admin Panel**: Manage orders, products, and view analytics
-- 🔐 **Authentication**: Secure admin login with session management
+- ⭐ **Reviews**: Read and write customer reviews with photos
+- 🔔 **Push Notifications**: Get notified about order updates
+
+### Admin App Features
+- 🔐 **Secure Login**: Admin authentication required
+- 📊 **Dashboard**: View statistics and key metrics
+- 📋 **To Do**: Manage pending orders
+- 🚚 **To Deliver**: Handle ready-for-delivery orders
+- 📦 **Order Management**: View and update all orders
+- 🌺 **Product Management**: Add, edit, delete products
+- ⭐ **Review Moderation**: Approve and manage customer reviews
+- 📈 **Reports**: Sales analytics and business insights
+- 🔔 **Push Notifications**: Get notified about new orders
+
+## 🚀 Quick Start
+
+### Customer App (Default)
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+# or
+expo start
+```
+
+### Admin App
+
+```bash
+# Switch to admin app and start
+npm run start:admin
+
+# Or manually:
+powershell -ExecutionPolicy Bypass -File switch-to-admin.ps1
+expo start
+```
+
+### Switching Between Apps
+
+```bash
+# Switch to admin
+npm run start:admin
+# or
+.\switch-to-admin.ps1
+
+# Switch back to customer
+npm run start:customer
+# or
+.\switch-to-customer.ps1
+```
 
 ## Tech Stack
 
