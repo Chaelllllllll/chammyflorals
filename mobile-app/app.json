@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#fff6f9"
     },
@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#fff6f9"
       },
       "package": "com.chammyflorals.app",
@@ -35,7 +35,7 @@
       "enableShrinkResourcesInReleaseBuilds": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logo.png"
     },
     "updates": {
       "url": "https://u.expo.dev/ad439029-6105-4fcd-957e-273591986bb7"
