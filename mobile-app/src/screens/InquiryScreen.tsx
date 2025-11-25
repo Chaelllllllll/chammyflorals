@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService, { Product } from '../services/api';
 
 interface OrderItem {
@@ -179,11 +180,23 @@ export default function InquiryScreen({ route, navigation }: any) {
 
     setLoading(true);
     try {
+      // Save user info for order tracking
+      if (formData.customer_phone) {
+        await AsyncStorage.setItem('userPhone', formData.customer_phone);
+      }
+      if (formData.customer_email) {
+        await AsyncStorage.setItem('userEmail', formData.customer_email);
+      }
+      
+      // Get push token if available
+      const expoPushToken = await AsyncStorage.getItem('expoPushToken');
+      
       // Create order data
       const orderData = {
         ...formData,
         items: orderItems,
         addons: selectedAddons.join(', '),
+        expo_push_token: expoPushToken, // Include for push notifications
       };
 
       await ApiService.createInquiry(orderData);

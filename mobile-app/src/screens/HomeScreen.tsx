@@ -96,6 +96,13 @@ export default function HomeScreen({ navigation }: any) {
           <Ionicons name="star-outline" size={30} color="#ff6f9b" />
           <Text style={styles.quickLinkText}>Reviews</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.quickLinkCard}
+          onPress={() => navigation.navigate('AdminLogin')}
+        >
+          <Ionicons name="shield-outline" size={30} color="#ff6f9b" />
+          <Text style={styles.quickLinkText}>Admin</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );

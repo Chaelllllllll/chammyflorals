@@ -274,6 +274,12 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     } catch (e) { try { orderData.created_at = new Date().toISOString(); } catch (ee) {} }
     // Include optional phone and structured items when provided by the client
     if (req.body.phone) orderData.phone = String(req.body.phone).trim();
+    if (req.body.customer_phone) orderData.customer_phone = String(req.body.customer_phone).trim();
+    if (req.body.customer_email) orderData.customer_email = String(req.body.customer_email).trim();
+    
+    // Save expo push token for mobile notifications
+    const expoPushToken = req.body.expo_push_token;
+    
     if (Array.isArray(req.body.items) && req.body.items.length) {
       // sanitize items: { flower_type, quantity, optional color }
       orderData.items = req.body.items.map(it => {
@@ -302,6 +308,36 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     }
 
     console.log('Order inserted, returned data:', data && data[0] ? { order_id: data[0].order_id, status: data[0].status } : 'no data');
+
+    // Save push token to user_push_tokens table for notifications
+    if (expoPushToken && data && data[0]) {
+      try {
+        const userPhone = orderData.customer_phone || orderData.phone;
+        const userEmail = orderData.customer_email || orderData.email;
+        
+        if (userPhone || userEmail) {
+          console.log('Saving push token for user...');
+          const { error: tokenError } = await supabase
+            .from('user_push_tokens')
+            .upsert({
+              phone: userPhone || null,
+              email: userEmail || null,
+              expo_push_token: expoPushToken,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'phone,email'
+            });
+          
+          if (tokenError) {
+            console.error('Failed to save push token:', tokenError);
+          } else {
+            console.log('Push token saved successfully');
+          }
+        }
+      } catch (tokenErr) {
+        console.error('Error saving push token:', tokenErr);
+      }
+    }
 
     // If this is a manual order, update the status to Delivered immediately after insert
     console.log('Manual order check:', { manual_order: req.body.manual_order, isManualOrder, hasData: !!(data && data[0]) });

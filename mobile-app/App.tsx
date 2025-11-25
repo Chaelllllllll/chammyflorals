@@ -4,7 +4,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
-import { Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import { Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 
@@ -12,7 +16,7 @@ import { CartProvider } from './src/contexts/CartContext';
 import HomeScreen from './src/screens/HomeScreen';
 import ProductsScreen from './src/screens/ProductsScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
-import CartScreen from './src/screens/CartScreen';
+import OrdersScreen from './src/screens/OrdersScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
 import OrderSuccessScreen from './src/screens/OrderSuccessScreen';
 import TrackOrderScreen from './src/screens/TrackOrderScreen';
@@ -35,8 +39,8 @@ function MainTabs() {
             iconName = focused ? 'home' : 'home-outline';
           } else if (route.name === 'Products') {
             iconName = focused ? 'flower' : 'flower-outline';
-          } else if (route.name === 'Cart') {
-            iconName = focused ? 'cart' : 'cart-outline';
+          } else if (route.name === 'Orders') {
+            iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Reviews') {
             iconName = focused ? 'star' : 'star-outline';
           } else if (route.name === 'Track') {
@@ -55,15 +59,90 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Chammy Florals' }} />
       <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen name="Orders" component={OrdersScreen} options={{ title: 'My Orders' }} />
       <Tab.Screen name="Reviews" component={ReviewsScreen} />
       <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
     </Tab.Navigator>
   );
 }
 
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF6F9B',
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.log('Failed to get push token for push notification!');
+      return;
+    }
+    
+    try {
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      console.log('Push token:', token);
+      
+      // Save token to AsyncStorage
+      await AsyncStorage.setItem('expoPushToken', token);
+    } catch (error) {
+      console.error('Error getting push token:', error);
+    }
+  } else {
+    console.log('Must use physical device for Push Notifications');
+  }
+
+  return token;
+}
+
 export default function App() {
+  const notificationListener = React.useRef<any>();
+  const responseListener = React.useRef<any>();
+
   React.useEffect(() => {
+    // Register for push notifications
+    registerForPushNotificationsAsync();
+
+    // Listen for notifications received while app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+    });
+
+    // Listen for user tapping on notification
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification tapped:', response);
+      // You can navigate to specific screens based on notification data
+      const data = response.notification.request.content.data;
+      if (data?.orderId) {
+        // Navigate to order details
+        console.log('Navigate to order:', data.orderId);
+      }
+    });
+
+    // Check for app updates
     async function onFetchUpdateAsync() {
       try {
         // Only check for updates in production builds
@@ -98,6 +177,16 @@ export default function App() {
     }
 
     onFetchUpdateAsync();
+
+    // Cleanup listeners
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, []);
 
   return (

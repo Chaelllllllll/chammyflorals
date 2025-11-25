@@ -27,12 +27,15 @@
       "package": "com.chammyflorals.app",
       "permissions": [
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "enableProguardInReleaseBuilds": true,
-      "enableShrinkResourcesInReleaseBuilds": true
+      "enableShrinkResourcesInReleaseBuilds": true,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/logo.png"
@@ -51,6 +54,16 @@
       "EXPO_PUBLIC_SUPABASE_URL": "https://hzrmqafxvplqjalxmsdh.supabase.co",
       "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh6cm1xYWZ4dnBscWphbHhtc2RoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjQ0NTY0NCwiZXhwIjoyMDc4MDIxNjQ0fQ.A9S9HRjFE69srUPsQ3lqkce-BWLoMm5ub6PRCbdaYY0"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/logo.png",
+          "color": "#ffffff",
+          "sounds": []
+        }
+      ]
+    ],
     "owner": "chaelyoooo"
   }
 }

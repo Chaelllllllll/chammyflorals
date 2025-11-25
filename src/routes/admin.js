@@ -5,6 +5,7 @@ const { validateOrderStatus, validateProduct, sanitizeBody } = require('../middl
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
+const { sendPushNotification } = require('../lib/push-notifications');
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
 const router = express.Router();
 const fs = require('fs');
@@ -771,6 +772,44 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
           }
         } catch (mErr) {
           console.error('Failed to send messenger notification to customer:', mErr);
+        }
+
+        // Send push notification to mobile app users
+        try {
+          console.log('Checking for mobile push token...');
+          // Query user's push token from database based on phone or email
+          const { data: userTokens, error: tokenError } = await supabase
+            .from('user_push_tokens')
+            .select('expo_push_token')
+            .or(`phone.eq.${updated.customer_phone},email.eq.${updated.email}`)
+            .limit(1);
+
+          if (!tokenError && userTokens && userTokens.length > 0 && userTokens[0].expo_push_token) {
+            const pushToken = userTokens[0].expo_push_token;
+            console.log('Found push token, sending notification...');
+            
+            const statusMessages = {
+              pending: '⏳ Your order is pending confirmation',
+              processing: '🌸 Your order is being prepared',
+              'to receive': '📦 Your order is ready for pickup/delivery',
+              delivered: '✅ Your order has been delivered',
+              cancelled: '❌ Your order has been cancelled'
+            };
+
+            const title = `Order ${updated.order_id} Update`;
+            const body = statusMessages[updated.status.toLowerCase()] || `Status: ${updated.status}`;
+
+            await sendPushNotification(pushToken, title, body, {
+              orderId: updated.order_id,
+              status: updated.status,
+              type: 'status_update'
+            });
+            console.log('Push notification sent successfully');
+          } else {
+            console.log('No push token found for user');
+          }
+        } catch (pushErr) {
+          console.error('Failed to send push notification:', pushErr);
         }
       } else {
         console.log('Skipping status notification:', {

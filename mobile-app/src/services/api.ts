@@ -110,11 +110,29 @@ class ApiService {
   }
 
   async getOrders(): Promise<Order[]> {
-    const response = await fetch(`${API_URL}/api/orders`, {
-      headers: this.getHeaders(true),
-    });
-    if (!response.ok) throw new Error('Failed to fetch orders');
-    return response.json();
+    try {
+      console.log('Fetching orders from:', `${API_URL}/api/admin/orders`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
+      const response = await fetch(`${API_URL}/api/admin/orders`, {
+        headers: this.getHeaders(),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.error('Orders API error:', response.status);
+        return [];
+      }
+      const data = await response.json();
+      console.log('Orders fetched successfully:', data.length);
+      return data || [];
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      return [];
+    }
   }
 
   async trackOrder(orderId: string): Promise<any> {
