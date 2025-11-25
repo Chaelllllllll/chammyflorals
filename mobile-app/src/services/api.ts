@@ -1,9 +1,6 @@
-import Logger from '../utils/logger';
-
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chammyflorals.vercel.app';
 
 console.log('API URL:', API_URL);
-Logger.info('API Service initialized', { apiUrl: API_URL }, 'ApiService', 'init');
 
 export interface Product {
   id: number;
@@ -82,7 +79,6 @@ class ApiService {
   // Products
   async getProducts(): Promise<Product[]> {
     try {
-      Logger.debug('Fetching products', { url: `${API_URL}/api/products` }, 'ApiService', 'getProducts');
       console.log('Fetching products from:', `${API_URL}/api/products`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -95,54 +91,44 @@ class ApiService {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        Logger.error('Products API error', { status: response.status, statusText: response.statusText }, 'ApiService', 'getProductsError');
         console.error('Products API error:', response.status, response.statusText);
         return [];
       }
       const data = await response.json();
-      Logger.info('Products fetched', { count: data.length }, 'ApiService', 'getProductsSuccess');
       console.log('Products fetched successfully:', data.length);
       return data || [];
     } catch (error: any) {
-      Logger.error('Failed to fetch products', { error: error.message }, 'ApiService', 'getProductsFailed');
       console.error('Failed to fetch products:', error);
       return [];
     }
   }
 
   async getProduct(id: number): Promise<Product> {
-    Logger.debug('Fetching product', { productId: id }, 'ApiService', 'getProduct');
     const response = await fetch(`${API_URL}/api/products/${id}`, {
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      Logger.error('Failed to fetch product', { productId: id, status: response.status }, 'ApiService', 'getProductError');
       throw new Error('Failed to fetch product');
     }
-    Logger.info('Product fetched', { productId: id }, 'ApiService', 'getProductSuccess');
     return response.json();
   }
 
   // Orders
   async createOrder(orderData: any): Promise<Order> {
-    Logger.info('Creating order', { customerName: orderData.customer_name }, 'ApiService', 'createOrder');
     const response = await fetch(`${API_URL}/api/orders`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(orderData),
     });
     if (!response.ok) {
-      Logger.error('Failed to create order', { status: response.status }, 'ApiService', 'createOrderError');
       throw new Error('Failed to create order');
     }
     const order = await response.json();
-    Logger.info('Order created', { orderId: order.id }, 'ApiService', 'createOrderSuccess');
     return order;
   }
 
   async getOrders(): Promise<Order[]> {
     try {
-      Logger.debug('Fetching orders', {}, 'ApiService', 'getOrders');
       console.log('Fetching orders from:', `${API_URL}/api/admin/orders`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);

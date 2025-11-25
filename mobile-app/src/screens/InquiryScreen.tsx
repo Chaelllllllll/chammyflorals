@@ -13,6 +13,7 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService, { Product } from '../services/api';
+import Sentry from '../../sentry.config';
 
 interface OrderItem {
   flower_type: string;
@@ -71,7 +72,10 @@ export default function InquiryScreen({ route, navigation }: any) {
       const data = await ApiService.getProducts();
       console.log('Loaded products:', data);
       setProducts(data);
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'InquiryScreen', action: 'loadProducts' }
+      });
       console.error('Failed to load products:', error);
     }
   };
@@ -212,6 +216,10 @@ export default function InquiryScreen({ route, navigation }: any) {
         ]
       );
     } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'InquiryScreen', action: 'createInquiry' },
+        extra: { userName: formData.user_name, itemsCount: orderItems.length }
+      });
       Alert.alert(
         'Submission Failed',
         'Unable to submit your order. Please check your internet connection and try again. If the problem persists, please contact us directly via Facebook.',

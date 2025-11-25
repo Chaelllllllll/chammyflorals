@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/api';
+import Sentry from '../../sentry.config';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -42,7 +43,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(parsedUser);
         setIsAdmin(parsedUser.role === 'admin');
       }
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { context: 'AuthContext', action: 'loadAuthState' }
+      });
       console.error('Failed to load auth state:', error);
     } finally {
       setLoading(false);
@@ -57,7 +61,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(authToken);
       setUser(userData);
       setIsAdmin(userData.role === 'admin');
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { context: 'AuthContext', action: 'login' },
+        extra: { userRole: userData?.role }
+      });
       console.error('Failed to save auth state:', error);
       throw error;
     }
@@ -71,7 +79,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setToken(null);
       setUser(null);
       setIsAdmin(false);
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { context: 'AuthContext', action: 'logout' }
+      });
       console.error('Failed to clear auth state:', error);
     }
   };

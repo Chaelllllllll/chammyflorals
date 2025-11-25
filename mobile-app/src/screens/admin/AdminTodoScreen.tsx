@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Order } from '../../services/api';
+import Sentry from '../../../sentry.config';
 
 export default function AdminTodoScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -29,7 +30,10 @@ export default function AdminTodoScreen({ navigation }: any) {
         o => o.status === 'Pending' || o.status === 'Processing'
       );
       setOrders(todoOrders);
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminTodoScreen', action: 'loadOrders' }
+      });
       Alert.alert('Error', 'Failed to load to-do orders');
     } finally {
       setLoading(false);
@@ -47,7 +51,11 @@ export default function AdminTodoScreen({ navigation }: any) {
       await ApiService.updateOrderStatus(orderId, newStatus);
       Alert.alert('Success', `Order updated to ${newStatus}`);
       loadOrders();
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminTodoScreen', action: 'updateStatus' },
+        extra: { orderId, newStatus }
+      });
       Alert.alert('Error', 'Failed to update order');
     }
   };

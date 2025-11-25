@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
+import Sentry from '../../sentry.config';
 
 export default function TrackOrderScreen() {
   const [orderId, setOrderId] = useState('');
@@ -36,6 +37,10 @@ export default function TrackOrderScreen() {
           [{ text: 'OK' }]
         );
       } else {
+        Sentry.captureException(error, {
+          tags: { screen: 'TrackOrderScreen', action: 'trackOrder' },
+          extra: { orderId: orderId.trim() }
+        });
         Alert.alert(
           'Connection Error',
           'Unable to track your order. Please check your internet connection and try again.',

@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import ApiService from '../../services/api';
-import Logger from '../../utils/logger';
+import Sentry from '../../../sentry.config';
 
 export default function AdminLoginScreen({ navigation }: any) {
   const { login, isAuthenticated, user } = useAuth();
@@ -30,14 +30,10 @@ export default function AdminLoginScreen({ navigation }: any) {
   const [totpSecret, setTotpSecret] = useState('');
 
   useEffect(() => {
-    Logger.info('AdminLoginScreen mounted', { 
-      isAuthenticated, 
-      userRole: user?.role 
-    }, 'AdminLoginScreen', 'mount');
+    // Component mounted
   }, []);
 
   const validateInput = () => {
-    Logger.debug('Validating login input', { email: credentials.email }, 'AdminLoginScreen', 'validate');
     const email = credentials.email.trim();
     const password = credentials.password.trim();
 
@@ -49,23 +45,18 @@ export default function AdminLoginScreen({ navigation }: any) {
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Logger.warning('Invalid email format', { email }, 'AdminLoginScreen', 'validateEmail');
       Alert.alert('Error', 'Please enter a valid email');
       return false;
     }
 
-    Logger.info('Input validation passed', { email }, 'AdminLoginScreen', 'validateSuccess');
     return true;
   };
 
   const handleLogin = async () => {
-    Logger.info('Login attempt started', { email: credentials.email }, 'AdminLoginScreen', 'loginStart');
-    
     if (!validateInput()) return;
 
     setLoading(true);
     try {
-      Logger.debug('Sending login request', { email: credentials.email, hasTOTP: !!totpCode }, 'AdminLoginScreen', 'loginRequest');
       
       const response = await fetch('https://chammyflorals.vercel.app/api/admin/login', {
         method: 'POST',
@@ -78,19 +69,10 @@ export default function AdminLoginScreen({ navigation }: any) {
       });
 
       const result = await response.json();
-      
-      Logger.debug('Login response received', { 
-        ok: response.ok,
-        status: response.status,
-        setupRequired: result.setupRequired,
-        requiresTOTP: result.requiresTOTP,
-        hasToken: !!result.token 
-      }, 'AdminLoginScreen', 'loginResponse');
 
       if (response.ok) {
         // Check if TOTP setup is required
         if (result.setupRequired) {
-          Logger.info('TOTP setup required', {}, 'AdminLoginScreen', 'totpSetup');
           setSetupRequired(true);
           setQrCodeUrl(result.qrCode);
           setTotpSecret(result.secret);
@@ -100,7 +82,6 @@ export default function AdminLoginScreen({ navigation }: any) {
 
         // Check if TOTP is required
         if (result.requiresTOTP) {
-          Logger.info('TOTP verification required', {}, 'AdminLoginScreen', 'totpRequired');
           setRequiresTOTP(true);
           Alert.alert('Authentication Required', result.message || 'Enter your Google Authenticator code');
           return;
@@ -108,21 +89,14 @@ export default function AdminLoginScreen({ navigation }: any) {
 
         // Normal login without TOTP or successful TOTP verification
         if (result.token) {
-          Logger.info('Login successful, storing token', { 
-            userName: result.user?.name,
-            userRole: result.user?.role 
-          }, 'AdminLoginScreen', 'loginSuccess');
-          
           await login(result.token, result.user);
           setCredentials({ email: '', password: '' });
           setTotpCode('');
           
-          Logger.info('Navigating back after login', {}, 'AdminLoginScreen', 'navigateBack');
           Alert.alert('Success', 'Logged in successfully!', [
             {
               text: 'OK',
               onPress: () => {
-                Logger.debug('User pressed OK on success alert', {}, 'AdminLoginScreen', 'alertOK');
                 navigation.goBack();
               },
             },
@@ -131,32 +105,26 @@ export default function AdminLoginScreen({ navigation }: any) {
         }
       }
 
-      Logger.warning('Login failed', { error: result.error, status: response.status }, 'AdminLoginScreen', 'loginFailed');
       Alert.alert('Login Failed', result.error || 'Invalid credentials');
     } catch (error: any) {
-      Logger.error('Login exception', { 
-        error: error.message,
-        stack: error.stack 
-      }, 'AdminLoginScreen', 'loginException');
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminLoginScreen', action: 'login' },
+        extra: { email: credentials.email }
+      });
       Alert.alert('Error', error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
-      Logger.debug('Login attempt ended', {}, 'AdminLoginScreen', 'loginEnd');
     }
   };
 
   const handleEnableTOTP = async () => {
-    Logger.info('TOTP enable attempt', {}, 'AdminLoginScreen', 'totpEnable');
-    
     if (!totpCode || !/^[0-9]{6}$/.test(totpCode)) {
-      Logger.warning('Invalid TOTP code format', { totpCode }, 'AdminLoginScreen', 'invalidTOTP');
       Alert.alert('Error', 'Please enter the 6-digit code from Google Authenticator');
       return;
     }
 
     setLoading(true);
     try {
-      Logger.debug('Sending TOTP enable request', {}, 'AdminLoginScreen', 'totpEnableRequest');
       
       const response = await fetch('https://chammyflorals.vercel.app/api/admin/login/enable-totp', {
         method: 'POST',
@@ -169,15 +137,8 @@ export default function AdminLoginScreen({ navigation }: any) {
       });
 
       const result = await response.json();
-      
-      Logger.debug('TOTP enable response', { 
-        ok: response.ok,
-        hasToken: !!result.token 
-      }, 'AdminLoginScreen', 'totpEnableResponse');
 
       if (response.ok && result.token) {
-        Logger.info('TOTP enabled successfully', {}, 'AdminLoginScreen', 'totpEnableSuccess');
-        
         await login(result.token, result.user);
         setCredentials({ email: '', password: '' });
         setTotpCode('');
@@ -187,24 +148,21 @@ export default function AdminLoginScreen({ navigation }: any) {
           {
             text: 'OK',
             onPress: () => {
-              Logger.debug('User pressed OK on TOTP success', {}, 'AdminLoginScreen', 'totpAlertOK');
               navigation.goBack();
             },
           },
         ]);
       } else {
-        Logger.warning('TOTP enable failed', { error: result.error }, 'AdminLoginScreen', 'totpEnableFailed');
         Alert.alert('Verification Failed', result.error || 'Invalid code');
       }
     } catch (error: any) {
-      Logger.error('TOTP enable exception', { 
-        error: error.message,
-        stack: error.stack 
-      }, 'AdminLoginScreen', 'totpEnableException');
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminLoginScreen', action: 'enableTOTP' },
+        extra: { email: credentials.email }
+      });
       Alert.alert('Error', 'Failed to enable Google Authenticator');
     } finally {
       setLoading(false);
-      Logger.debug('TOTP enable attempt ended', {}, 'AdminLoginScreen', 'totpEnableEnd');
     }
   };
 

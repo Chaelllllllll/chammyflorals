@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useCart } from '../contexts/CartContext';
 import { Product } from '../services/api';
+import Sentry from '../../sentry.config';
 
 export default function ProductDetailScreen({ route, navigation }: any) {
   const { product }: { product: Product } = route.params;

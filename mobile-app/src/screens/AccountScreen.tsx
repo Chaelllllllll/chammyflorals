@@ -11,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../contexts/AuthContext';
-import Logger from '../utils/logger';
 
 export default function AccountScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
@@ -22,89 +21,48 @@ export default function AccountScreen({ navigation }: any) {
   const authContext = useAuth();
 
   useEffect(() => {
-    Logger.info('AccountScreen mounted', {}, 'AccountScreen', 'mount');
-    
     try {
       if (authContext) {
-        Logger.debug('Auth context available', { 
-          isAuthenticated: authContext.isAuthenticated,
-          hasUser: !!authContext.user,
-          userRole: authContext.user?.role 
-        }, 'AccountScreen', 'checkAuth');
-        
         const { user, isAuthenticated } = authContext;
         const adminStatus = isAuthenticated && user && user.role === 'admin';
         
         setIsAdmin(adminStatus);
         setUserName(user?.name || '');
         setUserEmail(user?.email || '');
-        
-        Logger.info('Auth state loaded', { 
-          isAdmin: adminStatus,
-          userName: user?.name,
-          userEmail: user?.email 
-        }, 'AccountScreen', 'authLoaded');
-      } else {
-        Logger.error('Auth context is null', {}, 'AccountScreen', 'checkAuth');
       }
     } catch (error: any) {
-      Logger.error('Auth context error', { 
-        error: error.message,
-        stack: error.stack 
-      }, 'AccountScreen', 'authError');
       console.error('Auth context error:', error);
     } finally {
       setLoading(false);
-      Logger.debug('AccountScreen loading complete', {}, 'AccountScreen', 'loadComplete');
     }
   }, [authContext]);
 
   const handleLogout = () => {
-    Logger.info('Logout initiated', {}, 'AccountScreen', 'logout');
-    
     try {
       if (authContext?.logout) {
         authContext.logout();
         setIsAdmin(false);
-        Logger.info('Logout successful', {}, 'AccountScreen', 'logoutSuccess');
         Alert.alert('Success', 'Logged out successfully');
-      } else {
-        Logger.error('Logout function not available', {}, 'AccountScreen', 'logoutError');
       }
     } catch (error: any) {
-      Logger.error('Logout error', { 
-        error: error.message,
-        stack: error.stack 
-      }, 'AccountScreen', 'logoutException');
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout');
     }
   };
 
   const navigateToScreen = (screenName: string) => {
-    Logger.info('Navigation requested', { screenName }, 'AccountScreen', 'navigate');
-    
     try {
       const parent = navigation.getParent();
       if (parent) {
-        Logger.debug('Parent navigator found, navigating', { screenName }, 'AccountScreen', 'navigateSuccess');
         parent.navigate(screenName);
-      } else {
-        Logger.error('Parent navigator not found', { screenName }, 'AccountScreen', 'navigateError');
       }
     } catch (error: any) {
-      Logger.error('Navigation error', { 
-        screenName,
-        error: error.message,
-        stack: error.stack 
-      }, 'AccountScreen', 'navigateException');
       console.error('Navigation error:', error);
       Alert.alert('Error', 'Failed to navigate');
     }
   };
 
   if (loading) {
-    Logger.debug('Showing loading screen', {}, 'AccountScreen', 'renderLoading');
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6F9B" />
@@ -113,7 +71,6 @@ export default function AccountScreen({ navigation }: any) {
   }
 
   if (isAdmin) {
-    Logger.debug('Rendering admin interface', { userName, userEmail }, 'AccountScreen', 'renderAdmin');
     // Admin is logged in - show admin quick access
     return (
       <View style={styles.container}>
@@ -202,7 +159,6 @@ export default function AccountScreen({ navigation }: any) {
   }
 
   // Not logged in - show login option
-  Logger.debug('Rendering login prompt', {}, 'AccountScreen', 'renderLogin');
   return (
     <View style={styles.container}>
       <View style={styles.notLoggedInContainer}>

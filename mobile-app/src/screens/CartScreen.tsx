@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../contexts/CartContext';
+import Sentry from '../../sentry.config';
 
 export default function CartScreen({ navigation }: any) {
   const { items, removeItem, updateQuantity, clearCart, total } = useCart();

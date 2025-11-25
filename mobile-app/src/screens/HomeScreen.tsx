@@ -9,13 +9,12 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Logger from '../utils/logger';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
-    Logger.info('HomeScreen mounted', {}, 'HomeScreen', 'mount');
+    // Component mounted
   }, []);
 
   return (
@@ -30,7 +29,6 @@ export default function HomeScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.heroButton}
             onPress={() => {
-              Logger.info('Navigate to Products', {}, 'HomeScreen', 'navigate');
               navigation.navigate('Products');
             }}
           >

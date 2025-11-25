@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Product } from '../../services/api';
+import Sentry from '../../../sentry.config';
 
 export default function AdminProductsScreen({ navigation }: any) {
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,6 +42,9 @@ export default function AdminProductsScreen({ navigation }: any) {
       
       applyFilters(data || [], searchQuery, selectedCategory);
     } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminProductsScreen', action: 'loadProducts' }
+      });
       console.error('Failed to load products:', error);
       Alert.alert('Error', 'Failed to load products');
     } finally {

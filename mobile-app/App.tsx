@@ -12,7 +12,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 import UpdateModal from './src/components/UpdateModal';
-import Logger from './src/utils/logger';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -33,6 +32,7 @@ import AdminTransactionsScreen from './src/screens/admin/AdminTransactionsScreen
 import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
 import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
 import AdminManageScreen from './src/screens/admin/AdminManageScreen';
+import Sentry from './sentry.config';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -129,49 +129,69 @@ async function registerForPushNotificationsAsync() {
   return token;
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   const notificationListener = React.useRef<any>(null);
   const responseListener = React.useRef<any>(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
-    Logger.info('App started', { 
-      platform: Platform.OS,
-      version: Constants.expoConfig?.version 
-    }, 'App', 'startup');
+    Sentry.addBreadcrumb({
+      category: 'app',
+      message: 'App started',
+      level: 'info',
+      data: {
+        platform: Platform.OS,
+        version: Constants.expoConfig?.version
+      }
+    });
     
     // Set up global error handler
     const errorHandler = (error: Error, isFatal?: boolean) => {
-      Logger.error('Global error caught', { 
-        error: error.message,
-        stack: error.stack,
-        isFatal 
-      }, 'App', 'globalError');
+      Sentry.captureException(error, {
+        tags: { isFatal: isFatal || false },
+        extra: { errorType: 'globalError' }
+      });
     };
     
     // Register for push notifications
     registerForPushNotificationsAsync().then(token => {
       if (token) {
-        Logger.info('Push notification token registered', { token: token.substring(0, 20) + '...' }, 'App', 'pushToken');
+        Sentry.addBreadcrumb({
+          category: 'push',
+          message: 'Push notification token registered',
+          level: 'info'
+        });
       }
     }).catch(error => {
-      Logger.error('Failed to register push notifications', { error: error.message }, 'App', 'pushTokenError');
+      Sentry.captureException(error, {
+        tags: { action: 'pushTokenError' }
+      });
     });
 
     // Listen for notifications received while app is foregrounded
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      Logger.info('Notification received', { 
-        title: notification.request.content.title,
-        body: notification.request.content.body 
-      }, 'App', 'notificationReceived');
+      Sentry.addBreadcrumb({
+        category: 'notification',
+        message: 'Notification received',
+        level: 'info',
+        data: {
+          title: notification.request.content.title,
+          body: notification.request.content.body
+        }
+      });
       console.log('Notification received:', notification);
     });
 
     // Listen for user tapping on notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      Logger.info('Notification tapped', { 
-        title: response.notification.request.content.title 
-      }, 'App', 'notificationTapped');
+      Sentry.addBreadcrumb({
+        category: 'notification',
+        message: 'Notification tapped',
+        level: 'info',
+        data: {
+          title: response.notification.request.content.title
+        }
+      });
       console.log('Notification tapped:', response);
       // You can navigate to specific screens based on notification data
       const data = response.notification.request.content.data;
@@ -184,24 +204,26 @@ export default function App() {
     // Check for app updates
     async function onFetchUpdateAsync() {
       try {
-        Logger.debug('Checking for updates', { isDev: __DEV__ }, 'App', 'updateCheck');
-        
         // Only check for updates in production builds
         if (!__DEV__) {
           const update = await Updates.checkForUpdateAsync();
 
           if (update.isAvailable) {
-            Logger.info('Update available, fetching', {}, 'App', 'updateAvailable');
+            Sentry.addBreadcrumb({
+              category: 'update',
+              message: 'Update available, fetching',
+              level: 'info'
+            });
             await Updates.fetchUpdateAsync();
             // Show custom update modal
             setUpdateAvailable(true);
-          } else {
-            Logger.debug('No updates available', {}, 'App', 'noUpdate');
           }
         }
       } catch (error: any) {
         // Handle error silently - don't disrupt user experience
-        Logger.error('Error checking for updates', { error: error.message }, 'App', 'updateError');
+        Sentry.captureException(error, {
+          tags: { action: 'updateError' }
+        });
         console.log('Error checking for updates:', error);
       }
     }
@@ -227,10 +249,15 @@ export default function App() {
           onStateChange={(state) => {
             if (state) {
               const currentRoute = state.routes[state.index];
-              Logger.info('Navigation changed', { 
-                routeName: currentRoute?.name,
-                params: currentRoute?.params 
-              }, 'App', 'navigation');
+              Sentry.addBreadcrumb({
+                category: 'navigation',
+                message: 'Navigation changed',
+                level: 'info',
+                data: {
+                  routeName: currentRoute?.name,
+                  params: currentRoute?.params
+                }
+              });
             }
           }}
         >
@@ -321,4 +348,4 @@ export default function App() {
       </CartProvider>
     </AuthProvider>
   );
-}
+});

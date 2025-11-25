@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useCart } from '../contexts/CartContext';
 import ApiService from '../services/api';
+import Sentry from '../../sentry.config';
 
 export default function CheckoutScreen({ navigation }: any) {
   const { items, total, clearCart } = useCart();
@@ -45,7 +46,12 @@ export default function CheckoutScreen({ navigation }: any) {
       const order = await ApiService.createOrder(orderData);
       clearCart();
       navigation.replace('OrderSuccess', { orderId: order.id });
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'CheckoutScreen', action: 'createOrder' },
+        extra: { orderData: { customer_name: formData.customer_name, items_count: items.length } }
+      });
+      console.error('Checkout error:', error);
       Alert.alert('Error', 'Failed to place order. Please try again.');
     } finally {
       setLoading(false);

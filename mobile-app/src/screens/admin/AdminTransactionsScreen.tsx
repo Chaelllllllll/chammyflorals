@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Order } from '../../services/api';
+import Sentry from '../../../sentry.config';
 
 export default function AdminTransactionsScreen({ navigation }: any) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -34,7 +35,10 @@ export default function AdminTransactionsScreen({ navigation }: any) {
       const data = await ApiService.getAdminOrders();
       setOrders(data || []);
       applyFilters(data || [], searchQuery, selectedStatus);
-    } catch (error) {
+    } catch (error: any) {
+      Sentry.captureException(error, {
+        tags: { screen: 'AdminTransactionsScreen', action: 'loadOrders' }
+      });
       Alert.alert('Error', 'Failed to load transactions');
     } finally {
       setLoading(false);
