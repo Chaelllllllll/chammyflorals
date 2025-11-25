@@ -44,10 +44,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAdmin(parsedUser.role === 'admin');
       }
     } catch (error: any) {
-      Sentry.captureException(error, {
-        tags: { context: 'AuthContext', action: 'loadAuthState' }
-      });
       console.error('Failed to load auth state:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { context: 'AuthContext', action: 'loadAuthState' }
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -62,11 +64,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(userData);
       setIsAdmin(userData.role === 'admin');
     } catch (error: any) {
-      Sentry.captureException(error, {
-        tags: { context: 'AuthContext', action: 'login' },
-        extra: { userRole: userData?.role }
-      });
       console.error('Failed to save auth state:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { context: 'AuthContext', action: 'login' },
+          extra: { userRole: userData?.role }
+        });
+      }
       throw error;
     }
   };
@@ -80,10 +84,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setIsAdmin(false);
     } catch (error: any) {
-      Sentry.captureException(error, {
-        tags: { context: 'AuthContext', action: 'logout' }
-      });
       console.error('Failed to clear auth state:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { context: 'AuthContext', action: 'logout' }
+        });
+      }
     }
   };
 
@@ -97,7 +103,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    console.error('useAuth must be used within an AuthProvider');
+    if (Sentry && typeof Sentry.captureMessage === 'function') {
+      Sentry.captureMessage('useAuth called outside AuthProvider', {
+        level: 'error',
+        tags: { context: 'AuthContext' }
+      });
+    }
+    // Return a safe default instead of throwing
+    return {
+      isAuthenticated: false,
+      isAdmin: false,
+      user: null,
+      token: null,
+      login: async () => {},
+      logout: async () => {},
+      loading: false
+    };
   }
   return context;
 };

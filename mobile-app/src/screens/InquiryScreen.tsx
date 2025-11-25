@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
@@ -14,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService, { Product } from '../services/api';
 import Sentry from '../../sentry.config';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 interface OrderItem {
   flower_type: string;
@@ -37,6 +38,7 @@ export default function InquiryScreen({ route, navigation }: any) {
   const [products, setProducts] = useState<ProductWithPricing[]>([]);
   const [itemProducts, setItemProducts] = useState<{ [key: number]: ProductWithPricing | null }>({});
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   
   const [formData, setFormData] = useState({
     user_name: '',
@@ -164,21 +166,21 @@ export default function InquiryScreen({ route, navigation }: any) {
   const handleSubmit = async () => {
     // Validate form
     if (!formData.user_name.trim() || !formData.user_email.trim() || !formData.fb_link.trim()) {
-      Alert.alert('Missing Information', 'Please fill in all personal information fields (name, email, and Facebook link).');
+      showAlert('Missing Information', 'Please fill in all personal information fields (name, email, and Facebook link).', undefined, 'warning');
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.user_email.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      showAlert('Invalid Email', 'Please enter a valid email address.', undefined, 'warning');
       return;
     }
 
     // Validate items
     const invalidItem = orderItems.find(item => !item.flower_type || !item.color || item.quantity < 1);
     if (invalidItem) {
-      Alert.alert('Incomplete Order', 'Please fill in all item details (flower type, color, and quantity) for each item.');
+      showAlert('Incomplete Order', 'Please fill in all item details (flower type, color, and quantity) for each item.', undefined, 'warning');
       return;
     }
 
@@ -205,7 +207,7 @@ export default function InquiryScreen({ route, navigation }: any) {
 
       await ApiService.createInquiry(orderData);
       
-      Alert.alert(
+      showAlert(
         'Order Submitted! 🎉',
         'Thank you for your order! We will contact you shortly via Facebook Messenger to confirm your order details and arrange delivery.',
         [
@@ -213,14 +215,15 @@ export default function InquiryScreen({ route, navigation }: any) {
             text: 'OK', 
             onPress: () => navigation.goBack() 
           }
-        ]
+        ],
+        'success'
       );
     } catch (error: any) {
       Sentry.captureException(error, {
         tags: { screen: 'InquiryScreen', action: 'createInquiry' },
         extra: { userName: formData.user_name, itemsCount: orderItems.length }
       });
-      Alert.alert(
+      showAlert(
         'Submission Failed',
         'Unable to submit your order. Please check your internet connection and try again. If the problem persists, please contact us directly via Facebook.',
         [{ text: 'OK' }]
@@ -481,6 +484,14 @@ export default function InquiryScreen({ route, navigation }: any) {
           🔒 Your information is secure and will only be used to process your order
         </Text>
       </View>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </ScrollView>
   );
 }

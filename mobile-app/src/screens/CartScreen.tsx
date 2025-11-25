@@ -6,28 +6,30 @@ import {
   FlatList,
   Image,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../contexts/CartContext';
 import Sentry from '../../sentry.config';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 export default function CartScreen({ navigation }: any) {
   const { items, removeItem, updateQuantity, clearCart, total } = useCart();
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleCheckout = () => {
     if (items.length === 0) {
-      Alert.alert('Empty Cart', 'Please add items to your cart first');
+      showAlert('Empty Cart', 'Please add items to your cart first', undefined, 'warning');
       return;
     }
     navigation.navigate('Checkout');
   };
 
   const handleClearCart = () => {
-    Alert.alert('Clear Cart', 'Are you sure you want to remove all items?', [
+    showAlert('Clear Cart', 'Are you sure you want to remove all items?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Clear', onPress: clearCart, style: 'destructive' },
-    ]);
+    ], 'warning');
   };
 
   const renderCartItem = ({ item }: any) => (
@@ -110,6 +112,14 @@ export default function CartScreen({ navigation }: any) {
           <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
         </TouchableOpacity>
       </View>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </View>
   );
 }

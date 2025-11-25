@@ -9,8 +9,9 @@ config.transformer = {
   ...config.transformer,
   minifierConfig: {
     compress: {
-      // Drop console statements in production
-      drop_console: true,
+      // Keep console.error and console.warn in production for debugging
+      // Only drop console.log, console.info, console.debug
+      pure_funcs: ['console.log', 'console.info', 'console.debug'],
     },
   },
 };

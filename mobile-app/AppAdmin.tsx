@@ -6,19 +6,14 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import UpdateModal from './src/components/UpdateModal';
+import SplashScreen from './src/components/SplashScreen';
 
-// Import admin screens
-import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
-import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
-import AdminProductsScreen from './src/screens/admin/AdminProductsScreen';
-import AdminReviewsScreen from './src/screens/admin/AdminReviewsScreen';
-import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
-import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
-import AdminReportsScreen from './src/screens/admin/AdminReportsScreen';
+// Import existing screens
 import OrdersScreen from './src/screens/OrdersScreen';
+import AccountScreen from './src/screens/AccountScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -77,6 +72,7 @@ export default function AppAdmin() {
   const notificationListener = React.useRef<any>(null);
   const responseListener = React.useRef<any>(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
+  const [isReady, setIsReady] = React.useState(false);
 
   React.useEffect(() => {
     // Register for push notifications
@@ -99,16 +95,26 @@ export default function AppAdmin() {
     // Check for app updates
     async function onFetchUpdateAsync() {
       try {
-        if (!__DEV__) {
+        // Check if running in development mode
+        const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
+        
+        // Only check for updates in production and if Updates is available
+        if (!isDev && Updates && typeof Updates.checkForUpdateAsync === 'function') {
+          console.log('Checking for updates in production...');
           const update = await Updates.checkForUpdateAsync();
+          console.log('Update check result:', update);
 
           if (update.isAvailable) {
+            console.log('Update available, fetching...');
             await Updates.fetchUpdateAsync();
             setUpdateAvailable(true);
           }
+        } else {
+          console.log('Skipping update check (dev mode or Updates unavailable)');
         }
       } catch (error) {
-        console.log('Error checking for updates:', error);
+        console.error('Error checking for updates:', error);
+        // Don't crash the app if update check fails
       }
     }
 
@@ -125,6 +131,10 @@ export default function AppAdmin() {
     };
   }, []);
 
+  if (!isReady) {
+    return <SplashScreen onFinish={() => setIsReady(true)} />;
+  }
+
   return (
     <AuthProvider>
       <NavigationContainer>
@@ -137,50 +147,17 @@ export default function AppAdmin() {
           }}
         >
           <Stack.Screen 
-            name="AdminLogin" 
-            component={AdminLoginScreen}
+            name="Account" 
+            component={AccountScreen}
             options={{ 
               title: 'Chammy Florals - Admin',
               headerShown: false
             }}
           />
           <Stack.Screen 
-            name="AdminDashboard" 
-            component={AdminDashboardScreen}
-            options={{ 
-              title: 'Admin Dashboard',
-              headerLeft: () => null // Prevent back navigation
-            }}
-          />
-          <Stack.Screen 
-            name="AdminTodo" 
-            component={AdminTodoScreen}
-            options={{ title: 'To Do' }}
-          />
-          <Stack.Screen 
-            name="AdminToDeliver" 
-            component={AdminToDeliverScreen}
-            options={{ title: 'To Deliver' }}
-          />
-          <Stack.Screen 
-            name="AdminOrders" 
+            name="Orders" 
             component={OrdersScreen}
             options={{ title: 'All Orders' }}
-          />
-          <Stack.Screen 
-            name="AdminProducts" 
-            component={AdminProductsScreen}
-            options={{ title: 'Products' }}
-          />
-          <Stack.Screen 
-            name="AdminReviews" 
-            component={AdminReviewsScreen}
-            options={{ title: 'Reviews' }}
-          />
-          <Stack.Screen 
-            name="AdminReports" 
-            component={AdminReportsScreen}
-            options={{ title: 'Reports' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

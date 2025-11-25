@@ -6,16 +6,18 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useCart } from '../contexts/CartContext';
 import ApiService from '../services/api';
 import Sentry from '../../sentry.config';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 export default function CheckoutScreen({ navigation }: any) {
   const { items, total, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -27,7 +29,7 @@ export default function CheckoutScreen({ navigation }: any) {
 
   const handleSubmit = async () => {
     if (!formData.customer_name || !formData.customer_phone) {
-      Alert.alert('Error', 'Please fill in required fields (Name and Phone)');
+      showAlert('Error', 'Please fill in required fields (Name and Phone)');
       return;
     }
 
@@ -52,7 +54,7 @@ export default function CheckoutScreen({ navigation }: any) {
         extra: { orderData: { customer_name: formData.customer_name, items_count: items.length } }
       });
       console.error('Checkout error:', error);
-      Alert.alert('Error', 'Failed to place order. Please try again.');
+      showAlert('Error', 'Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -146,6 +148,14 @@ export default function CheckoutScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
       </View>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </ScrollView>
   );
 }

@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
-  Alert,
   Image,
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService, { Review } from '../services/api';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -25,6 +26,7 @@ export default function ReviewsScreen() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   useEffect(() => {
     loadReviews();
@@ -49,28 +51,29 @@ export default function ReviewsScreen() {
 
   const handleSubmitReview = async () => {
     if (!formData.order_id.trim() || !formData.message.trim()) {
-      Alert.alert('Missing Information', 'Please enter your order ID and review message.');
+      showAlert('Missing Information', 'Please enter your order ID and review message.', undefined, 'warning');
       return;
     }
 
     if (formData.message.trim().length < 10) {
-      Alert.alert('Review Too Short', 'Please write at least 10 characters in your review.');
+      showAlert('Review Too Short', 'Please write at least 10 characters in your review.', undefined, 'warning');
       return;
     }
 
     setSubmitting(true);
     try {
       await ApiService.createReview(formData);
-      Alert.alert(
+      showAlert(
         'Review Submitted! ⭐',
         'Thank you for sharing your feedback! Your review helps others make informed decisions.',
-        [{ text: 'OK' }]
+        [{ text: 'OK' }],
+        'success'
       );
       setFormData({ order_id: '', stars: 5, message: '' });
       setShowForm(false);
       loadReviews();
     } catch (error) {
-      Alert.alert(
+      showAlert(
         'Submission Failed',
         'Unable to submit your review. Please check your internet connection and try again.',
         [{ text: 'OK' }]
@@ -252,6 +255,14 @@ export default function ReviewsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </View>
   );
 }

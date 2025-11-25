@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import ApiService, { Order } from '../services/api';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 const STATUS_COLORS: { [key: string]: string } = {
   pending: '#ffc107',
@@ -36,6 +37,7 @@ export default function OrdersScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   useFocusEffect(
     React.useCallback(() => {
@@ -58,7 +60,7 @@ export default function OrdersScreen({ navigation }: any) {
       setOrders(allOrders || []);
     } catch (error) {
       console.error('Failed to load orders:', error);
-      Alert.alert('Error', 'Failed to load orders');
+      showAlert('Error', 'Failed to load orders');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -229,6 +231,14 @@ export default function OrdersScreen({ navigation }: any) {
           }
         />
       )}
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </View>
   );
 }

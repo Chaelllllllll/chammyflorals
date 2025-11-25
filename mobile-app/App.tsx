@@ -7,11 +7,12 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Alert, Platform, StatusBar } from 'react-native';
+import { Platform, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 import UpdateModal from './src/components/UpdateModal';
+import SplashScreen from './src/components/SplashScreen';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -24,14 +25,6 @@ import TrackOrderScreen from './src/screens/TrackOrderScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import InquiryScreen from './src/screens/InquiryScreen';
 import AccountScreen from './src/screens/AccountScreen';
-import AdminLoginScreen from './src/screens/admin/AdminLoginScreen';
-import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
-import AdminProductsScreen from './src/screens/admin/AdminProductsScreen';
-import AdminReviewsScreen from './src/screens/admin/AdminReviewsScreen';
-import AdminTransactionsScreen from './src/screens/admin/AdminTransactionsScreen';
-import AdminTodoScreen from './src/screens/admin/AdminTodoScreen';
-import AdminToDeliverScreen from './src/screens/admin/AdminToDeliverScreen';
-import AdminManageScreen from './src/screens/admin/AdminManageScreen';
 import Sentry from './sentry.config';
 
 const Stack = createNativeStackNavigator();
@@ -133,6 +126,7 @@ export default Sentry.wrap(function App() {
   const notificationListener = React.useRef<any>(null);
   const responseListener = React.useRef<any>(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
+  const [isReady, setIsReady] = React.useState(false);
 
   React.useEffect(() => {
     Sentry.addBreadcrumb({
@@ -204,27 +198,39 @@ export default Sentry.wrap(function App() {
     // Check for app updates
     async function onFetchUpdateAsync() {
       try {
-        // Only check for updates in production builds
-        if (!__DEV__) {
+        // Check if running in development mode
+        const isDev = typeof __DEV__ !== 'undefined' && __DEV__;
+        
+        // Only check for updates in production and if Updates is available
+        if (!isDev && Updates && typeof Updates.checkForUpdateAsync === 'function') {
+          console.log('Checking for updates in production...');
           const update = await Updates.checkForUpdateAsync();
+          console.log('Update check result:', update);
 
           if (update.isAvailable) {
-            Sentry.addBreadcrumb({
-              category: 'update',
-              message: 'Update available, fetching',
-              level: 'info'
-            });
+            console.log('Update available, fetching...');
+            if (Sentry && typeof Sentry.addBreadcrumb === 'function') {
+              Sentry.addBreadcrumb({
+                category: 'update',
+                message: 'Update available, fetching',
+                level: 'info'
+              });
+            }
             await Updates.fetchUpdateAsync();
             // Show custom update modal
             setUpdateAvailable(true);
           }
+        } else {
+          console.log('Skipping update check (dev mode or Updates unavailable)');
         }
       } catch (error: any) {
+        console.error('Error checking for updates:', error);
         // Handle error silently - don't disrupt user experience
-        Sentry.captureException(error, {
-          tags: { action: 'updateError' }
-        });
-        console.log('Error checking for updates:', error);
+        if (Sentry && typeof Sentry.captureException === 'function') {
+          Sentry.captureException(error, {
+            tags: { action: 'updateError' }
+          });
+        }
       }
     }
 
@@ -240,6 +246,10 @@ export default Sentry.wrap(function App() {
       }
     };
   }, []);
+
+  if (!isReady) {
+    return <SplashScreen onFinish={() => setIsReady(true)} />;
+  }
 
   return (
     <AuthProvider>
@@ -294,46 +304,6 @@ export default Sentry.wrap(function App() {
               name="OrderSuccess" 
               component={OrderSuccessScreen}
               options={{ title: 'Order Success', headerLeft: () => null }}
-            />
-            <Stack.Screen 
-              name="AdminLogin" 
-              component={AdminLoginScreen}
-              options={{ title: 'Admin Login' }}
-            />
-            <Stack.Screen 
-              name="AdminDashboard" 
-              component={AdminDashboardScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminProducts" 
-              component={AdminProductsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminReviews" 
-              component={AdminReviewsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminTransactions" 
-              component={AdminTransactionsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminTodo" 
-              component={AdminTodoScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminToDeliver" 
-              component={AdminToDeliverScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen 
-              name="AdminManage" 
-              component={AdminManageScreen}
-              options={{ headerShown: false }}
             />
           </Stack.Navigator>
         </NavigationContainer>

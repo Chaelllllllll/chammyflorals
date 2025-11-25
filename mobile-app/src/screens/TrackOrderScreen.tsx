@@ -6,21 +6,23 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../services/api';
 import Sentry from '../../sentry.config';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
 
 export default function TrackOrderScreen() {
   const [orderId, setOrderId] = useState('');
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   const handleTrack = async () => {
     if (!orderId.trim()) {
-      Alert.alert('Enter Order ID', 'Please enter your order ID to track your order.');
+      showAlert('Enter Order ID', 'Please enter your order ID to track your order.', undefined, 'warning');
       return;
     }
 
@@ -31,17 +33,18 @@ export default function TrackOrderScreen() {
       setOrder(orderData);
     } catch (error: any) {
       if (error.message === 'ORDER_NOT_FOUND') {
-        Alert.alert(
+        showAlert(
           'Order Not Found',
           `No order found with ID "${orderId.trim()}". Please check your order ID and try again.`,
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
+          'warning'
         );
       } else {
         Sentry.captureException(error, {
           tags: { screen: 'TrackOrderScreen', action: 'trackOrder' },
           extra: { orderId: orderId.trim() }
         });
-        Alert.alert(
+        showAlert(
           'Connection Error',
           'Unable to track your order. Please check your internet connection and try again.',
           [{ text: 'OK' }]
@@ -207,6 +210,14 @@ export default function TrackOrderScreen() {
           </View>
         )}
       </View>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
     </ScrollView>
   );
 }

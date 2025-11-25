@@ -5,82 +5,350 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Sentry from '../../sentry.config';
+import Constants from 'expo-constants';
+import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../hooks/useCustomAlert';
+
+const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://chammyflorals.vercel.app';
 
 export default function AccountScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  
+  // Login form states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+  const [code2FA, setCode2FA] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
 
-  const authContext = useAuth();
-  const user = authContext?.user;
-  const isAuthenticated = authContext?.isAuthenticated;
+  const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   useEffect(() => {
-    console.log('AccountScreen mounted');
-    console.log('Auth state:', { isAuthenticated, userId: user?.id, userRole: user?.role });
-    
-    try {
-      if (authContext) {
-        const adminStatus = isAuthenticated && user && user.role === 'admin';
-        
-        console.log('Setting admin status:', adminStatus);
-        setIsAdmin(adminStatus);
-        setUserName(user?.name || '');
-        setUserEmail(user?.email || '');
-      }
-    } catch (error: any) {
-      console.error('Auth context error in AccountScreen:', error);
-      Sentry.captureException(error, {
-        tags: { screen: 'AccountScreen', action: 'loadAuthState' }
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id, isAuthenticated, user?.role, user?.name, user?.email]);
+    console.error('[AccountScreen] Component mounted');
+    checkLoginStatus();
+  }, []);
 
-  const handleLogout = () => {
-    console.log('Logout initiated');
+  const checkLoginStatus = async () => {
     try {
-      if (authContext?.logout) {
-        authContext.logout();
-        setIsAdmin(false);
-        console.log('Logout successful');
-        Alert.alert('Success', 'Logged out successfully');
+      console.error('[AccountScreen] Checking login status...');
+      const [savedToken, savedUserName, savedUserEmail] = await Promise.all([
+        AsyncStorage.getItem('adminToken'),
+        AsyncStorage.getItem('adminUserName'),
+        AsyncStorage.getItem('adminUserEmail')
+      ]);
+
+      console.error('[AccountScreen] Saved data:', { hasToken: !!savedToken, hasName: !!savedUserName, hasEmail: !!savedUserEmail });
+
+      if (savedToken && savedUserName && savedUserEmail) {
+        console.error('[AccountScreen] Admin already logged in - restoring session');
+        // Use a slight delay to ensure component is fully mounted
+        setTimeout(() => {
+          try {
+            setUserName(savedUserName);
+            setUserEmail(savedUserEmail);
+            setIsLoggedIn(true);
+            console.error('[AccountScreen] Login state restored successfully');
+          } catch (error) {
+            console.error('Error setting login state:', error);
+            if (Sentry && typeof Sentry.captureException === 'function') {
+              Sentry.captureException(error, {
+                tags: { screen: 'AccountScreen', action: 'restoreSession' }
+              });
+            }
+          }
+        }, 100);
       }
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      Sentry.captureException(error, {
-        tags: { screen: 'AccountScreen', action: 'logout' }
-      });
-      Alert.alert('Error', 'Failed to logout');
+    } catch (error) {
+      console.error('Error checking login status:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { screen: 'AccountScreen', action: 'checkLoginStatus' }
+        });
+      }
+    } finally {
+      // Delay the loading state change too
+      setTimeout(() => {
+        setLoading(false);
+      }, 150);
     }
   };
 
-  const navigateToScreen = (screenName: string) => {
-    console.log('Navigating to:', screenName);
-    try {
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.navigate(screenName);
-        console.log('Navigation successful');
-      } else {
-        console.warn('Parent navigator not found');
-      }
-    } catch (error: any) {
-      console.error('Navigation error:', error);
-      Sentry.captureException(error, {
-        tags: { screen: 'AccountScreen', action: 'navigate', targetScreen: screenName }
-      });
-      Alert.alert('Error', 'Failed to navigate');
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      showAlert('Error', 'Please enter both email and password');
+      return;
     }
+
+    if (!validateEmail(email.trim())) {
+      showAlert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      // Check for rate limiting
+      if (response.status === 429) {
+        showAlert('Too Many Attempts', 'Too many login attempts. Please try again in 15 minutes.');
+        return;
+      }
+
+      // Try to parse JSON response
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('[AccountScreen] JSON parse error:', jsonError);
+        console.error('[AccountScreen] Response status:', response.status, 'Response headers:', response.headers);
+        showAlert('Error', 'Server returned an invalid response. Please try again later.');
+        return;
+      }
+
+      if (response.ok) {
+        // Check if TOTP/2FA is required
+        if (result.requiresTOTP) {
+          setPendingEmail(email.trim());
+          setPendingPassword(password.trim());
+          setShow2FA(true);
+          showAlert('2FA Required', result.message || 'Please enter your Google Authenticator code.', undefined, 'info');
+          return;
+        }
+
+        // Check if TOTP setup is required
+        if (result.setupRequired) {
+          showAlert(
+            'Setup Required',
+            'This account requires Google Authenticator setup. Please use the web version to complete setup first.',
+            [{ text: 'OK' }],
+            'warning'
+          );
+          return;
+        }
+
+        // Login successful
+        if (result.token) {
+          const adminName = result.user?.name || 'Admin';
+          const adminEmail = email.trim();
+          
+          // Save login state
+          try {
+            await AsyncStorage.multiSet([
+              ['adminToken', result.token],
+              ['adminUserName', adminName],
+              ['adminUserEmail', adminEmail]
+            ]);
+          } catch (error) {
+            console.error('Error saving login state:', error);
+          }
+          
+          // Clear form first
+          setEmail('');
+          setPassword('');
+          // Then update state
+          setUserName(adminName);
+          setUserEmail(adminEmail);
+          // Show success alert before changing login state
+          console.error('[AccountScreen] Login successful, showing alert');
+          showAlert('Success', 'Login successful!', [
+            {
+              text: 'OK',
+              onPress: () => {
+                try {
+                  console.error('[AccountScreen] Setting logged in state, current:', isLoggedIn);
+                  if (!isLoggedIn) {
+                    setIsLoggedIn(true);
+                    console.error('[AccountScreen] Login state set to true');
+                  }
+                } catch (error) {
+                  console.error('Error setting login state:', error);
+                  if (Sentry && typeof Sentry.captureException === 'function') {
+                    Sentry.captureException(error, {
+                      tags: { screen: 'AccountScreen', action: 'setLoginState' }
+                    });
+                  }
+                }
+              }
+            }
+          ], 'success');
+          return;
+        }
+      }
+
+      showAlert('Error', result.error || 'Login failed');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { screen: 'AccountScreen', action: 'login' }
+        });
+      }
+      showAlert('Error', 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (!code2FA || code2FA.length !== 6 || !/^\d{6}$/.test(code2FA)) {
+      showAlert('Error', 'Please enter a valid 6-digit code');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Re-submit login with TOTP code
+      const response = await fetch(`${API_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: pendingEmail,
+          password: pendingPassword,
+          totp: code2FA,
+        }),
+      });
+
+      // Check for rate limiting
+      if (response.status === 429) {
+        showAlert('Too Many Attempts', 'Too many login attempts. Please try again in 15 minutes.', undefined, 'warning');
+        return;
+      }
+
+      // Try to parse JSON response
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parse error during 2FA verify:', jsonError);
+        showAlert('Error', 'Server returned an invalid response. Please try again later.');
+        return;
+      }
+
+      if (response.ok && result.token) {
+        const adminName = result.user?.name || 'Admin';
+        const adminEmail = pendingEmail;
+        
+        // Save login state
+        try {
+          await AsyncStorage.multiSet([
+            ['adminToken', result.token],
+            ['adminUserName', adminName],
+            ['adminUserEmail', adminEmail]
+          ]);
+        } catch (error) {
+          console.error('Error saving login state:', error);
+        }
+        
+        // Clear form states
+        setCode2FA('');
+        setPendingPassword('');
+        setEmail('');
+        setPassword('');
+        setPendingEmail('');
+        // Set user info
+        setUserName(adminName);
+        setUserEmail(adminEmail);
+        // Show success alert and change state after user acknowledges
+        console.error('[AccountScreen] 2FA login successful, showing alert');
+        showAlert('Success', 'Login successful!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              try {
+                console.error('[AccountScreen] Setting 2FA login state, current:', isLoggedIn);
+                setShow2FA(false);
+                if (!isLoggedIn) {
+                  setIsLoggedIn(true);
+                  console.error('[AccountScreen] 2FA login state set to true');
+                }
+              } catch (error) {
+                console.error('Error setting 2FA login state:', error);
+                if (Sentry && typeof Sentry.captureException === 'function') {
+                  Sentry.captureException(error, {
+                    tags: { screen: 'AccountScreen', action: 'set2FALoginState' }
+                  });
+                }
+              }
+            }
+          }
+        ], 'success');
+        return;
+      }
+
+      showAlert('Error', result.error || 'Invalid code');
+    } catch (error: any) {
+      console.error('2FA verify error:', error);
+      if (Sentry && typeof Sentry.captureException === 'function') {
+        Sentry.captureException(error, {
+          tags: { screen: 'AccountScreen', action: 'verify2FA' }
+        });
+      }
+      showAlert('Error', 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+  const handleLogout = () => {
+    showAlert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            // Clear stored login data
+            try {
+              await AsyncStorage.multiRemove(['adminToken', 'adminUserName', 'adminUserEmail']);
+            } catch (error) {
+              console.error('Error clearing login state:', error);
+            }
+            
+            setIsLoggedIn(false);
+            setUserName('');
+            setUserEmail('');
+            setEmail('');
+            setPassword('');
+            setShow2FA(false);
+            setCode2FA('');
+            setPendingEmail('');
+            setPendingPassword('');
+            showAlert('Success', 'Logged out successfully', undefined, 'success');
+          },
+        },
+      ],
+      'warning'
+    );
   };
 
   if (loading) {
@@ -91,8 +359,8 @@ export default function AccountScreen({ navigation }: any) {
     );
   }
 
-  if (isAdmin) {
-    // Admin is logged in - show admin quick access
+  // If logged in, show admin profile
+  if (isLoggedIn) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -111,60 +379,46 @@ export default function AccountScreen({ navigation }: any) {
 
         <ScrollView style={styles.content}>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Admin Panel</Text>
+            <Text style={styles.sectionTitle}>Account Settings</Text>
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateToScreen('AdminDashboard')}
+              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
             >
               <View style={styles.menuIcon}>
-                <Ionicons name="grid" size={24} color="#FF6F9B" />
+                <Ionicons name="person-outline" size={24} color="#FF6F9B" />
               </View>
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Admin Dashboard</Text>
-                <Text style={styles.menuSubtext}>Manage your store</Text>
+                <Text style={styles.menuText}>Profile</Text>
+                <Text style={styles.menuSubtext}>Manage your profile</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateToScreen('AdminProducts')}
+              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
             >
               <View style={styles.menuIcon}>
-                <Ionicons name="cube" size={24} color="#FF6F9B" />
+                <Ionicons name="notifications-outline" size={24} color="#FF6F9B" />
               </View>
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Products</Text>
-                <Text style={styles.menuSubtext}>Manage products</Text>
+                <Text style={styles.menuText}>Notifications</Text>
+                <Text style={styles.menuSubtext}>Manage notifications</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => navigateToScreen('AdminTransactions')}
+              onPress={() => showAlert('Coming Soon', 'This feature is under development.', undefined, 'info')}
             >
               <View style={styles.menuIcon}>
-                <Ionicons name="receipt" size={24} color="#FF6F9B" />
+                <Ionicons name="settings-outline" size={24} color="#FF6F9B" />
               </View>
               <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>Transactions</Text>
-                <Text style={styles.menuSubtext}>View all orders</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => navigateToScreen('AdminTodo')}
-            >
-              <View style={styles.menuIcon}>
-                <Ionicons name="clipboard" size={24} color="#FF6F9B" />
-              </View>
-              <View style={styles.menuTextContainer}>
-                <Text style={styles.menuText}>To Do</Text>
-                <Text style={styles.menuSubtext}>Pending orders</Text>
+                <Text style={styles.menuText}>Settings</Text>
+                <Text style={styles.menuSubtext}>App preferences</Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#D1D5DB" />
             </TouchableOpacity>
@@ -175,27 +429,117 @@ export default function AccountScreen({ navigation }: any) {
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
         </ScrollView>
+        <CustomAlert
+          visible={visible}
+          title={alertConfig?.title || ''}
+          message={alertConfig?.message}
+          buttons={alertConfig?.buttons}
+          onDismiss={hideAlert}
+          type={alertConfig?.type}
+        />
       </View>
     );
   }
 
-  // Not logged in - show login option
+  // Not logged in - show login form
   return (
-    <View style={styles.container}>
-      <View style={styles.notLoggedInContainer}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="lock-closed-outline" size={64} color="#FF6F9B" />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.loginContainer}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="person-circle-outline" size={64} color="#FF6F9B" />
+          </View>
+          <Text style={styles.loginTitle}>Chammy Florals</Text>
+          <Text style={styles.loginSubtext}>Admin Login</Text>
+
+          {!show2FA ? (
+            <>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#6B7280"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
+                <Text style={styles.loginBtnText}>Login</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.twoFactorText}>
+                Enter the 6-digit code from your Google Authenticator app to complete login.
+              </Text>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="key-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 6-digit code"
+                  value={code2FA}
+                  onChangeText={setCode2FA}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                />
+              </View>
+
+              <TouchableOpacity style={styles.verifyBtn} onPress={handleVerify2FA}>
+                <Text style={styles.verifyBtnText}>Verify & Login</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.backLink}
+                onPress={() => {
+                  setShow2FA(false);
+                  setCode2FA('');
+                  setPendingEmail('');
+                  setPendingPassword('');
+                }}
+              >
+                <Text style={styles.backLinkText}>← Back to login</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
-        <Text style={styles.notLoggedInTitle}>Admin Access</Text>
-        <Text style={styles.notLoggedInSubtext}>
-          Login to access the admin panel
-        </Text>
-        <TouchableOpacity style={styles.loginBtn} onPress={() => navigateToScreen('AdminLogin')}>
-          <Ionicons name="log-in-outline" size={24} color="#fff" />
-          <Text style={styles.loginBtnText}>Admin Login</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+      <CustomAlert
+        visible={visible}
+        title={alertConfig?.title || ''}
+        message={alertConfig?.message}
+        buttons={alertConfig?.buttons}
+        onDismiss={hideAlert}
+        type={alertConfig?.type}
+      />
+    </KeyboardAvoidingView>
   );
 }
 
@@ -209,6 +553,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFF5F8',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
   },
   header: {
     paddingTop: 60,
@@ -309,11 +658,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF3B30',
   },
-  notLoggedInContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  loginContainer: {
     alignItems: 'center',
-    padding: 40,
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   iconCircle: {
     width: 140,
@@ -322,29 +671,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCE4EC',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
-  notLoggedInTitle: {
+  loginTitle: {
     fontSize: 28,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  notLoggedInSubtext: {
+  loginSubtext: {
     fontSize: 16,
     color: '#6B7280',
-    textAlign: 'center',
     marginBottom: 32,
-    lineHeight: 24,
   },
-  loginBtn: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  loginBtn: {
     backgroundColor: '#FF6F9B',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 14,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 8,
     shadowColor: '#FF6F9B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -355,5 +725,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+  },
+  twoFactorText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  verifyBtn: {
+    width: '100%',
+    backgroundColor: '#FF6F9B',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#FF6F9B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  verifyBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  backLink: {
+    marginTop: 24,
+  },
+  backLinkText: {
+    fontSize: 16,
+    color: '#FF6F9B',
+    fontWeight: '600',
   },
 });

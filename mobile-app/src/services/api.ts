@@ -1,6 +1,27 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chammyflorals.vercel.app';
+import Constants from 'expo-constants';
+
+// Get API URL from Constants.expoConfig for production or process.env for development
+const getApiUrl = () => {
+  // Try Constants.expoConfig.extra first (works in production)
+  if (Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL) {
+    return Constants.expoConfig.extra.EXPO_PUBLIC_API_URL;
+  }
+  // Fallback to process.env (works in development)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  // Final fallback
+  return 'https://chammyflorals.vercel.app';
+};
+
+const API_URL = getApiUrl();
 
 console.log('API URL:', API_URL);
+console.log('Environment check:', {
+  hasConstants: !!Constants.expoConfig,
+  hasExtra: !!Constants.expoConfig?.extra,
+  hasProcessEnv: !!process.env.EXPO_PUBLIC_API_URL
+});
 
 export interface Product {
   id: number;

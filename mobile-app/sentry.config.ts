@@ -2,6 +2,9 @@ import * as Sentry from '@sentry/react-native';
 
 const SENTRY_DSN = 'https://8cc06799284d643d0ee160c29493ff24@o4510425216057344.ingest.us.sentry.io/4510425223331840';
 
+// Safe check for __DEV__
+const isDevelopment = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+
 Sentry.init({
   dsn: SENTRY_DSN,
   
@@ -12,7 +15,7 @@ Sentry.init({
   tracesSampleRate: 1.0,
   
   // Only enable debug logging in development
-  debug: __DEV__,
+  debug: isDevelopment,
   
   // Enable automatic session tracking
   enableAutoSessionTracking: true,
@@ -21,13 +24,22 @@ Sentry.init({
   sessionTrackingIntervalMillis: 30000,
   
   // Environment
-  environment: __DEV__ ? 'development' : 'production',
+  environment: isDevelopment ? 'development' : 'production',
   
   // Enable native crash reporting (works in production builds)
   enableNative: true,
   
   // Enable automatic breadcrumbs
   enableAutoPerformanceTracing: true,
+  
+  // Add better error handling
+  beforeSend(event, hint) {
+    // Log the error to console in development
+    if (isDevelopment) {
+      console.log('Sentry event:', event, hint);
+    }
+    return event;
+  },
 });
 
 export default Sentry;
