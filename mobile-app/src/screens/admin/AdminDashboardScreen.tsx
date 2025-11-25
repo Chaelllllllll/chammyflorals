@@ -23,10 +23,20 @@ export default function AdminDashboardScreen({ navigation }: any) {
 
   const loadDashboardData = async () => {
     try {
+      setLoading(true);
       const data = await ApiService.getDashboardStats();
+      console.log('Dashboard stats:', data);
       setStats(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
+      Alert.alert('Error', `Failed to load dashboard data: ${error.message || 'Unknown error'}`);
+      // Set default stats to prevent crashes
+      setStats({
+        total_orders: 0,
+        pending_orders: 0,
+        completed_orders: 0,
+        total_revenue: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -49,7 +59,8 @@ export default function AdminDashboardScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#ff6f9b" />
+        <ActivityIndicator size="large" color="#FF6F9B" />
+        <Text style={{ marginTop: 16, color: '#6B7280', fontSize: 16 }}>Loading dashboard...</Text>
       </View>
     );
   }
@@ -59,11 +70,16 @@ export default function AdminDashboardScreen({ navigation }: any) {
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.username || 'Admin'}</Text>
+          <Text style={styles.userName}>{user?.email || 'Admin'}</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={24} color="#ff6f9b" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={loadDashboardData} style={styles.refreshButton}>
+            <Ionicons name="refresh-outline" size={24} color="#4B5563" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.statsContainer}>
@@ -186,86 +202,120 @@ export default function AdminDashboardScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F8F9FA',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff6f9',
+    padding: 24,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   welcomeText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B7280',
+    marginBottom: 4,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   logoutButton: {
-    padding: 8,
+    padding: 12,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+  },
+  refreshButton: {
+    padding: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
   },
   statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 15,
-    justifyContent: 'space-between',
+    padding: 16,
+    gap: 12,
   },
   statCard: {
-    width: '48%',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 20,
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 10,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1F2937',
+    marginTop: 12,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 8,
+    fontWeight: '500',
   },
   quickActionsContainer: {
     padding: 20,
+    paddingTop: 8,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+    letterSpacing: 0.3,
   },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 12,
-    padding: 15,
-    marginBottom: 15,
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 12,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   actionContent: {
     flex: 1,
-    marginLeft: 15,
+    marginLeft: 16,
   },
   actionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
   },
   actionDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
   },
 });

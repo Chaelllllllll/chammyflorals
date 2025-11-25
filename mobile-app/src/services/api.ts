@@ -290,11 +290,36 @@ class ApiService {
   }
 
   async getDashboardStats(): Promise<any> {
-    const response = await fetch(`${API_URL}/api/admin/dashboard`, {
-      headers: this.getHeaders(true),
-    });
-    if (!response.ok) throw new Error('Failed to fetch dashboard stats');
-    return response.json();
+    try {
+      console.log('=== getDashboardStats START ===');
+      console.log('Token:', this.token ? 'Present' : 'Missing');
+      console.log('URL:', `${API_URL}/api/admin/dashboard`);
+      
+      const headers = this.getHeaders(true);
+      console.log('Headers:', JSON.stringify(headers, null, 2));
+      
+      const response = await fetch(`${API_URL}/api/admin/dashboard`, {
+        headers,
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response statusText:', response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Dashboard API error response:', errorText);
+        throw new Error(`Failed to fetch dashboard stats: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Dashboard data received:', data);
+      console.log('=== getDashboardStats END ===');
+      
+      return data;
+    } catch (error: any) {
+      console.error('getDashboardStats ERROR:', error);
+      throw error;
+    }
   }
 
   // Admin Orders
@@ -304,7 +329,18 @@ class ApiService {
 
   // Admin Products
   async getAdminProducts(): Promise<Product[]> {
-    return this.getProducts();
+    try {
+      console.log('=== getAdminProducts START ===');
+      console.log('Token:', this.token ? 'Present' : 'Missing');
+      console.log('Calling getProducts()...');
+      const products = await this.getProducts();
+      console.log('Products received:', products.length);
+      console.log('=== getAdminProducts END ===');
+      return products;
+    } catch (error: any) {
+      console.error('getAdminProducts ERROR:', error);
+      throw error;
+    }
   }
 
   async createProduct(productData: any): Promise<Product> {

@@ -33,10 +33,14 @@ export default function AdminProductsScreen({ navigation }: any) {
   const loadProducts = async () => {
     try {
       setLoading(true);
+      console.log('Loading admin products...');
       const data = await ApiService.getAdminProducts();
-      setProducts(data);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load products');
+      console.log('Products loaded:', data?.length || 0);
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error('Failed to load products:', error);
+      Alert.alert('Error', `Failed to load products: ${error.message || 'Unknown error'}`);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -207,37 +211,50 @@ export default function AdminProductsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: 20,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   backBtn: {
     padding: 8,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   addBtn: {
-    backgroundColor: '#ff6f9b',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: '#FF6F9B',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#FF6F9B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   list: {
     padding: 16,
@@ -245,97 +262,117 @@ const styles = StyleSheet.create({
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 14,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   productImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 12,
+    width: 70,
+    height: 70,
+    borderRadius: 12,
+    marginRight: 14,
+    backgroundColor: '#F3F4F6',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 6,
   },
   productCategory: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+    color: '#6B7280',
+    marginBottom: 4,
+    fontWeight: '500',
   },
   productPricing: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: 13,
+    color: '#9CA3AF',
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
   },
   actionBtn: {
-    padding: 8,
+    padding: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalContent: {
     width: '90%',
     maxHeight: '80%',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#333',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 24,
+    color: '#1F2937',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
     fontSize: 16,
+    color: '#1F2937',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 20,
+    marginTop: 24,
   },
   modalBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
   },
   cancelBtn: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#F3F4F6',
   },
   saveBtn: {
-    backgroundColor: '#ff6f9b',
+    backgroundColor: '#FF6F9B',
+    shadowColor: '#FF6F9B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   cancelBtnText: {
-    color: '#333',
-    fontWeight: '600',
+    color: '#4B5563',
+    fontWeight: '700',
+    fontSize: 16,
   },
   saveBtnText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
