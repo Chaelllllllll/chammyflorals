@@ -1,3 +1,6 @@
+// Load environment variables FIRST before any other modules
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -6,7 +9,6 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const apiRoutes = require('../src/routes/api');
 const adminRoutes = require('../src/routes/admin');
 const messengerRoutes = require('../src/routes/messenger');
-require('dotenv').config();
 
 const app = express();
 

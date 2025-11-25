@@ -11,6 +11,34 @@ const router = express.Router();
 const multer = require('multer');
 const crypto = require('crypto');
 
+// Health check endpoint to verify API and database connectivity
+router.get('/health', async (req, res) => {
+  try {
+    const checks = {
+      api: 'OK',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      supabaseConfigured: !!(process.env.SUPABASE_URL && (process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)),
+    };
+    
+    // Test database connection
+    try {
+      const { data, error } = await supabase.from('products').select('id').limit(1);
+      checks.database = error ? `ERROR: ${error.message}` : 'OK';
+    } catch (dbErr) {
+      checks.database = `ERROR: ${dbErr.message}`;
+    }
+    
+    res.json(checks);
+  } catch (err) {
+    res.status(500).json({ 
+      api: 'ERROR', 
+      error: err.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // use memory storage so we can upload the buffer to Supabase storage
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
