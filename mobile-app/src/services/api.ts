@@ -66,15 +66,23 @@ class ApiService {
   // Products
   async getProducts(): Promise<Product[]> {
     try {
+      console.log('Fetching products from:', `${API_URL}/api/products`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${API_URL}/api/products`, {
         headers: this.getHeaders(),
-        timeout: 10000,
-      } as any);
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        console.error('Products API error:', response.status);
+        console.error('Products API error:', response.status, response.statusText);
         return [];
       }
       const data = await response.json();
+      console.log('Products fetched successfully:', data.length);
       return data || [];
     } catch (error) {
       console.error('Failed to fetch products:', error);
@@ -111,10 +119,16 @@ class ApiService {
 
   async trackOrder(orderId: string): Promise<any> {
     try {
+      console.log('Tracking order:', orderId);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${API_URL}/api/track/${orderId}`, {
         headers: this.getHeaders(),
-        timeout: 10000,
-      } as any);
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (response.status === 404) {
         throw new Error('ORDER_NOT_FOUND');
@@ -153,15 +167,23 @@ class ApiService {
   // Reviews
   async getReviews(): Promise<Review[]> {
     try {
+      console.log('Fetching reviews from:', `${API_URL}/api/reviews`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${API_URL}/api/reviews`, {
         headers: this.getHeaders(),
-        timeout: 10000,
-      } as any);
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
-        console.error('Reviews API error:', response.status);
+        console.error('Reviews API error:', response.status, response.statusText);
         return [];
       }
       const data = await response.json();
+      console.log('Reviews fetched successfully:', data.length);
       return data || [];
     } catch (error) {
       console.error('Failed to fetch reviews:', error);
@@ -171,12 +193,18 @@ class ApiService {
 
   async createReview(reviewData: any): Promise<Review> {
     try {
+      console.log('Creating review...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${API_URL}/api/reviews`, {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(reviewData),
-        timeout: 15000,
-      } as any);
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();
