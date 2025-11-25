@@ -7,7 +7,7 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { Platform, StatusBar } from 'react-native';
+import { Platform, StatusBar, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
@@ -26,6 +26,8 @@ import TrackOrderScreen from './src/screens/TrackOrderScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import InquiryScreen from './src/screens/InquiryScreen';
 import AccountScreen from './src/screens/AccountScreen';
+import AdminDashboardScreen from './src/screens/admin/AdminDashboardScreen';
+import AdminProductsScreen from './src/screens/admin/ProductsScreen';
 import Sentry from './sentry.config';
 
 const Stack = createNativeStackNavigator();
@@ -308,6 +310,46 @@ export default Sentry.wrap(function App() {
               name="OrderSuccess" 
               component={OrderSuccessScreen}
               options={{ title: 'Order Success', headerLeft: () => null }}
+            />
+            <Stack.Screen 
+              name="Dashboard" 
+              component={AdminDashboardScreen}
+              options={({ navigation }) => ({ 
+                title: 'Admin Dashboard',
+                headerLeft: () => null,
+                gestureEnabled: false,
+                headerRight: () => (
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Logout',
+                        'Are you sure you want to logout?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Logout',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await AsyncStorage.multiRemove(['adminToken', 'adminUserName', 'adminUserEmail']);
+                              navigation.navigate('MainTabs', { screen: 'Account' });
+                            }
+                          }
+                        ]
+                      );
+                    }}
+                    style={{ marginRight: 16 }}
+                  >
+                    <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+                  </TouchableOpacity>
+                )
+              })}
+            />
+            <Stack.Screen 
+              name="Products" 
+              component={AdminProductsScreen}
+              options={{ 
+                title: 'Manage Products',
+              }}
             />
           </Stack.Navigator>
         </NavigationContainer>

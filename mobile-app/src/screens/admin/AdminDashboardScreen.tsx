@@ -14,8 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCustomAlert } from '../hooks/useCustomAlert';
-import CustomAlert from '../components/CustomAlert';
+import { useCustomAlert } from '../../hooks/useCustomAlert';
+import CustomAlert from '../../components/CustomAlert';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chamfloral.vercel.app';
 
@@ -176,10 +176,16 @@ const AdminDashboardScreen = ({ navigation }: any) => {
       const data = await response.json();
 
       if (response.ok) {
-        showAlert('Success', 'Order updated successfully', undefined, 'success');
-        setModalVisible(false);
-        setEditMode(false);
-        loadOrders(false);
+        showAlert('Success', 'Order updated successfully', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setModalVisible(false);
+              setEditMode(false);
+              loadOrders(false);
+            }
+          }
+        ], 'success');
       } else {
         showAlert('Error', data.error || 'Failed to update order');
       }
@@ -284,6 +290,7 @@ const AdminDashboardScreen = ({ navigation }: any) => {
           message={alertConfig.message}
           buttons={alertConfig.buttons}
           type={alertConfig.type}
+          onDismiss={hideAlert}
         />
       )}
 
@@ -300,6 +307,16 @@ const AdminDashboardScreen = ({ navigation }: any) => {
           <Text style={[styles.statNumber, { color: '#3b82f6' }]}>{getStatusCount('Processing')}</Text>
           <Text style={styles.statLabel}>Processing</Text>
         </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ff69b4', padding: 14, borderRadius: 12 }}
+          onPress={() => navigation.navigate('Products')}
+        >
+          <Ionicons name="flower-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Manage Products</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchContainer}>
@@ -404,6 +421,7 @@ const AdminDashboardScreen = ({ navigation }: any) => {
                     { label: 'Message', value: selectedOrder.message || '-' },
                     { label: 'Rush Order', value: selectedOrder.rush || 'No' },
                     { label: 'Total Fee', value: `₱${Number(selectedOrder.total_fee).toLocaleString()}` },
+                    { label: 'Status', value: selectedOrder.status },
                     { label: 'Order Date', value: formatDateTime(selectedOrder.created_at) },
                   ].map((item, i) => (
                     <View key={i} style={{ marginBottom: 16 }}>
@@ -420,38 +438,127 @@ const AdminDashboardScreen = ({ navigation }: any) => {
                       </TouchableOpacity>
                     </View>
                   )}
+                </View>
+              )}
 
-                  <View style={{ marginTop: 24, gap: 12 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#6b7280', marginBottom: 8 }}>Update Status:</Text>
-                    {['Processing', 'To Receive', 'Cancelled'].map((status) => (
+              {selectedOrder && editMode && (
+                <View>
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Customer Name:</Text>
+                    <TextInput
+                      style={{ fontSize: 16, color: '#333', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12 }}
+                      value={editData.name}
+                      onChangeText={(text) => setEditData({ ...editData, name: text })}
+                    />
+                  </View>
+
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Email:</Text>
+                    <TextInput
+                      style={{ fontSize: 16, color: '#333', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12 }}
+                      value={editData.email}
+                      onChangeText={(text) => setEditData({ ...editData, email: text })}
+                      keyboardType="email-address"
+                    />
+                  </View>
+
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Message:</Text>
+                    <TextInput
+                      style={{ fontSize: 16, color: '#333', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12, minHeight: 80 }}
+                      value={editData.message}
+                      onChangeText={(text) => setEditData({ ...editData, message: text })}
+                      multiline
+                    />
+                  </View>
+
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Rush Order:</Text>
+                    <View style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 }}>
                       <TouchableOpacity
-                        key={status}
-                        style={{ flexDirection: 'row', padding: 14, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: getStatusColor(status) }}
-                        onPress={() => handleUpdateStatus(selectedOrder.order_id, status)}
+                        style={{ padding: 12 }}
+                        onPress={() => {
+                          const options = ['No', 'Yes'];
+                          const currentIndex = options.indexOf(editData.rush || 'No');
+                          const nextIndex = (currentIndex + 1) % options.length;
+                          setEditData({ ...editData, rush: options[nextIndex] });
+                        }}
                       >
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{status}</Text>
+                        <Text style={{ fontSize: 16, color: '#333' }}>{editData.rush || 'No'}</Text>
                       </TouchableOpacity>
-                    ))}
+                    </View>
+                  </View>
+
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Status:</Text>
+                    <View style={{ borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8 }}>
+                      {['Pending', 'Processing', 'To Receive', 'Cancelled'].map((status, index) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={{
+                            padding: 12,
+                            backgroundColor: editData.status === status ? '#f3f4f6' : 'transparent',
+                            borderTopWidth: index > 0 ? 1 : 0,
+                            borderTopColor: '#e5e7eb',
+                          }}
+                          onPress={() => setEditData({ ...editData, status })}
+                        >
+                          <Text style={{ fontSize: 16, color: editData.status === status ? '#ff69b4' : '#333', fontWeight: editData.status === status ? '600' : '400' }}>
+                            {status}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Total Fee:</Text>
+                    <TextInput
+                      style={{ fontSize: 16, color: '#333', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 12 }}
+                      value={String(editData.total_fee || 0)}
+                      onChangeText={(text) => setEditData({ ...editData, total_fee: parseFloat(text) || 0 })}
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <View style={{ marginTop: 24 }}>
+                    <TouchableOpacity
+                      style={{ padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: '#10b981' }}
+                      onPress={handleSaveEdit}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Save Changes</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               )}
             </ScrollView>
 
             <View style={{ flexDirection: 'row', padding: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb', gap: 12 }}>
-              <TouchableOpacity
-                style={{ flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: '#f3f4f6' }}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={{ color: '#6b7280', fontSize: 16, fontWeight: '600' }}>Close</Text>
-              </TouchableOpacity>
-              {!editMode && (
-                <TouchableOpacity
-                  style={{ flex: 1, flexDirection: 'row', padding: 14, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ff69b4' }}
-                  onPress={handleEditOrder}
-                >
-                  <Ionicons name="create-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Edit</Text>
-                </TouchableOpacity>
+              {editMode ? (
+                <>
+                  <TouchableOpacity
+                    style={{ flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: '#f3f4f6' }}
+                    onPress={() => setEditMode(false)}
+                  >
+                    <Text style={{ color: '#6b7280', fontSize: 16, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={{ flex: 1, padding: 14, borderRadius: 8, alignItems: 'center', backgroundColor: '#f3f4f6' }}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={{ color: '#6b7280', fontSize: 16, fontWeight: '600' }}>Close</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', padding: 14, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ff69b4' }}
+                    onPress={handleEditOrder}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Edit Order</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           </View>

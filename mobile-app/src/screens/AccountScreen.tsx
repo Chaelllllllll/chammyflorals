@@ -55,14 +55,14 @@ export default function AccountScreen({ navigation }: any) {
 
       if (savedToken && savedUserName && savedUserEmail) {
         console.error('[AccountScreen] Admin already logged in - navigating to dashboard');
+        setUserName(savedUserName);
+        setUserEmail(savedUserEmail);
+        setIsLoggedIn(true);
         // Use a slight delay to ensure navigator is ready
         setTimeout(() => {
           try {
-            setUserName(savedUserName);
-            setUserEmail(savedUserEmail);
-            setIsLoggedIn(true);
             console.error('[AccountScreen] Navigating to dashboard');
-            navigation.navigate('Dashboard');
+            navigation.navigate('Dashboard' as never);
           } catch (error) {
             console.error('Error navigating to dashboard:', error);
             if (Sentry && typeof Sentry.captureException === 'function') {
@@ -180,7 +180,7 @@ export default function AccountScreen({ navigation }: any) {
           setIsLoggedIn(true);
           setTimeout(() => {
             try {
-              navigation.navigate('Dashboard');
+              navigation.navigate('Dashboard' as never);
             } catch (error) {
               console.error('Error navigating to dashboard:', error);
               if (Sentry && typeof Sentry.captureException === 'function') {
@@ -273,7 +273,7 @@ export default function AccountScreen({ navigation }: any) {
         setIsLoggedIn(true);
         setTimeout(() => {
           try {
-            navigation.navigate('Dashboard');
+            navigation.navigate('Dashboard' as never);
           } catch (error) {
             console.error('Error navigating to dashboard after 2FA:', error);
             if (Sentry && typeof Sentry.captureException === 'function') {
