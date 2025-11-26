@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
+import { API_URL } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCustomAlert } from '../hooks/useCustomAlert';
 import CustomAlert from '../components/CustomAlert';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://chamfloral.vercel.app';
+// Use canonical API URL from services/api
 
 interface Order {
   order_id: string;
@@ -63,6 +65,7 @@ export default function MyOrdersScreen({ navigation }: any) {
   const [userEmail, setUserEmail] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { showAlert, hideAlert, alertConfig, visible: alertVisible } = useCustomAlert();
 
   useFocusEffect(
@@ -71,42 +74,131 @@ export default function MyOrdersScreen({ navigation }: any) {
     }, [])
   );
 
+  // Listen for incoming push notifications and update orders when status updates arrive
+  const notificationListener = useRef<any>(null);
+
+  useEffect(() => {
+    notificationListener.current = Notifications.addNotificationReceivedListener(async (notification) => {
+      try {
+        const data = notification?.request?.content?.data || {};
+        if (data && (data.type === 'status_update' || data.type === 'order_update') && data.orderId) {
+          // Fetch latest order info and update list
+          await updateOrderFromServer(String(data.orderId));
+        }
+      } catch (err) {
+        console.warn('Failed to handle incoming notification:', err);
+      }
+    });
+
+    return () => {
+      if (notificationListener.current) notificationListener.current.remove();
+    };
+  }, [userEmail, orders]);
+
   const loadUserOrders = async () => {
     setLoading(true);
     try {
       // Try to get user email from storage
       const savedEmail = await AsyncStorage.getItem('userEmail');
       
+      // If user hasn't saved an email, fall back to device-local cached orders
       if (!savedEmail) {
-        setLoading(false);
-        // Prompt user to enter their email
-        showAlert('Enter Email', 'Please enter your email to view your orders', [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-            onPress: () => {
-              setOrders([]);
-            }
+        setUserEmail('');
+        try {
+          const cached = await AsyncStorage.getItem('cachedOrders:device');
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setOrders(Array.isArray(parsed) ? parsed : []);
+            // do not return here - we'll attempt a network fetch below only if we have an email/phone
+          } else {
+            setOrders([]);
           }
-        ]);
-        return;
+        } catch (e) {
+          setOrders([]);
+        }
+      } else {
+        setUserEmail(savedEmail);
       }
 
-      setUserEmail(savedEmail);
-
       // Fetch orders for this email
-      const response = await fetch(`${API_URL}/api/orders/by-email/${encodeURIComponent(savedEmail)}`);
-      const data = await response.json();
+      let response: Response | null = null;
+      if (savedEmail) {
+        try {
+          response = await fetch(`${API_URL}/api/orders/by-email/${encodeURIComponent(savedEmail)}`);
+        } catch (fetchErr) {
+          response = null;
+        }
+      }
 
-      if (response.ok) {
+      if (response && response.ok) {
+        const data = await response.json();
         // Sort by created_at descending
         const sortedOrders = (data || []).sort((a: Order, b: Order) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setOrders(sortedOrders);
+        // Cache orders for offline access
+        try { 
+          if (savedEmail) await AsyncStorage.setItem(`cachedOrders:${savedEmail}`, JSON.stringify(sortedOrders));
+          // also mirror to device cache so orders created on this device are always visible
+          await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedOrders));
+        } catch (e) {}
       } else {
-        showAlert('Error', data.error || 'Failed to load orders');
-        setOrders([]);
+        // Attempt to load cached orders when network fails or server returns error
+        try {
+          const cached = await AsyncStorage.getItem(`cachedOrders:${savedEmail}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            setOrders(Array.isArray(parsed) ? parsed : []);
+            showAlert('Offline', 'Showing cached orders. Pull to refresh when online.');
+          } else {
+            // If the server didn't respond or there is no savedEmail, try fetching by device push token
+            if (!savedEmail) {
+              try {
+                const pushToken = await AsyncStorage.getItem('expoPushToken');
+                if (pushToken) {
+                  const tokenResp = await fetch(`${API_URL}/api/orders/by-token/${encodeURIComponent(pushToken)}`);
+                  if (tokenResp && tokenResp.ok) {
+                    const tokenData = await tokenResp.json();
+                    const sortedOrders = (tokenData || []).sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                    setOrders(sortedOrders);
+                    await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedOrders));
+                    return;
+                  }
+                }
+              } catch (tErr) {
+                // ignore token fetch errors
+              }
+            }
+            if (response) {
+              const data = await response.json().catch(() => ({}));
+              showAlert('Error', data.error || 'Failed to load orders');
+            } else {
+              showAlert('Network Error', 'Could not reach server to load orders');
+            }
+            setOrders([]);
+          }
+        } catch (cacheErr) {
+          setOrders([]);
+        }
+      }
+
+      // Always try to sync with server by push token for devices without email
+      try {
+        const pushToken = await AsyncStorage.getItem('expoPushToken');
+        if (pushToken) {
+          const tokenResp = await fetch(`${API_URL}/api/orders/by-token/${encodeURIComponent(pushToken)}`);
+          if (tokenResp && tokenResp.ok) {
+            const tokenData = await tokenResp.json();
+            if (Array.isArray(tokenData) && tokenData.length) {
+              const sortedTokenOrders = tokenData.sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              setOrders(sortedTokenOrders);
+              await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedTokenOrders));
+            }
+          }
+        }
+      } catch (tokenSyncErr) {
+        // ignore token sync failures
       }
     } catch (error: any) {
       console.error('Failed to load orders:', error);
@@ -118,9 +210,72 @@ export default function MyOrdersScreen({ navigation }: any) {
     }
   };
 
+  // Fetch a single order from server (track endpoint) and merge/update local list
+  const updateOrderFromServer = async (orderId: string) => {
+    try {
+      const resp = await fetch(`${API_URL}/api/track/${encodeURIComponent(orderId)}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const mapped: Order = {
+        order_id: data.orderId || orderId,
+        status: data.status || 'pending',
+        created_at: data.created_at || new Date().toISOString(),
+        items: data.items || [],
+        total_fee: data.total_fee || data.total_amount || 0,
+      } as Order;
+
+      setOrders(prev => {
+        const exists = prev.some(p => String(p.order_id) === String(mapped.order_id));
+        const next = exists ? prev.map(p => (String(p.order_id) === String(mapped.order_id) ? { ...p, ...mapped } : p)) : [mapped, ...prev];
+        // persist cache
+        if (userEmail) {
+          AsyncStorage.setItem(`cachedOrders:${userEmail}`, JSON.stringify(next)).catch(() => {});
+        }
+        return next;
+      });
+    } catch (err) {
+      console.warn('Failed to update order from server:', err);
+    }
+  };
+
   const promptEmailEntry = () => {
     // Navigate to account or show input
     navigation.navigate('Account');
+  };
+
+  const syncDeviceOrders = async () => {
+    setIsSyncing(true);
+    try {
+      const pushToken = await AsyncStorage.getItem('expoPushToken');
+      if (!pushToken) {
+        showAlert('No Push Token', 'Push token not found on this device. Ensure notifications are enabled.');
+        return;
+      }
+      const url = `${API_URL}/api/orders/by-token/${encodeURIComponent(pushToken)}`;
+      console.log('[MyOrders] Sync by token:', url);
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        let bodyText = '';
+        try { bodyText = await resp.text(); } catch (e) {}
+        console.warn('[MyOrders] Sync failed', resp.status, bodyText);
+        showAlert('Sync Failed', `Server returned ${resp.status}: ${bodyText || resp.statusText}`);
+        return;
+      }
+      const data = await resp.json();
+      const sortedOrders = (data || []).sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setOrders(sortedOrders);
+      await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedOrders));
+      if (!sortedOrders.length) {
+        showAlert('No Orders', 'No server-side orders were found for this device.');
+      }
+    } catch (err: any) {
+      console.warn('[MyOrders] Device sync error:', err);
+      // Provide a helpful message for Expo Go differences
+      const msg = err?.message || String(err);
+      showAlert('Error', `Failed to sync device orders: ${msg}. If you are using Expo Go, push tokens and server registration can behave differently — try on a standalone build or ensure notifications are enabled.`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const onRefresh = useCallback(() => {
@@ -207,14 +362,23 @@ export default function MyOrdersScreen({ navigation }: any) {
       <Ionicons name="receipt-outline" size={80} color="#d1d5db" />
       <Text style={styles.emptyText}>No orders yet</Text>
       <Text style={styles.emptySubtext}>
-        {userEmail ? 'Start shopping to see your orders here' : 'Set your email in Account to view orders'}
+        {userEmail ? 'Start shopping to see your orders here' : 'You can sync orders stored on this device or set an email in Account'}
       </Text>
-      <TouchableOpacity 
-        style={styles.shopButton}
-        onPress={() => navigation.navigate('Products')}
-      >
-        <Text style={styles.shopButtonText}>Browse Products</Text>
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <TouchableOpacity
+          style={[styles.shopButton, { backgroundColor: '#6b7280', flex: 1 }]}
+          onPress={syncDeviceOrders}
+          disabled={isSyncing}
+        >
+          <Text style={styles.shopButtonText}>{isSyncing ? 'Syncing...' : 'Sync Device Orders'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.shopButton, { backgroundColor: '#ff6f9b', flex: 1 }]}
+          onPress={() => navigation.navigate('Account')}
+        >
+          <Text style={styles.shopButtonText}>Set Email</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -237,6 +401,7 @@ export default function MyOrdersScreen({ navigation }: any) {
           message={alertConfig.message}
           buttons={alertConfig.buttons}
           type={alertConfig.type}
+          onDismiss={hideAlert}
         />
       )}
 

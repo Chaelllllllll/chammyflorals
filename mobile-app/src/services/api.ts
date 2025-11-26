@@ -14,7 +14,7 @@ const getApiUrl = () => {
   return 'https://chammyflorals.vercel.app';
 };
 
-const API_URL = getApiUrl();
+export const API_URL = getApiUrl();
 
 console.log('API URL:', API_URL);
 console.log('Environment check:', {
@@ -136,7 +136,8 @@ class ApiService {
 
   // Orders
   async createOrder(orderData: any): Promise<Order> {
-    const response = await fetch(`${API_URL}/api/orders`, {
+    // The server expects inquiries/orders to be posted to /api/inquiry
+    const response = await fetch(`${API_URL}/api/inquiry`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(orderData),

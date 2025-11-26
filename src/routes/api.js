@@ -336,29 +336,26 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     console.log('Order inserted, returned data:', data && data[0] ? { order_id: data[0].order_id, status: data[0].status } : 'no data');
 
     // Save push token to user_push_tokens table for notifications
+    // Always upsert the token (even if email/phone not provided) so we can find orders by token
     if (expoPushToken && data && data[0]) {
       try {
-        const userPhone = orderData.customer_phone || orderData.phone;
-        const userEmail = orderData.customer_email || orderData.email;
-        
-        if (userPhone || userEmail) {
-          console.log('Saving push token for user...');
-          const { error: tokenError } = await supabase
-            .from('user_push_tokens')
-            .upsert({
-              phone: userPhone || null,
-              email: userEmail || null,
-              expo_push_token: expoPushToken,
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'phone,email'
-            });
-          
-          if (tokenError) {
-            console.error('Failed to save push token:', tokenError);
-          } else {
-            console.log('Push token saved successfully');
-          }
+        const userPhone = orderData.customer_phone || orderData.phone || null;
+        const userEmail = orderData.customer_email || orderData.email || null;
+        console.log('Saving push token (upsert) for user or device...');
+        const payload = {
+          phone: userPhone,
+          email: userEmail,
+          expo_push_token: expoPushToken,
+          updated_at: new Date().toISOString()
+        };
+        const { error: tokenError } = await supabase
+          .from('user_push_tokens')
+          .upsert(payload, { onConflict: 'expo_push_token' });
+
+        if (tokenError) {
+          console.error('Failed to save push token:', tokenError);
+        } else {
+          console.log('Push token saved successfully');
         }
       } catch (tokenErr) {
         console.error('Error saving push token:', tokenErr);
@@ -505,6 +502,59 @@ router.get('/orders/by-email/:email', async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Get orders by expo push token (for devices that didn't provide email)
+router.get('/orders/by-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    // Find matching user_push_tokens row by expo token
+    const { data: tokens, error: tokenErr } = await supabase
+      .from('user_push_tokens')
+      .select('phone,email')
+      .eq('expo_push_token', token)
+      .limit(1);
+
+    if (tokenErr) {
+      console.error('Error fetching push token record:', tokenErr);
+      return res.status(500).json({ error: 'Failed to fetch token record' });
+    }
+
+    if (!tokens || tokens.length === 0) {
+      // No mapping found - return empty array
+      return res.json([]);
+    }
+
+    const rec = tokens[0] || {};
+    const phone = rec.phone || '';
+    const email = rec.email || '';
+
+    // Query orders by phone or email associated with this token
+    const orFilterParts = [];
+    if (email) orFilterParts.push(`email.eq.${email}`);
+    if (email) orFilterParts.push(`customer_email.eq.${email}`);
+    if (phone) orFilterParts.push(`phone.eq.${phone}`);
+    if (phone) orFilterParts.push(`customer_phone.eq.${phone}`);
+
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+    if (orFilterParts.length) {
+      const orClause = orFilterParts.join(',');
+      query = supabase.from('orders').select('*').or(orClause).order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching orders by token:', error);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+
+    return res.json(data || []);
+  } catch (err) {
+    console.error('orders/by-token error:', err);
+    return res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 

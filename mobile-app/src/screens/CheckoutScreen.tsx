@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCart } from '../contexts/CartContext';
-import ApiService from '../services/api';
+import ApiService, { API_URL } from '../services/api';
 import Sentry from '../../sentry.config';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -51,6 +51,19 @@ export default function CheckoutScreen({ navigation }: any) {
       };
 
       const order = await ApiService.createOrder(orderData);
+      // The server returns { message, orderId } for inquiries. Fetch the full order record using the returned orderId.
+      let fullOrder: any = null;
+      const returnedOrderId = (order && (((order as any).orderId) || ((order as any).order_id) || ((order as any).id))) || null;
+      if (returnedOrderId) {
+        try {
+          const trackResp = await fetch(`${API_URL}/api/track/${encodeURIComponent(returnedOrderId)}`);
+          if (trackResp && trackResp.ok) {
+            fullOrder = await trackResp.json();
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
       
       // Save user email to AsyncStorage for viewing orders later
       if (formData.customer_email) {
@@ -60,9 +73,27 @@ export default function CheckoutScreen({ navigation }: any) {
       if (formData.customer_phone) {
         await AsyncStorage.setItem('userPhone', formData.customer_phone);
       }
+      // Cache the created order locally so My Orders can show it even without email
+      try {
+        const deviceKey = 'cachedOrders:device';
+        const existing = await AsyncStorage.getItem(deviceKey);
+        let list = [] as any[];
+        if (existing) {
+          list = JSON.parse(existing) || [];
+        }
+        // Normalize returned order (server may return numeric id or object)
+        const savedOrder = fullOrder || (order && order.order_id ? order : (order && order.id ? { order_id: order.id, ...order } : (returnedOrderId ? { order_id: returnedOrderId, ...order } : order)));
+        if (savedOrder) {
+          // prepend newest
+          list = [savedOrder, ...list.filter(o => String(o.order_id) !== String(savedOrder.order_id))];
+          await AsyncStorage.setItem(deviceKey, JSON.stringify(list));
+        }
+      } catch (cacheErr) {
+        // ignore cache failures
+      }
       
       clearCart();
-      navigation.replace('OrderSuccess', { orderId: order.id });
+      navigation.replace('OrderSuccess', { orderId: returnedOrderId || order.id });
     } catch (error: any) {
       Sentry.captureException(error, {
         tags: { screen: 'CheckoutScreen', action: 'createOrder' },
