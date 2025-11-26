@@ -363,7 +363,7 @@ export default function MyOrdersScreen({ navigation }: any) {
       <Ionicons name="receipt-outline" size={80} color="#d1d5db" />
       <Text style={styles.emptyText}>No orders yet</Text>
       <Text style={styles.emptySubtext}>
-        {userEmail ? 'Start shopping to see your orders here' : 'You can sync orders stored on this device or set an email in Account'}
+        Start shopping to see your orders here
       </Text>  
     </View>
   );
@@ -390,13 +390,6 @@ export default function MyOrdersScreen({ navigation }: any) {
           onDismiss={hideAlert}
         />
       )}
-
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Orders</Text>
-        {userEmail && (
-          <Text style={styles.headerSubtitle}>{userEmail}</Text>
-        )}
-      </View>
 
       {orders.length > 0 && (
         <View style={styles.searchContainer}>
