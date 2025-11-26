@@ -539,15 +539,22 @@ router.get('/orders/by-token/:token', async (req, res) => {
     if (phone) orFilterParts.push(`phone.eq.${phone}`);
     if (phone) orFilterParts.push(`customer_phone.eq.${phone}`);
 
-    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
-    if (orFilterParts.length) {
-      const orClause = orFilterParts.join(',');
-      query = supabase.from('orders').select('*').or(orClause).order('created_at', { ascending: false });
+    if (!orFilterParts.length) {
+      // No phone/email associated with this token - nothing to return
+      return res.json([]);
     }
 
-    const { data, error } = await query;
-    if (error) {
-      console.error('Error fetching orders by token:', error);
+    const orClause = orFilterParts.join(',');
+    let data = null;
+    try {
+      const result = await supabase.from('orders').select('*').or(orClause).order('created_at', { ascending: false });
+      data = result.data;
+      if (result.error) {
+        console.error('Supabase error fetching orders by token:', result.error);
+        return res.status(500).json({ error: 'Failed to fetch orders' });
+      }
+    } catch (qErr) {
+      console.error('Unexpected error querying orders by token:', qErr && qErr.message ? qErr.message : qErr);
       return res.status(500).json({ error: 'Failed to fetch orders' });
     }
 
