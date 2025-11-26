@@ -62,9 +62,17 @@ export default function ReviewsScreen() {
 
     setSubmitting(true);
     try {
-      await ApiService.createReview(formData);
+      // Map mobile form keys to server-expected keys: orderId, stars, message
+      const payload = {
+        orderId: String(formData.order_id).trim(),
+        stars: Number(formData.stars) || 1,
+        message: String(formData.message).trim(),
+      };
+
+      // If you later add image upload from device, send a FormData with field name 'image'
+      await ApiService.createReview(payload);
       showAlert(
-        'Review Submitted! ⭐',
+        'Review Submitted!',
         'Thank you for sharing your feedback! Your review helps others make informed decisions.',
         [{ text: 'OK' }],
         'success'
@@ -73,11 +81,13 @@ export default function ReviewsScreen() {
       setShowForm(false);
       loadReviews();
     } catch (error) {
-      showAlert(
-        'Submission Failed',
-        'Unable to submit your review. Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
+      // Try to extract a helpful error message from the API
+      let msg = 'Unable to submit your review. Please check your internet connection and try again.';
+      try {
+        const errBody = error && error.message ? error.message : null;
+        if (errBody) msg = String(errBody);
+      } catch (e) {}
+      showAlert('Submission Failed', msg, [{ text: 'OK' }]);
     } finally {
       setSubmitting(false);
     }

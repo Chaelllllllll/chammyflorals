@@ -291,11 +291,19 @@ class ApiService {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Create review error:', response.status, errorText);
-        throw new Error('REVIEW_SUBMISSION_FAILED');
+        // Try to read JSON error message, fallback to text
+        let errorMsg = `Status ${response.status}`;
+        try {
+          const j = await response.json();
+          if (j && (j.error || j.message)) errorMsg = j.error || j.message;
+          else errorMsg = JSON.stringify(j);
+        } catch (e) {
+          try { errorMsg = await response.text(); } catch (e) {}
+        }
+        console.error('Create review error:', response.status, errorMsg);
+        throw new Error(errorMsg || 'REVIEW_SUBMISSION_FAILED');
       }
-      
+
       return response.json();
     } catch (error: any) {
       console.error('Failed to create review:', error);
