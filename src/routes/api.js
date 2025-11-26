@@ -301,7 +301,8 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
     // Include optional phone and structured items when provided by the client
     if (req.body.phone) orderData.phone = String(req.body.phone).trim();
     if (req.body.customer_phone) orderData.customer_phone = String(req.body.customer_phone).trim();
-    if (req.body.customer_email) orderData.customer_email = String(req.body.customer_email).trim();
+    // Map legacy `customer_email` field into canonical `email` column to avoid DB schema mismatch
+    if (req.body.customer_email) orderData.email = String(req.body.customer_email).trim();
     
     // Save expo push token for mobile notifications
     const expoPushToken = req.body.expo_push_token;
@@ -518,7 +519,9 @@ router.get('/orders/by-email/:email', async (req, res) => {
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .or(`email.eq.${email},customer_email.eq.${email}`)
+      // Only query the canonical `email` column. Some older clients sent `customer_email` but
+      // the DB schema uses `email`, and referencing a non-existent column causes SQL errors.
+      .or(`email.eq.${email}`)
       .order('created_at', { ascending: false });
 
     if (error) {
