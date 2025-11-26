@@ -978,6 +978,72 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
       console.warn('Failed to send messenger notification to customer (deliver):', mErr && mErr.message ? mErr.message : mErr);
     }
 
+    // Also attempt to send a push notification to the mobile app when delivered
+    try {
+      console.log('Deliver endpoint: checking for push token to notify customer...');
+      const phone = updated.phone || null;
+      const email = updated.email || null;
+      if (!phone && !email) {
+        console.log('Deliver endpoint: no phone/email available to lookup push token');
+      } else {
+        const orParts = [];
+        if (phone) orParts.push(`phone.eq.${phone}`);
+        if (email) orParts.push(`email.eq.${email}`);
+
+        const { data: userTokens, error: tokenError } = await supabase
+          .from('user_push_tokens')
+          .select('expo_push_token')
+          .or(orParts.join(','))
+          .limit(1);
+
+        if (tokenError) {
+          console.error('Deliver endpoint: error fetching push token:', tokenError);
+        } else if (userTokens && userTokens.length > 0 && userTokens[0].expo_push_token) {
+          const pushToken = userTokens[0].expo_push_token;
+          console.log('Deliver endpoint: found push token, sending notification...');
+
+          const statusMessages = {
+            pending: '⏳ Your order is pending confirmation',
+            processing: '🌸 Your order is being prepared',
+            'to receive': '📦 Your order is ready for pickup/delivery',
+            delivered: '✅ Your order has been delivered',
+            cancelled: '❌ Your order has been cancelled'
+          };
+
+          const title = `Order ${updated.order_id} Update`;
+          const body = statusMessages[String(updated.status || '').toLowerCase()] || `Status: ${updated.status}`;
+
+          const pushResult = await sendPushNotification(pushToken, title, body, {
+            orderId: updated.order_id,
+            status: updated.status,
+            type: 'status_update'
+          });
+
+          if (!pushResult || pushResult.ok === false) {
+            console.error('Deliver endpoint: push send reported error:', pushResult && pushResult.response ? pushResult.response : pushResult);
+            const details = pushResult && pushResult.response && pushResult.response.data && pushResult.response.data.details;
+            if (details && details.error === 'InvalidCredentials') {
+              console.error('Expo reports invalid FCM credentials. Upload the Android service account key to Expo/EAS for this project.');
+            }
+            if (details && details.error === 'DeviceNotRegistered') {
+              try {
+                await supabase.from('user_push_tokens').delete().eq('expo_push_token', pushToken);
+                console.log('Deliver endpoint: deleted DeviceNotRegistered push token from DB:', pushToken);
+              } catch (delErr) {
+                console.warn('Deliver endpoint: failed to delete unregistered push token:', delErr && delErr.message ? delErr.message : delErr);
+              }
+            }
+          } else {
+            console.log('Deliver endpoint: Push notification sent successfully', pushResult.response);
+          }
+        } else {
+          console.log('Deliver endpoint: no push token found for user');
+        }
+      }
+    } catch (pushErr) {
+      console.error('Deliver endpoint: failed to send push notification:', pushErr);
+    }
+
     res.json({ message: 'Order marked as Delivered', updated: updated });
   } catch (err) {
     console.error('deliver endpoint error:', err);
