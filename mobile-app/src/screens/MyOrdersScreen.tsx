@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { API_URL } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -66,6 +68,10 @@ export default function MyOrdersScreen({ navigation }: any) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [debugVisible, setDebugVisible] = useState(false);
+  const [lastSyncInfo, setLastSyncInfo] = useState<{ url?: string; status?: number | string; body?: any }>({});
+  const [debugToken, setDebugToken] = useState<string | null>(null);
+  const [debugCachedOrders, setDebugCachedOrders] = useState<any[] | null>(null);
   const { showAlert, hideAlert, alertConfig, visible: alertVisible } = useCustomAlert();
 
   useFocusEffect(
@@ -202,11 +208,79 @@ export default function MyOrdersScreen({ navigation }: any) {
       }
     } catch (error: any) {
       console.error('Failed to load orders:', error);
+      setLastSyncInfo({ url: API_URL, status: 'error', body: error?.message || String(error) });
       showAlert('Error', error.message || 'Failed to load orders');
       setOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const testServerConnection = async () => {
+    try {
+      const url = API_URL;
+      setLastSyncInfo({ url, status: 'pending' });
+      const resp = await fetch(url, { method: 'GET' });
+      let bodyText = '';
+      try { bodyText = await resp.text(); } catch (e) { bodyText = ''; }
+      let parsed: any = null;
+      try { parsed = bodyText ? JSON.parse(bodyText) : bodyText; } catch (e) { parsed = bodyText; }
+      setLastSyncInfo({ url, status: resp.status, body: parsed });
+      showAlert('Server Test', `Status: ${resp.status}`);
+    } catch (err: any) {
+      console.warn('Server test failed:', err);
+      setLastSyncInfo({ url: API_URL, status: 'error', body: err?.message || String(err) });
+      showAlert('Server Test Failed', err?.message || String(err));
+    }
+  };
+
+  const showDebugInfo = async () => {
+    try {
+      const token = await AsyncStorage.getItem('expoPushToken');
+      const cached = await AsyncStorage.getItem('cachedOrders:device');
+      setDebugToken(token);
+      setDebugCachedOrders(cached ? JSON.parse(cached) : null);
+      setDebugVisible(true);
+    } catch (e) {
+      setDebugToken(null);
+      setDebugCachedOrders(null);
+      setDebugVisible(true);
+    }
+  };
+
+  const forceRegisterPushToken = async () => {
+    try {
+      if (!Device.isDevice) {
+        showAlert('Device Required', 'Push tokens require a physical device.');
+        return;
+      }
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        showAlert('Permissions Denied', 'Notifications permission was not granted. Enable it in system settings.');
+        return;
+      }
+
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      const tokenObj = await Notifications.getExpoPushTokenAsync({ projectId });
+      const token = tokenObj?.data || null;
+      if (token) {
+        await AsyncStorage.setItem('expoPushToken', token);
+        setDebugToken(token);
+        showAlert('Push Token Saved', token);
+      } else {
+        showAlert('No Token', 'Failed to obtain push token');
+      }
+    } catch (err: any) {
+      console.warn('forceRegisterPushToken error:', err);
+      showAlert('Error', err?.message || String(err));
     }
   };
 
@@ -254,14 +328,18 @@ export default function MyOrdersScreen({ navigation }: any) {
       const url = `${API_URL}/api/orders/by-token/${encodeURIComponent(pushToken)}`;
       console.log('[MyOrders] Sync by token:', url);
       const resp = await fetch(url);
+      let bodyText = '';
+      try { bodyText = await resp.text(); } catch (e) { bodyText = ''; }
+      // Try parse JSON if possible
+      let parsed: any = null;
+      try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch (e) { parsed = bodyText; }
+      setLastSyncInfo({ url, status: resp.status, body: parsed });
       if (!resp.ok) {
-        let bodyText = '';
-        try { bodyText = await resp.text(); } catch (e) {}
-        console.warn('[MyOrders] Sync failed', resp.status, bodyText);
-        showAlert('Sync Failed', `Server returned ${resp.status}: ${bodyText || resp.statusText}`);
+        console.warn('[MyOrders] Sync failed', resp.status, parsed || resp.statusText);
+        showAlert('Sync Failed', `Server returned ${resp.status}: ${JSON.stringify(parsed) || resp.statusText}`);
         return;
       }
-      const data = await resp.json();
+      const data = parsed;
       const sortedOrders = (data || []).sort((a: Order, b: Order) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setOrders(sortedOrders);
       await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedOrders));
@@ -379,6 +457,9 @@ export default function MyOrdersScreen({ navigation }: any) {
           <Text style={styles.shopButtonText}>Set Email</Text>
         </TouchableOpacity>
       </View>
+      <TouchableOpacity onPress={showDebugInfo} style={{ marginTop: 12 }}>
+        <Text style={{ color: '#6b7280', textAlign: 'center' }}>Show Debug Info</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -445,6 +526,41 @@ export default function MyOrdersScreen({ navigation }: any) {
           />
         }
       />
+
+      {debugVisible && (
+        <View style={{ padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#e5e7eb' }}>
+          <Text style={{ fontWeight: '700', marginBottom: 8 }}>Debug Info</Text>
+          <Text style={{ color: '#6b7280', marginBottom: 6 }}>Push token: {debugToken ?? '—'}</Text>
+          <Text style={{ color: '#6b7280', marginBottom: 6 }}>Cached Orders (device):</Text>
+          <ScrollView style={{ maxHeight: 140, marginBottom: 8 }}>
+            <Text style={{ fontFamily: 'monospace' }}>{debugCachedOrders ? JSON.stringify(debugCachedOrders, null, 2) : '—'}</Text>
+          </ScrollView>
+          <Text style={{ color: '#6b7280', marginBottom: 6 }}>Last Sync Status: {String(lastSyncInfo?.status ?? '—')}</Text>
+          <Text style={{ color: '#6b7280', marginBottom: 6 }}>{lastSyncInfo?.url ?? ''}</Text>
+          <ScrollView style={{ maxHeight: 120, marginBottom: 8 }}>
+            <Text style={{ fontFamily: 'monospace' }}>{lastSyncInfo?.body ? JSON.stringify(lastSyncInfo.body, null, 2) : 'No response body'}</Text>
+          </ScrollView>
+          
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+            <TouchableOpacity 
+              onPress={forceRegisterPushToken} 
+              style={{ flex: 1, backgroundColor: '#10b981', padding: 10, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Re-register Push Token</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={testServerConnection} 
+              style={{ flex: 1, backgroundColor: '#3b82f6', padding: 10, borderRadius: 8 }}
+            >
+              <Text style={{ color: '#fff', textAlign: 'center', fontWeight: '600' }}>Test Server</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={() => setDebugVisible(false)} style={{ marginTop: 4 }}>
+            <Text style={{ color: '#ff6f9b', textAlign: 'right' }}>Close Debug</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Order Details Modal */}
       <Modal

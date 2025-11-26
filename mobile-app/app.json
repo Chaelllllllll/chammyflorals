@@ -20,6 +20,7 @@
       "bundleIdentifier": "com.chammyflorals.app"
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
         "backgroundColor": "#fff6f9"
