@@ -835,8 +835,8 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
         try {
           console.log('Checking for mobile push token...');
           // Query user's push token from database based on phone or email
-          const phone = updated.customer_phone || updated.phone;
-          const email = updated.customer_email || updated.email;
+          const phone = updated.phone;
+          const email = updated.email;
           
           console.log('Looking up token with:', { phone, email });
           

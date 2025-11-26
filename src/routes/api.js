@@ -563,9 +563,7 @@ router.get('/orders/by-token/:token', async (req, res) => {
     // Query orders by phone or email associated with this token
     const orFilterParts = [];
     if (email) orFilterParts.push(`email.eq.${email}`);
-    if (email) orFilterParts.push(`customer_email.eq.${email}`);
     if (phone) orFilterParts.push(`phone.eq.${phone}`);
-    if (phone) orFilterParts.push(`customer_phone.eq.${phone}`);
 
     if (!orFilterParts.length) {
       // No phone/email associated with this token - nothing to return
