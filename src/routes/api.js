@@ -342,20 +342,48 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
         const userPhone = orderData.customer_phone || orderData.phone || null;
         const userEmail = orderData.customer_email || orderData.email || null;
         console.log('Saving push token (upsert) for user or device...');
-        const payload = {
-          phone: userPhone,
-          email: userEmail,
-          expo_push_token: expoPushToken,
-          updated_at: new Date().toISOString()
-        };
-        const { error: tokenError } = await supabase
+        
+        // Check if token already exists
+        const { data: existing, error: checkError } = await supabase
           .from('user_push_tokens')
-          .upsert(payload, { onConflict: 'expo_push_token' });
+          .select('*')
+          .eq('expo_push_token', expoPushToken)
+          .limit(1);
 
-        if (tokenError) {
-          console.error('Failed to save push token:', tokenError);
+        if (checkError) {
+          console.error('Error checking existing token:', checkError);
+        } else if (existing && existing.length > 0) {
+          // Update existing record
+          const { error: updateError } = await supabase
+            .from('user_push_tokens')
+            .update({
+              phone: userPhone,
+              email: userEmail,
+              updated_at: new Date().toISOString()
+            })
+            .eq('expo_push_token', expoPushToken);
+
+          if (updateError) {
+            console.error('Failed to update push token:', updateError);
+          } else {
+            console.log('Push token updated successfully');
+          }
         } else {
-          console.log('Push token saved successfully');
+          // Insert new record
+          const { error: insertError } = await supabase
+            .from('user_push_tokens')
+            .insert({
+              phone: userPhone,
+              email: userEmail,
+              expo_push_token: expoPushToken,
+              updated_at: new Date().toISOString()
+            });
+
+          if (insertError) {
+            console.error('Failed to insert push token:', insertError);
+          } else {
+            console.log('Push token inserted successfully');
+          }
         }
       } catch (tokenErr) {
         console.error('Error saving push token:', tokenErr);
