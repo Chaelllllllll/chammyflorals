@@ -80,6 +80,19 @@ export interface Review {
   image_url?: string;
 }
 
+// ApiError carries a stable `code` for programmatic checks and a user-facing `message`.
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
 class ApiService {
   private token: string | null = null;
 
@@ -87,10 +100,11 @@ class ApiService {
     this.token = token;
   }
 
-  private getHeaders(includeAuth = false): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(includeAuth = false, skipContentType = false): HeadersInit {
+    const headers: HeadersInit = {};
+    if (!skipContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
     if (includeAuth && this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
@@ -189,12 +203,16 @@ class ApiService {
       clearTimeout(timeoutId);
       
       if (response.status === 404) {
-        throw new Error('ORDER_NOT_FOUND');
+        throw new ApiError(
+          `No order found with ID ${orderId}`,
+          'ORDER_NOT_FOUND',
+          404
+        );
       }
-      
+
       if (!response.ok) {
         console.error('Track order API error:', response.status);
-        throw new Error('NETWORK_ERROR');
+        throw new ApiError('Unable to reach the tracking service', 'NETWORK_ERROR', response.status);
       }
       
       const data = await response.json();
@@ -205,10 +223,11 @@ class ApiService {
       return data;
     } catch (error: any) {
       console.error('Failed to track order:', error);
-      if (error.message === 'ORDER_NOT_FOUND') {
-        throw new Error('ORDER_NOT_FOUND');
+      // Preserve existing programmatic checks by code when possible
+      if ((error && (error.code === 'ORDER_NOT_FOUND' || error.message === 'ORDER_NOT_FOUND'))) {
+        throw new ApiError('No order found', 'ORDER_NOT_FOUND');
       }
-      throw new Error('NETWORK_ERROR');
+      throw new ApiError('Unable to track order right now. Please try again.', 'NETWORK_ERROR');
     }
   }
 
@@ -280,13 +299,24 @@ class ApiService {
       console.log('Creating review...');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(`${API_URL}/api/reviews`, {
-        method: 'POST',
-        headers: this.getHeaders(),
-        body: JSON.stringify(reviewData),
-        signal: controller.signal,
-      });
+      let response: Response;
+      // If caller passed a FormData (for image upload), let fetch set the headers
+      if (typeof FormData !== 'undefined' && reviewData instanceof FormData) {
+        response = await fetch(`${API_URL}/api/reviews`, {
+          method: 'POST',
+          // do not set Content-Type so boundary is added automatically
+          headers: this.getHeaders(false, true),
+          body: reviewData,
+          signal: controller.signal,
+        });
+      } else {
+        response = await fetch(`${API_URL}/api/reviews`, {
+          method: 'POST',
+          headers: this.getHeaders(),
+          body: JSON.stringify(reviewData),
+          signal: controller.signal,
+        });
+      }
       
       clearTimeout(timeoutId);
       
@@ -301,13 +331,21 @@ class ApiService {
           try { errorMsg = await response.text(); } catch (e) {}
         }
         console.error('Create review error:', response.status, errorMsg);
-        throw new Error(errorMsg || 'REVIEW_SUBMISSION_FAILED');
+        throw new ApiError(
+          errorMsg || 'Unable to submit your review right now. Please try again.',
+          'REVIEW_SUBMISSION_FAILED',
+          response.status
+        );
       }
 
       return response.json();
     } catch (error: any) {
       console.error('Failed to create review:', error);
-      throw new Error('REVIEW_SUBMISSION_FAILED');
+      // If it's already an ApiError, bubble it up
+      if (error instanceof ApiError) throw error;
+      // If the fetch/json parsing already provided a meaningful message, rethrow it as ApiError.
+      const msg = (error && (error.message || String(error))) || 'Unable to submit your review right now. Please try again.';
+      throw new ApiError(msg, 'REVIEW_SUBMISSION_FAILED');
     }
   }
 
@@ -330,13 +368,19 @@ class ApiService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Create inquiry error:', response.status, errorText);
-        throw new Error('SUBMISSION_FAILED');
+        throw new ApiError(
+          errorText || 'Unable to submit your inquiry right now. Please try again.',
+          'INQUIRY_SUBMISSION_FAILED',
+          response.status
+        );
       }
       
       return response.json();
     } catch (error: any) {
       console.error('Failed to create inquiry:', error);
-      throw new Error('SUBMISSION_FAILED');
+      if (error instanceof ApiError) throw error;
+      const msg = (error && (error.message || String(error))) || 'Unable to submit your inquiry right now. Please try again.';
+      throw new ApiError(msg, 'INQUIRY_SUBMISSION_FAILED');
     }
   }
 

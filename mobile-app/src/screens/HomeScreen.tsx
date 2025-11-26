@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,30 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     // Component mounted
   }, []);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Currently Home has static content — keep visual refresh. If needed, hook real reload logic here.
+    setTimeout(() => setRefreshing(false), 800);
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ff6f9b" colors={["#ff6f9b"]} />}
+    >
       {/* Hero Section */}
       <View style={styles.hero}>
         <View style={styles.heroContent}>
@@ -90,10 +102,10 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.quickLinks}>
         <TouchableOpacity
           style={styles.quickLinkCard}
-          onPress={() => navigation.navigate('Track')}
+          onPress={() => navigation.navigate('Orders')}
         >
-          <Ionicons name="location-outline" size={30} color="#ff6f9b" />
-          <Text style={styles.quickLinkText}>Track Order</Text>
+          <Ionicons name="receipt-outline" size={30} color="#ff6f9b" />
+          <Text style={styles.quickLinkText}>My Orders</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.quickLinkCard}

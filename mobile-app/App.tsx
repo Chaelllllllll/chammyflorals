@@ -22,7 +22,6 @@ import OrdersScreen from './src/screens/OrdersScreen';
 import MyOrdersScreen from './src/screens/MyOrdersScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
 import OrderSuccessScreen from './src/screens/OrderSuccessScreen';
-import TrackOrderScreen from './src/screens/TrackOrderScreen';
 import ReviewsScreen from './src/screens/ReviewsScreen';
 import InquiryScreen from './src/screens/InquiryScreen';
 import AccountScreen from './src/screens/AccountScreen';
@@ -48,8 +47,6 @@ function MainTabs() {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Reviews') {
             iconName = focused ? 'star' : 'star-outline';
-          } else if (route.name === 'Track') {
-            iconName = focused ? 'location' : 'location-outline';
           } else if (route.name === 'Account') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -68,7 +65,6 @@ function MainTabs() {
       <Tab.Screen name="Products" component={ProductsScreen} />
       <Tab.Screen name="Orders" component={MyOrdersScreen} options={{ title: 'My Orders' }} />
       <Tab.Screen name="Reviews" component={ReviewsScreen} />
-      <Tab.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
       <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );

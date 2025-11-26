@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  RefreshControl,
   Image,
   TouchableOpacity,
   ActivityIndicator,
@@ -16,6 +17,7 @@ export default function ProductsScreen({ navigation }: any) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -42,7 +44,13 @@ export default function ProductsScreen({ navigation }: any) {
       setFilteredProducts([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProducts();
   };
 
   const filterProducts = () => {
@@ -150,6 +158,9 @@ export default function ProductsScreen({ navigation }: any) {
         renderItem={renderCategory}
         keyExtractor={(item) => item[0]}
         contentContainerStyle={styles.productsList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ff6f9b" colors={["#ff6f9b"]} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="flower-outline" size={60} color="#ccc" />

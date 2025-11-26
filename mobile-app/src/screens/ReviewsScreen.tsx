@@ -4,13 +4,18 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import ApiService, { Review } from '../services/api';
 import CustomAlert from '../components/CustomAlert';
 import { useCustomAlert } from '../hooks/useCustomAlert';
@@ -18,18 +23,32 @@ import { useCustomAlert } from '../hooks/useCustomAlert';
 export default function ReviewsScreen() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [previewFromPicker, setPreviewFromPicker] = useState(false);
   const [formData, setFormData] = useState({
     order_id: '',
     stars: 5,
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const { alertConfig, visible, showAlert, hideAlert } = useCustomAlert();
 
   useEffect(() => {
     loadReviews();
+    // Request media library permissions for image picker
+    (async () => {
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Image picker permission not granted');
+        }
+      } catch (e) {
+        console.warn('Failed to request image picker permission', e);
+      }
+    })();
   }, []);
 
   const loadReviews = async () => {
@@ -46,17 +65,41 @@ export default function ReviewsScreen() {
       setReviews([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadReviews();
+  };
+
   const handleSubmitReview = async () => {
-    if (!formData.order_id.trim() || !formData.message.trim()) {
-      showAlert('Missing Information', 'Please enter your order ID and review message.', undefined, 'warning');
+    // All fields required: order_id, stars, message
+    if (!String(formData.order_id || '').trim()) {
+      showAlert('Missing Order ID', 'Please enter your order ID.', undefined, 'warning');
       return;
     }
 
-    if (formData.message.trim().length < 10) {
+    const starsVal = Number((formData && (formData as any).stars) || 0) || 0;
+    if (!starsVal || starsVal < 1 || starsVal > 5) {
+      showAlert('Missing Rating', 'Please select a rating (1-5 stars).', undefined, 'warning');
+      return;
+    }
+
+    if (!String(formData.message || '').trim()) {
+      showAlert('Missing Message', 'Please write your review message.', undefined, 'warning');
+      return;
+    }
+
+    if (String(formData.message || '').trim().length < 10) {
       showAlert('Review Too Short', 'Please write at least 10 characters in your review.', undefined, 'warning');
+      return;
+    }
+
+    // Image is required for reviews
+    if (!selectedImage) {
+      showAlert('Missing Photo', 'Please attach a photo with your review. Photo is required.', undefined, 'warning');
       return;
     }
 
@@ -64,13 +107,47 @@ export default function ReviewsScreen() {
     try {
       // Map mobile form keys to server-expected keys: orderId, stars, message
       const payload = {
-        orderId: String(formData.order_id).trim(),
-        stars: Number(formData.stars) || 1,
-        message: String(formData.message).trim(),
+        orderId: String(formData.order_id || '').trim(),
+        stars: Number((formData && (formData as any).stars) || 1) || 1,
+        message: String(formData.message || '').trim(),
       };
 
-      // If you later add image upload from device, send a FormData with field name 'image'
-      await ApiService.createReview(payload);
+      // If an image was selected, send as multipart/form-data
+      if (selectedImage) {
+        const form = new FormData();
+        // Append both variants to be compatible with web/server expectations
+        form.append('orderId', payload.orderId);
+        form.append('order_id', payload.orderId);
+        form.append('stars', String(payload.stars));
+        form.append('message', payload.message);
+
+        // Extract filename and infer type
+        const uriParts = selectedImage.split('/');
+        const name = uriParts[uriParts.length - 1] || `photo_${Date.now()}.jpg`;
+        const match = name.match(/\.([0-9a-zA-Z]+)(?:\?|$)/);
+        const ext = match ? match[1].toLowerCase() : 'jpg';
+        let mime = 'image/jpeg';
+        if (ext === 'png') mime = 'image/png';
+        else if (ext === 'webp') mime = 'image/webp';
+        else if (ext === 'gif') mime = 'image/gif';
+
+        try {
+          // Convert file URI to blob for reliable multipart upload on Android/iOS
+          const fileResp = await fetch(selectedImage);
+          const blob = await fileResp.blob();
+          // React Native FormData accepts a Blob with a filename third arg
+          // @ts-ignore - append blob with filename
+          form.append('image', blob, name);
+        } catch (e) {
+          // Fallback: append as RN file object (may work on many devices)
+          // @ts-ignore
+          form.append('image', { uri: selectedImage, name, type: mime });
+        }
+
+        await ApiService.createReview(form);
+      } else {
+        await ApiService.createReview(payload);
+      }
       showAlert(
         'Review Submitted!',
         'Thank you for sharing your feedback! Your review helps others make informed decisions.',
@@ -79,18 +156,71 @@ export default function ReviewsScreen() {
       );
       setFormData({ order_id: '', stars: 5, message: '' });
       setShowForm(false);
+      setSelectedImage(null);
       loadReviews();
-    } catch (error) {
-      // Try to extract a helpful error message from the API
+    } catch (error: any) {
+      // Try to extract a helpful error message from the API (handle unknown shape)
       let msg = 'Unable to submit your review. Please check your internet connection and try again.';
       try {
-        const errBody = error && error.message ? error.message : null;
-        if (errBody) msg = String(errBody);
-      } catch (e) {}
+        if (!error) {
+          // keep default
+        } else if (typeof error === 'string') {
+          msg = error;
+        } else if (error.message) {
+          msg = String(error.message);
+        } else if (error.response) {
+          // axios-like
+          try {
+            const body = typeof error.response === 'string' ? error.response : (error.response.data || error.response);
+            msg = typeof body === 'string' ? body : JSON.stringify(body);
+          } catch (e) {}
+        } else if (error.toString) {
+          msg = String(error.toString());
+        }
+      } catch (e) {
+        // fall back to default
+      }
       showAlert('Submission Failed', msg, [{ text: 'OK' }]);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const pickImage = async () => {
+    try {
+      // Avoid using deprecated/possibly missing MediaType enums — request library and validate result
+      const result: any = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      // Support both older SDKs (result.cancelled/result.uri) and newer (result.canceled/result.assets)
+      const cancelled = result && (result.cancelled === true || result.canceled === true);
+      if (!cancelled) {
+        const assetUri = result.uri || (result.assets && result.assets[0] && result.assets[0].uri) || null;
+        const assetType = result.type || (result.assets && result.assets[0] && result.assets[0].type) || null;
+        // If assetType is provided, ensure it's an image
+        if (assetType && !String(assetType).toLowerCase().includes('image')) {
+          showAlert('Invalid File', 'Please select an image file (photos only).', undefined, 'warning');
+          return;
+        }
+        if (assetUri) {
+          setSelectedImage(assetUri);
+          // mark that picker provided the preview; show inline preview instead of auto-opening modal
+          setPreviewFromPicker(true);
+          setModalVisible(false);
+        }
+      }
+    } catch (e) {
+      console.warn('Image pick failed', e);
+      showAlert('Image Error', 'Could not pick the image.');
+    }
+  };
+
+  const handleClosePreview = () => {
+    // Close preview modal and reset picker flag. Keep `selectedImage` so it stays in the form preview.
+    setModalVisible(false);
+    setPreviewFromPicker(false);
   };
 
   const renderStars = (stars: number) => {
@@ -120,7 +250,7 @@ export default function ReviewsScreen() {
             >
               <Ionicons
                 name={star <= formData.stars ? 'star' : 'star-outline'}
-                size={32}
+                size={24}
                 color="#FFD700"
                 style={styles.starButton}
               />
@@ -131,35 +261,51 @@ export default function ReviewsScreen() {
     );
   };
 
-  const renderReview = ({ item }: { item: Review }) => (
-    <View style={styles.reviewCard}>
-      {item.image_url && (
-        <TouchableOpacity
-          style={styles.reviewImageWrapper}
-          onPress={() => setSelectedImage(item.image_url || null)}
-        >
-          <Image
-            source={{ uri: item.image_url }}
-            style={styles.reviewImage}
-            resizeMode="cover"
-          />
-        </TouchableOpacity>
-      )}
-      <View style={styles.reviewContent}>
-        <View style={styles.reviewHeader}>
-          <Text style={styles.reviewerName}>{item.name}</Text>
-          {renderStars(item.stars)}
-        </View>
-        <Text style={styles.reviewComment}>{item.message}</Text>
-        <Text style={styles.reviewDate}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
-        {item.order_id && (
-          <Text style={styles.orderIdText}>Order: #{item.order_id}</Text>
+  const renderReview = ({ item }: { item: Review }) => {
+    // Defensive rendering in case some fields are missing
+    const imageUrl = (item && (item as any).image_url) || null;
+    const reviewerName = (item && (item as any).name) || 'Customer';
+    const message = (item && (item as any).message) || '';
+    const stars = Number((item && (item as any).stars) || 0);
+    let createdAtText = '';
+    try {
+      const d = item && (item as any).created_at ? new Date(item.created_at) : null;
+      createdAtText = d ? d.toLocaleDateString() : '';
+    } catch (e) {
+      createdAtText = '';
+    }
+
+    return (
+      <View style={styles.reviewCard}>
+        {imageUrl && (
+          <TouchableOpacity
+            style={styles.reviewImageWrapper}
+            onPress={() => {
+              setSelectedImage(imageUrl);
+              setPreviewFromPicker(false);
+            }}
+          >
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.reviewImage}
+              resizeMode="cover"
+            />
+          </TouchableOpacity>
         )}
+        <View style={styles.reviewContent}>
+          <View style={styles.reviewHeader}>
+            <Text style={styles.reviewerName}>{reviewerName}</Text>
+            {renderStars(stars)}
+          </View>
+          <Text style={styles.reviewComment}>{message}</Text>
+          <Text style={styles.reviewDate}>{createdAtText}</Text>
+          {item && (item as any).order_id && (
+            <Text style={styles.orderIdText}>Order: #{(item as any).order_id}</Text>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -171,62 +317,100 @@ export default function ReviewsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Customer Reviews</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowForm(!showForm)}
-        >
-          <Ionicons name={showForm ? 'close' : 'add'} size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
       {showForm && (
-        <View style={styles.formContainer}>
-          <Text style={styles.formTitle}>Write a Review</Text>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Order ID (e.g., A5DW7DW)"
-            placeholderTextColor="#999"
-            value={formData.order_id}
-            onChangeText={(text) =>
-              setFormData({ ...formData, order_id: text })
-            }
-            autoCapitalize="characters"
-          />
-
-          {renderRatingSelector()}
-
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Share your experience..."
-            placeholderTextColor="#999"
-            value={formData.message}
-            onChangeText={(text) => setFormData({ ...formData, message: text })}
-            multiline
-            numberOfLines={4}
-          />
-
-          <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-            onPress={handleSubmitReview}
-            disabled={submitting}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.select({ ios: 60, android: 80 })}
+          style={styles.formWrapper}
+        >
+          <ScrollView
+            style={styles.formCard}
+            contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
           >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Review</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <View style={styles.formHeaderRow}>
+              <Text style={styles.formTitle}>Write a Review</Text>
+            </View>
+
+            <View style={styles.fieldFull}>
+              <Text style={styles.fieldLabel}>Order ID</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="A5DW7DW"
+                placeholderTextColor="#9aa0a6"
+                value={formData.order_id}
+                onChangeText={(text) => setFormData({ ...formData, order_id: text })}
+                autoCapitalize="characters"
+              />
+            </View>
+
+            <View style={styles.fieldFull}>
+              <Text style={styles.fieldLabel}>Your Rating</Text>
+              <View style={styles.ratingBox}>{renderRatingSelector()}</View>
+            </View>
+
+            <View style={styles.fieldFull}>
+              <Text style={styles.fieldLabel}>Your Review</Text>
+              <TextInput
+                style={[styles.input, styles.textArea, { minHeight: 120 }]}
+                placeholder="Share your experience..."
+                placeholderTextColor="#9aa0a6"
+                value={formData.message}
+                onChangeText={(text) => setFormData({ ...formData, message: text })}
+                multiline
+                numberOfLines={6}
+              />
+            </View>
+
+            <View style={styles.fieldFull}>
+              <TouchableOpacity style={styles.addPhotoButtonFull} onPress={pickImage}>
+                <Ionicons name="camera" size={18} color="#fff" />
+                <Text style={styles.addPhotoText}>Add Photo</Text>
+              </TouchableOpacity>
+
+              <View style={styles.previewContainer}>
+                {selectedImage ? (
+                  <View style={styles.previewContainerInner}>
+                    <Image source={{ uri: selectedImage }} style={styles.previewFullWidth} resizeMode="cover" />
+                    <TouchableOpacity
+                      style={styles.removePhotoBtn}
+                      onPress={() => setSelectedImage(null)}
+                      accessibilityLabel="Remove photo"
+                    >
+                      <Ionicons name="trash" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.previewPlaceholderFull}>
+                    <Ionicons name="images" size={28} color="#e5a9be" />
+                    <Text style={styles.previewPlaceholderText}>Image required</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButtonPrimary, submitting && styles.submitButtonDisabled]}
+              onPress={handleSubmitReview}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Review</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </KeyboardAvoidingView>
       )}
 
       <FlatList
         data={reviews}
         renderItem={renderReview}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => (item && (item as any).id ? String((item as any).id) : String((item as any).order_id || JSON.stringify(item)))}
         contentContainerStyle={styles.reviewsList}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ff6f9b" colors={["#ff6f9b"]} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="star-outline" size={60} color="#ccc" />
@@ -238,20 +422,20 @@ export default function ReviewsScreen() {
 
       {/* Image Modal */}
       <Modal
-        visible={!!selectedImage}
+        visible={!!modalVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedImage(null)}
+        onRequestClose={handleClosePreview}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setSelectedImage(null)}
+          onPress={handleClosePreview}
         >
           <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setSelectedImage(null)}
+              onPress={handleClosePreview}
             >
               <Ionicons name="close" size={30} color="#fff" />
             </TouchableOpacity>
@@ -273,6 +457,15 @@ export default function ReviewsScreen() {
         onDismiss={hideAlert}
         type={alertConfig?.type}
       />
+
+      {/* Floating Add/Close FAB (inside container so absolute positioning works) */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setShowForm(!showForm)}
+        style={[styles.fab, showForm ? styles.fabClose : null]}
+      >
+        <Ionicons name={showForm ? 'close' : 'add'} size={28} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -316,43 +509,33 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   formTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
-  ratingSelectorContainer: {
-    marginBottom: 15,
-  },
-  ratingLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2b2b2b',
     marginBottom: 8,
-  },
-  ratingStars: {
-    flexDirection: 'row',
-  },
-  starButton: {
-    marginRight: 5,
   },
   input: {
     backgroundColor: '#fff',
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     fontSize: 16,
-    marginBottom: 15,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#f3d7df',
   },
   textArea: {
-    height: 100,
+    height: 120,
     textAlignVertical: 'top',
   },
   submitButton: {
-    backgroundColor: '#ff6f9b',
+    backgroundColor: '#ff2d77',
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
+    shadowColor: '#ff2d77',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
   submitButtonDisabled: {
     opacity: 0.6,
@@ -434,11 +617,239 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#bbb',
   },
+  addPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff6f9b',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    marginRight: 10,
+    shadowColor: '#ff6f9b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+  },
+  previewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  previewImageLarge: {
+    width: 96,
+    height: 96,
+    borderRadius: 8,
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: '#fde6ee',
+    backgroundColor: '#fff',
+  },
+  previewPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 8,
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: '#fde6ee',
+    backgroundColor: '#fff7f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+  },
+  previewPlaceholderText: {
+    color: '#e5a9be',
+    fontSize: 12,
+    marginTop: 6,
+  },
+  fieldFull: {
+    width: '100%',
+    marginBottom: 10,
+  },
+  addPhotoButtonFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff6f9b',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    justifyContent: 'center',
+    shadowColor: '#ff6f9b',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+  },
+  previewContainer: {
+    marginTop: 12,
+    width: '100%',
+  },
+  previewContainerInner: {
+    position: 'relative',
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  previewFullWidth: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  previewPlaceholderFull: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#fde6ee',
+    backgroundColor: '#fff7f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  formWrapper: {
+    // Constrain the form height so the inner ScrollView can scroll
+    maxHeight: '78%',
+    width: '100%',
+  },
+  formCard: {
+    backgroundColor: '#ffffff',
+    margin: 12,
+    padding: 18,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#fff0f3',
+  },
+  formHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  requiredHint: {
+    color: '#ff2d77',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  fieldLabel: {
+    fontSize: 12,
+    color: '#444',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+  },
+  ratingCol: {
+    width: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingBox: {
+    backgroundColor: '#fff',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f3e7ec',
+    alignItems: 'center',
+  },
+  ratingSelectorContainer: {
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  ratingLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  starButton: {
+    marginHorizontal: 4,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  addPhotoText: {
+    color: '#fff',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  submitButtonPrimary: {
+    backgroundColor: '#ff2d77',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+    width: '100%',
+    alignSelf: 'stretch',
+    shadowColor: '#ff2d77',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ff6f9b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  fabClose: {
+    backgroundColor: '#ef4444',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderStyle: 'dashed',
+  },
+  previewWrap: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+    marginLeft: 12,
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#ff2d77',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#ff2d77',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
   modalContent: {
     width: '90%',

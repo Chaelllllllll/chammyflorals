@@ -157,10 +157,10 @@ export default function OrderSuccessScreen({ route, navigation }: any) {
         
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => navigation.navigate('Track', { initialOrderId: orderId })}
+          onPress={() => navigation.navigate('Orders')}
         >
-          <Ionicons name="location-outline" size={20} color="#fff" />
-          <Text style={styles.primaryButtonText}>Track Order</Text>
+          <Ionicons name="receipt-outline" size={20} color="#fff" />
+          <Text style={styles.primaryButtonText}>View My Orders</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
