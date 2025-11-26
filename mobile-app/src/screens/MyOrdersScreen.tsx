@@ -364,18 +364,7 @@ export default function MyOrdersScreen({ navigation }: any) {
       <Text style={styles.emptyText}>No orders yet</Text>
       <Text style={styles.emptySubtext}>
         {userEmail ? 'Start shopping to see your orders here' : 'You can sync orders stored on this device or set an email in Account'}
-      </Text>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <TouchableOpacity
-          style={[styles.shopButton, { backgroundColor: '#6b7280', flex: 1 }]}
-          onPress={syncDeviceOrders}
-          disabled={isSyncing}
-        >
-          <Text style={styles.shopButtonText}>{isSyncing ? 'Syncing...' : 'Sync Device Orders'}</Text>
-        </TouchableOpacity>
-        
-      </View>
-      
+      </Text>  
     </View>
   );
 

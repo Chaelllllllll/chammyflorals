@@ -28,9 +28,7 @@ interface PricingOption {
   price: number;
 }
 
-interface ProductWithPricing extends Product {
-  addons?: Array<{ label: string; price?: number } | string>;
-}
+type ProductWithPricing = Product;
 
 export default function InquiryScreen({ route, navigation }: any) {
   const { product }: { product?: Product } = route.params || {};
@@ -186,23 +184,27 @@ export default function InquiryScreen({ route, navigation }: any) {
 
     setLoading(true);
     try {
-      // Save user info for order tracking
-      if (formData.customer_phone) {
-        await AsyncStorage.setItem('userPhone', formData.customer_phone);
+      // Save user info for order tracking (store the email and name entered)
+      if (formData.user_email) {
+        await AsyncStorage.setItem('userEmail', formData.user_email);
       }
-      if (formData.customer_email) {
-        await AsyncStorage.setItem('userEmail', formData.customer_email);
+      if (formData.user_name) {
+        await AsyncStorage.setItem('userName', formData.user_name);
       }
       
       // Get push token if available
       const expoPushToken = await AsyncStorage.getItem('expoPushToken');
       
-      // Create order data
+      // Create order data - map form fields to canonical keys expected by the API
       const orderData = {
-        ...formData,
+        name: formData.user_name,
+        email: formData.user_email,
+        fb_link: formData.fb_link,
+        message: formData.message,
+        rush: formData.rush,
         items: orderItems,
         addons: selectedAddons.join(', '),
-        expo_push_token: expoPushToken, // Include for push notifications
+        expo_push_token: expoPushToken || null, // Include for push notifications
       };
 
       await ApiService.createInquiry(orderData);
