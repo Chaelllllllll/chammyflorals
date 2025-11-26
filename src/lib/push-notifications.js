@@ -36,8 +36,16 @@ async function sendPushNotification(expoPushToken, title, body, data = {}) {
     });
 
     const responseData = await response.json();
-    console.log('Push notification sent:', responseData);
-    return responseData;
+    console.log('Push notification response:', responseData);
+
+    // Normalize response for callers: return an object with ok flag and original response
+    // Expo may return structured errors (developer faults like InvalidCredentials)
+    if (responseData && responseData.data && responseData.data.status === 'error') {
+      console.warn('Expo push service returned an error:', responseData.data);
+      return { ok: false, response: responseData };
+    }
+
+    return { ok: true, response: responseData };
   } catch (error) {
     console.error('Error sending push notification:', error);
     throw error;

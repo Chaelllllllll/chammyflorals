@@ -67,6 +67,7 @@ export default function MyOrdersScreen({ navigation }: any) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncInfo, setLastSyncInfo] = useState<any>(null);
   const { showAlert, hideAlert, alertConfig, visible: alertVisible } = useCustomAlert();
 
   useFocusEffect(
@@ -316,15 +317,10 @@ export default function MyOrdersScreen({ navigation }: any) {
     setModalVisible(true);
   };
 
-  const openMessenger = () => {
-    Linking.openURL('https://www.messenger.com/t/847673415097754').catch(() => {
-      showAlert('Error', 'Cannot open Messenger');
-    });
-  };
-
   const renderOrderItem = ({ item }: { item: Order }) => {
-    const statusColor = STATUS_COLORS[item.status.toLowerCase()] || '#6b7280';
-    const statusIcon = STATUS_ICONS[item.status.toLowerCase()] || 'help-circle-outline';
+    const statusKey = (item.status || '').toLowerCase();
+    const statusColor = STATUS_COLORS[statusKey] || '#6b7280';
+    const statusIcon = STATUS_ICONS[statusKey] || 'help-circle-outline';
     const totalAmount = item.total_fee || item.total_amount || 0;
 
     return (
@@ -475,22 +471,29 @@ export default function MyOrdersScreen({ navigation }: any) {
 
                   <View style={styles.detailSection}>
                     <Text style={styles.detailLabel}>Status</Text>
-                    <View style={[
-                      styles.statusBadge, 
-                      { backgroundColor: (STATUS_COLORS[selectedOrder.status.toLowerCase()] || '#6b7280') + '20' }
-                    ]}>
-                      <Ionicons 
-                        name={STATUS_ICONS[selectedOrder.status.toLowerCase()] || 'help-circle-outline'} 
-                        size={16} 
-                        color={STATUS_COLORS[selectedOrder.status.toLowerCase()] || '#6b7280'} 
-                      />
-                      <Text style={[
-                        styles.statusText, 
-                        { color: STATUS_COLORS[selectedOrder.status.toLowerCase()] || '#6b7280' }
-                      ]}>
-                        {selectedOrder.status}
-                      </Text>
-                    </View>
+                    {(() => {
+                      const selStatusKey = (selectedOrder.status || '').toLowerCase();
+                      const selColor = STATUS_COLORS[selStatusKey] || '#6b7280';
+                      const selIcon = STATUS_ICONS[selStatusKey] || 'help-circle-outline';
+                      return (
+                        <View style={[
+                          styles.statusBadge, 
+                          { backgroundColor: selColor + '20' }
+                        ]}>
+                          <Ionicons 
+                            name={selIcon} 
+                            size={16} 
+                            color={selColor} 
+                          />
+                          <Text style={[
+                            styles.statusText, 
+                            { color: selColor }
+                          ]}>
+                            {selectedOrder.status}
+                          </Text>
+                        </View>
+                      );
+                    })()}
                   </View>
 
                   <View style={styles.detailSection}>
@@ -534,20 +537,6 @@ export default function MyOrdersScreen({ navigation }: any) {
                       <Text style={styles.detailValue}>{selectedOrder.message}</Text>
                     </View>
                   )}
-
-                  <View style={styles.messengerSection}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={24} color="#ff6f9b" />
-                    <Text style={styles.messengerText}>
-                      Get real-time updates via Messenger
-                    </Text>
-                    <TouchableOpacity 
-                      style={styles.messengerButton}
-                      onPress={openMessenger}
-                    >
-                      <Ionicons name="logo-facebook" size={20} color="#fff" />
-                      <Text style={styles.messengerButtonText}>Open Messenger</Text>
-                    </TouchableOpacity>
-                  </View>
                 </>
               )}
             </ScrollView>

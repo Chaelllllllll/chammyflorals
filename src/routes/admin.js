@@ -870,12 +870,31 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
               const title = `Order ${updated.order_id} Update`;
               const body = statusMessages[updated.status.toLowerCase()] || `Status: ${updated.status}`;
 
-              await sendPushNotification(pushToken, title, body, {
+              const pushResult = await sendPushNotification(pushToken, title, body, {
                 orderId: updated.order_id,
                 status: updated.status,
                 type: 'status_update'
               });
-              console.log('Push notification sent successfully');
+
+              if (!pushResult || pushResult.ok === false) {
+                console.error('Push send reported error:', pushResult && pushResult.response ? pushResult.response : pushResult);
+                // If Expo reports the FCM credentials are invalid, surface a clear log for operator
+                const details = pushResult && pushResult.response && pushResult.response.data && pushResult.response.data.details;
+                if (details && details.error === 'InvalidCredentials') {
+                  console.error('Expo reports invalid FCM credentials. Upload the Android service account key to Expo/EAS for this project.');
+                }
+                // If the device is no longer registered, delete the token from our DB to avoid repeated errors
+                if (details && details.error === 'DeviceNotRegistered') {
+                  try {
+                    await supabase.from('user_push_tokens').delete().eq('expo_push_token', pushToken);
+                    console.log('Deleted DeviceNotRegistered push token from DB:', pushToken);
+                  } catch (delErr) {
+                    console.warn('Failed to delete unregistered push token:', delErr && delErr.message ? delErr.message : delErr);
+                  }
+                }
+              } else {
+                console.log('Push notification sent successfully', pushResult.response);
+              }
             } else {
               console.log('No push token found for user');
             }
