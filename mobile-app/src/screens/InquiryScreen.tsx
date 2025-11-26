@@ -197,11 +197,11 @@ export default function InquiryScreen({ route, navigation }: any) {
       
       // Create order data - map form fields to canonical keys expected by the API
       const orderData = {
-        name: formData.user_name,
-        email: formData.user_email,
+        user_name: formData.user_name,
+        user_email: formData.user_email,
         fb_link: formData.fb_link,
         message: formData.message,
-        rush: formData.rush,
+        rush: formData.rush || 'No',
         items: orderItems,
         addons: selectedAddons.join(', '),
         expo_push_token: expoPushToken || null, // Include for push notifications
@@ -314,9 +314,9 @@ export default function InquiryScreen({ route, navigation }: any) {
                 <Picker
                   selectedValue={item.flower_type}
                   onValueChange={(value) => handleFlowerTypeChange(index, value)}
-                  style={styles.picker}
+                  style={[styles.picker, { color: '#333', backgroundColor: 'transparent' }]}
                 >
-                  <Picker.Item label="Select Flower Type" value="" />
+                  <Picker.Item label="Select Flower Type" value="" color="#999" />
                   {Object.entries(getPricingOptions()).flatMap(([category, options]) =>
                     options
                       .filter(option => option.label && option.value)
@@ -336,10 +336,10 @@ export default function InquiryScreen({ route, navigation }: any) {
                 <Picker
                   selectedValue={item.color}
                   onValueChange={(value) => updateItem(index, 'color', value)}
-                  style={styles.picker}
+                  style={[styles.picker, { color: '#333', backgroundColor: 'transparent' }]}
                   enabled={!!item.flower_type}
                 >
-                  <Picker.Item label="Select Color" value="" />
+                  <Picker.Item label="Select Color" value="" color="#999" />
                   {item.flower_type && itemProducts[index]?.colors && itemProducts[index]!.colors!.length > 0 ? (
                     itemProducts[index]!.colors!.map((color, idx) => (
                       <Picker.Item 
@@ -461,7 +461,7 @@ export default function InquiryScreen({ route, navigation }: any) {
             <Picker
               selectedValue={formData.rush}
               onValueChange={(value) => setFormData({ ...formData, rush: value })}
-              style={styles.picker}
+              style={[styles.picker, { color: '#333', backgroundColor: 'transparent' }]}
             >
               <Picker.Item label="No - Standard Processing" value="No" />
               <Picker.Item label="Yes - Rush Order (additional fee may apply)" value="Yes" />

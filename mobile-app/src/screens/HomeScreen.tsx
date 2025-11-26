@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   Dimensions,
   RefreshControl,
+  TextInput,
+  FlatList,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ApiService, { Product } from '../services/api';
-import { TextInput, FlatList, Modal } from 'react-native';
+import ApiService, { Product, Review } from '../services/api';
+
 
 const { width } = Dimensions.get('window');
 
@@ -21,10 +24,12 @@ export default function HomeScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   useEffect(() => {
     // Component mounted - load products for Collections
     loadProducts();
+    loadReviews();
   }, []);
 
   const onRefresh = async () => {
@@ -46,6 +51,18 @@ export default function HomeScreen({ navigation }: any) {
     } catch (e) {
       console.warn('Failed to load products', e);
       setProducts([]);
+    }
+  };
+
+  const loadReviews = async () => {
+    try {
+      const all = await ApiService.getReviews();
+      // sort newest first
+      const sorted = (all || []).slice().sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
+      setReviews(sorted || []);
+    } catch (e) {
+      console.warn('Failed to load reviews', e);
+      setReviews([]);
     }
   };
 
@@ -147,12 +164,6 @@ export default function HomeScreen({ navigation }: any) {
             >
               <Text style={styles.heroButtonText}>Order Now</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.heroButtonOutline}
-              onPress={() => navigation.navigate('Orders')}
-            >
-              <Text style={styles.heroButtonOutlineText}>Track Order</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -229,29 +240,36 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </Modal>
 
-      {/* Quick Links */}
-      <View style={styles.quickLinks}>
-        <TouchableOpacity
-          style={styles.quickLinkCard}
-          onPress={() => navigation.navigate('Orders')}
-        >
-          <Ionicons name="receipt-outline" size={30} color="#ff6f9b" />
-          <Text style={styles.quickLinkText}>My Orders</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.quickLinkCard}
-          onPress={() => navigation.navigate('Reviews')}
-        >
-          <Ionicons name="star-outline" size={30} color="#ff6f9b" />
-          <Text style={styles.quickLinkText}>Reviews</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.quickLinkCard}
-          onPress={() => navigation.navigate('AdminLogin')}
-        >
-          <Ionicons name="shield-outline" size={30} color="#ff6f9b" />
-          <Text style={styles.quickLinkText}>Admin</Text>
-        </TouchableOpacity>
+      {/* Reviews preview (replaces My Orders + Reviews quick links) */}
+      <View style={styles.reviewsSection}>
+        <Text style={styles.sectionTitle}>Customer Reviews</Text>
+        <View style={styles.reviewsRow}>
+          {reviews && reviews.length ? (
+            reviews.slice(0, 3).map((r) => (
+              <View key={String(r.id)} style={styles.reviewCard}>
+                {r.image_url ? (
+                  <Image source={{ uri: r.image_url }} style={styles.reviewImage} />
+                ) : (
+                  <View style={[styles.reviewImage, { backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={{ color: '#ccc' }}>No Image</Text>
+                  </View>
+                )}
+                <View style={{ padding: 8 }}>
+                  <Text style={styles.reviewName} numberOfLines={1}>{r.name}</Text>
+                  <Text style={styles.reviewStars}>{'★'.repeat(Math.max(0, Math.min(5, r.stars || 0)))}{'☆'.repeat(5 - Math.max(0, Math.min(5, r.stars || 0)))}</Text>
+                  <Text style={styles.reviewMessage} numberOfLines={3}>{r.message}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={{ textAlign: 'center', color: '#666' }}>No reviews yet.</Text>
+          )}
+        </View>
+        <View style={{ alignItems: 'center', marginTop: 12 }}>
+          <TouchableOpacity style={styles.viewAllBtn} onPress={() => navigation.navigate('Reviews')}>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>View All Reviews</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </ScrollView>
   );
@@ -477,5 +495,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
+  },
+  reviewsSection: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 8,
+  },
+  reviewsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  reviewCard: {
+    width: (width - 56) / 3,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#f0e6ea',
+    marginBottom: 8,
+  },
+  reviewImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: '#f5f5f5',
+  },
+  reviewName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#333',
+  },
+  reviewStars: {
+    color: '#ffc107',
+    marginTop: 4,
+    fontSize: 12,
+  },
+  reviewMessage: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 6,
+  },
+  viewAllBtn: {
+    backgroundColor: '#ff6f9b',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  adminLinkWrap: {
+    marginTop: 14,
+    alignItems: 'center',
   },
 });

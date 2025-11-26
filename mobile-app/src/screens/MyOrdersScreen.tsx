@@ -97,7 +97,7 @@ export default function MyOrdersScreen({ navigation }: any) {
     };
   }, [userEmail, orders]);
 
-  const loadUserOrders = async () => {
+  const loadUserOrders = async (suppressAlert = false) => {
     setLoading(true);
     try {
       // Try to get user email from storage
@@ -145,14 +145,14 @@ export default function MyOrdersScreen({ navigation }: any) {
           // also mirror to device cache so orders created on this device are always visible
           await AsyncStorage.setItem('cachedOrders:device', JSON.stringify(sortedOrders));
         } catch (e) {}
-      } else {
+        } else {
         // Attempt to load cached orders when network fails or server returns error
         try {
           const cached = await AsyncStorage.getItem(`cachedOrders:${savedEmail}`);
           if (cached) {
             const parsed = JSON.parse(cached);
             setOrders(Array.isArray(parsed) ? parsed : []);
-            showAlert('Offline', 'Showing cached orders. Pull to refresh when online.');
+            if (!suppressAlert) showAlert('Offline', 'Showing cached orders. Pull to refresh when online.');
           } else {
             // If the server didn't respond or there is no savedEmail, try fetching by device push token
             if (!savedEmail) {
@@ -174,9 +174,9 @@ export default function MyOrdersScreen({ navigation }: any) {
             }
             if (response) {
               const data = await response.json().catch(() => ({}));
-              showAlert('Error', data.error || 'Failed to load orders');
+              if (!suppressAlert) showAlert('Error', data.error || 'Failed to load orders');
             } else {
-              showAlert('Network Error', 'Could not reach server to load orders');
+              if (!suppressAlert) showAlert('Network Error', 'Could not reach server to load orders');
             }
             setOrders([]);
           }
@@ -286,7 +286,7 @@ export default function MyOrdersScreen({ navigation }: any) {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadUserOrders();
+    loadUserOrders(true);
   }, []);
 
   const getFilteredOrders = () => {
@@ -335,7 +335,7 @@ export default function MyOrdersScreen({ navigation }: any) {
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
             <Ionicons name={statusIcon} size={16} color={statusColor} />
-            <Text style={[styles.statusText, { color: statusColor }]}>
+            <Text style={[styles.statusText, { color: statusColor }]}> 
               {item.status}
             </Text>
           </View>
@@ -364,7 +364,15 @@ export default function MyOrdersScreen({ navigation }: any) {
       <Text style={styles.emptyText}>No orders yet</Text>
       <Text style={styles.emptySubtext}>
         Start shopping to see your orders here
-      </Text>  
+      </Text> 
+      <View style={styles.heroCtas}>
+        <TouchableOpacity
+          style={styles.heroButton}
+          onPress={() => navigation.navigate('Products')}
+        >
+          <Text style={styles.heroButtonText}>Order Now</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -772,5 +780,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  heroButton: {
+    backgroundColor: '#ff6f9b',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  heroButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  heroCtas: {
+    flexDirection: 'row',
+    marginTop: 12,
   },
 });

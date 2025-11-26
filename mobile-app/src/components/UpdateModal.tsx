@@ -39,7 +39,7 @@ export default function UpdateModal({ visible, onRestart, onLater }: UpdateModal
             </View>
           </View>
 
-          <Text style={styles.title}>Update Available! 🎉</Text>
+          <Text style={styles.title}>Update Available!</Text>
           <Text style={styles.message}>
             A new version of Chammy Florals has been downloaded with exciting improvements and bug fixes.
           </Text>

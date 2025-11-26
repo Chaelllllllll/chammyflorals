@@ -87,7 +87,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
           </Animated.View>
           
           <Text style={styles.brandName}>Chammy Florals</Text>
-          <Text style={styles.tagline}>Blooming Moments, Beautiful Memories</Text>
+          <Text style={styles.tagline}>Bloom with love</Text>
         </Animated.View>
 
         <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
