@@ -366,22 +366,42 @@
     </div>
   </section>
 
-  <!-- Removed download modal — direct APK download is used instead -->
-                  </span>
-                  <input
-                    type="text"
-                    class="form-control border-start-0 ps-0"
-                    id="orderId"
-                    placeholder="e.g., A5DW7DW"
-                    required
-                    aria-label="Order ID"
-                    style="font-size: 1rem;">
+  <!-- Track Order Modal -->
+  <div class="modal fade" id="trackModal" tabindex="-1" aria-labelledby="trackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fa fa-map-marker-alt text-pink"></i>
+            </div>
+            <h5 class="modal-title text-dark mb-0" id="trackModalLabel">Track Your Order</h5>
+          </div>
+          <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="modal">X</button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-light border-0 mb-4">
+            <div class="d-flex align-items-start gap-3">
+              <i class="fa fa-info-circle text-pink mt-1" style="font-size: 1.2rem;"></i>
+              <div>
+                <div class="fw-semibold mb-1">How to track your order</div>
+                <div class="small text-muted">Enter your Order ID (found in your receipt) to see real-time status updates.</div>
+                <div class="small text-muted mt-1"><strong>Example:</strong> <code class="bg-white px-2 py-1 rounded">A5DW7DW</code></div>
+              </div>
+            </div>
+          </div>
+
+          <form id="trackForm">
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-8">
+                <label for="orderId" class="form-label fw-semibold">Order ID</label>
+                <div class="input-group input-group-lg">
+                  <span class="input-group-text bg-light border-end-0"><i class="fa fa-search text-muted"></i></span>
+                  <input type="text" class="form-control border-start-0 ps-0" id="orderId" placeholder="e.g., A5DW7DW" required aria-label="Order ID" style="font-size: 1rem;" />
                 </div>
               </div>
               <div class="col-12 col-md-4 d-grid">
-                <button type="submit" class="btn btn-pink btn-lg">
-                  <i class="fa fa-search me-2"></i>Track Now
-                </button>
+                <button type="submit" class="btn btn-pink btn-lg"><i class="fa fa-search me-2"></i>Track Now</button>
               </div>
             </div>
           </form>
@@ -393,9 +413,7 @@
           <div class="mt-4 pt-3 border-top">
             <div class="small text-muted mb-2 fw-semibold">Other ways to track:</div>
             <div class="d-flex flex-column flex-md-row gap-2">
-              <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="btn btn-sm btn-outline-primary flex-fill">
-                <i class="fa-brands fa-facebook-messenger me-2"></i>Track via Messenger
-              </a>
+              <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="btn btn-sm btn-outline-primary flex-fill"><i class="fa-brands fa-facebook-messenger me-2"></i>Track via Messenger</a>
             </div>
           </div>
         </div>

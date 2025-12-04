@@ -484,13 +484,34 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
 router.get('/track/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('order_id', orderId)
-      .single();
+    const idRaw = String(orderId || '').trim();
 
-    if (error || !data) {
+    // Try exact match first
+    let result = await supabase.from('orders').select('*').eq('order_id', idRaw).single();
+
+    // If not found, try uppercase (some clients may enter lowercase while generated IDs are uppercase)
+    if ((!result || result.error || !result.data) && idRaw) {
+      try {
+        result = await supabase.from('orders').select('*').eq('order_id', String(idRaw).toUpperCase()).single();
+      } catch (e) {
+        // ignore and continue to next fallback
+      }
+    }
+
+    // Final fallback: case-insensitive lookup using ILIKE (exact value) to tolerate variations
+    if ((!result || result.error || !result.data) && idRaw) {
+      try {
+        const fallback = await supabase.from('orders').select('*').ilike('order_id', idRaw).limit(1);
+        if (fallback && fallback.data && fallback.data.length) {
+          result = { data: fallback.data[0], error: null };
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    const data = result && result.data ? result.data : null;
+    if (!data) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
