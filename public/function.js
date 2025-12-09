@@ -737,4 +737,51 @@ document.addEventListener('DOMContentLoaded', () => {
       trackResult.innerHTML = `<div class="alert alert-danger">Failed to track order. Please try again.</div>`;
     }
   });
+
+  // Copy tracking link button handler
+  const copyTrackLinkBtn = document.getElementById('copyTrackLinkBtn');
+  if (copyTrackLinkBtn) {
+    copyTrackLinkBtn.addEventListener('click', async () => {
+      const orderIdInput = document.getElementById('orderId');
+      const orderId = orderIdInput ? orderIdInput.value.trim() : '';
+      
+      if (!orderId) {
+        alert('Please enter an Order ID first');
+        return;
+      }
+
+      const trackingUrl = `${window.location.origin}/?orderId=${encodeURIComponent(orderId)}`;
+      
+      try {
+        await navigator.clipboard.writeText(trackingUrl);
+        
+        // Visual feedback
+        const originalIcon = copyTrackLinkBtn.innerHTML;
+        copyTrackLinkBtn.innerHTML = '<i class="fa fa-check"></i>';
+        copyTrackLinkBtn.classList.remove('btn-outline-secondary');
+        copyTrackLinkBtn.classList.add('btn-success');
+        
+        setTimeout(() => {
+          copyTrackLinkBtn.innerHTML = originalIcon;
+          copyTrackLinkBtn.classList.remove('btn-success');
+          copyTrackLinkBtn.classList.add('btn-outline-secondary');
+        }, 2000);
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = trackingUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          alert('Tracking link copied to clipboard!');
+        } catch (e) {
+          alert('Failed to copy link. Please copy manually: ' + trackingUrl);
+        }
+        document.body.removeChild(textArea);
+      }
+    });
+  }
 });
