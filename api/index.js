@@ -1,6 +1,11 @@
 // Load environment variables FIRST before any other modules
 require('dotenv').config();
 
+// Log environment status for debugging
+console.log('API starting with NODE_ENV:', process.env.NODE_ENV);
+console.log('Supabase URL configured:', !!process.env.SUPABASE_URL);
+console.log('Session secret configured:', !!process.env.SESSION_SECRET);
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -168,8 +173,26 @@ app.use('/api/messenger', messengerRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('Error occurred:', {
+    message: err.message,
+    stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+    url: req.url,
+    method: req.method
+  });
+  res.status(err.status || 500).json({ 
+    error: process.env.NODE_ENV === 'production' 
+      ? 'Something went wrong!' 
+      : err.message 
+  });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV 
+  });
 });
 
 // 🚀 Instead of app.listen, export the app for Vercel to handle
