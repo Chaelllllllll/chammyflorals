@@ -242,4 +242,63 @@ async function sendOrderUpdate(psid, text) {
   }
 }
 
-module.exports = { notifyAdmins, sendToPsid, notifyCustomer, sendTwoFactor, sendOrderUpdate };
+// Broadcast announcement to all customers
+async function broadcastAnnouncement(announcement) {
+  try {
+    const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+    if (!token) return { ok: false, message: 'Missing FB token' };
+
+    const supabase = require('../config/supabase');
+    if (!supabase) return { ok: false, message: 'Supabase not configured' };
+
+    // Get all customers with messenger PSIDs
+    const { data: orders, error } = await supabase
+      .from('orders')
+      .select('messenger_psid, name')
+      .not('messenger_psid', 'is', null);
+
+    if (error) throw error;
+
+    // Get unique PSIDs
+    const psids = [...new Set(orders.map(o => o.messenger_psid).filter(Boolean))];
+    
+    if (!psids.length) return { ok: false, message: 'No customer PSIDs found' };
+
+    const url = `https://graph.facebook.com/v17.0/me/messages?access_token=${encodeURIComponent(token)}`;
+    
+    // Build announcement message
+    const lines = [];
+    lines.push('⋆˚✿˖° 𝐍𝐞𝐰 𝐀𝐧𝐧𝐨𝐮𝐧𝐜𝐞𝐦𝐞𝐧𝐭 ⋆˚✿˖°');
+    lines.push('');
+    lines.push(`${announcement.title}`);
+    lines.push('');
+    lines.push(announcement.description);
+    lines.push('');
+    lines.push('Visit us at: https://chammyflorals.vercel.app');
+    const text = lines.join('\n');
+
+    const results = [];
+    for (const psid of psids) {
+      try {
+        // Use ACCOUNT_UPDATE tag for announcements
+        const payload = { 
+          recipient: { id: psid }, 
+          message: { text },
+          messaging_type: 'MESSAGE_TAG',
+          tag: 'ACCOUNT_UPDATE'
+        };
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        let body = null;
+        try { body = await res.json(); } catch (e) { body = null; }
+        results.push({ psid, status: res.status, ok: res.ok, body });
+      } catch (err) {
+        results.push({ psid, ok: false, error: err && err.message ? err.message : String(err) });
+      }
+    }
+    return { ok: true, results, totalSent: results.filter(r => r.ok).length, totalFailed: results.filter(r => !r.ok).length };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+module.exports = { notifyAdmins, sendToPsid, notifyCustomer, sendTwoFactor, sendOrderUpdate, broadcastAnnouncement };

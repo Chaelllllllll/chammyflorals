@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chammy Florals - Announcements</title>
+    <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        body { overflow-x: hidden; }
+        
+        .card {
+            border-radius: 12px !important;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Metric cards */
+        .metric-card {
+            background: linear-gradient(180deg, #fffafc, #fff1f6);
+            border: none;
+            border-radius: 12px;
+        }
+        
+        .announcement-item {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        .announcement-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .announcement-item img,
+        .announcement-placeholder-admin {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        /* Mobile responsiveness for announcement cards */
+        @media (max-width: 768px) {
+            .announcement-item {
+                padding: 15px;
+            }
+            
+            .announcement-item .row {
+                margin: 0 !important;
+            }
+            
+            .announcement-item .col-md-4,
+            .announcement-item .col-md-8 {
+                padding: 0 !important;
+            }
+            
+            .announcement-item .col-md-4 {
+                margin-bottom: 15px;
+            }
+            
+            .announcement-item img,
+            .announcement-placeholder-admin {
+                height: 180px !important;
+                max-width: 100% !important;
+            }
+            
+            .announcement-item h5 {
+                font-size: 1.1rem !important;
+                margin-bottom: 8px !important;
+            }
+            
+            .announcement-item .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .announcement-item .btn-group {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+            }
+            
+            .announcement-item .btn-sm {
+                flex: 1;
+                padding: 8px 12px;
+            }
+            
+            .announcement-item p {
+                font-size: 0.9rem;
+            }
+            
+            .announcement-item .badge {
+                font-size: 0.75rem;
+            }
+            
+            .announcement-item small {
+                font-size: 0.7rem;
+            }
+        }
+        
+        .badge-active {
+            background: #28a745;
+        }
+        
+        .badge-inactive {
+            background: #6c757d;
+        }
+        
+        .form-section {
+            background: linear-gradient(180deg, #fffafc, #fff1f6);
+            border-radius: 12px;
+            padding: 30px;
+            border: 2px solid #ffe9f0;
+        }
+        
+        .btn-pink {
+            background-color: #ff6f9b;
+            border-color: #ff6f9b;
+            color: white;
+        }
+        
+        .btn-pink:hover {
+            background-color: #ff5082;
+            border-color: #ff5082;
+            color: white;
+        }
+    </style>
+</head>
+<body class="admin-page">
+    <!-- Sidebar Toggle Button (Mobile) -->
+    <button class="sidebar-toggle" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar Overlay (Mobile) -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/admin/dashboard.html" class="sidebar-brand">
+                <i class="fas fa-flower"></i>
+                <span>Chammy Florals</span>
+            </a>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a href="/admin/dashboard.html" class="sidebar-nav-link">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/products.html" class="sidebar-nav-link">
+                    <i class="fas fa-box-open"></i>
+                    <span>Products</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/reviews.html" class="sidebar-nav-link">
+                    <i class="fas fa-star"></i>
+                    <span>Reviews</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/announcements.html" class="sidebar-nav-link active">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Announcements</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/reports.html" class="sidebar-nav-link">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Transactions</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/todo.html" class="sidebar-nav-link">
+                    <i class="fas fa-tasks"></i>
+                    <span>To Do</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/to-deliver.html" class="sidebar-nav-link">
+                    <i class="fas fa-truck"></i>
+                    <span>To Deliver</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/admins.html" class="sidebar-nav-link">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Admins</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="/admin/messages.html" class="sidebar-nav-link">
+                    <i class="fas fa-comments"></i>
+                    <span>Messages</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <button class="btn btn-pink w-100" id="logoutButton">
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
+            <!-- Quick metrics -->
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-4">
+                    <div class="card metric-card p-3 text-center">
+                        <div class="h6 mb-1 text-muted">
+                            <i class="fas fa-bullhorn text-pink me-2"></i>Total
+                        </div>
+                        <div id="metricTotal" class="fs-5 fw-bold text-pink">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4">
+                    <div class="card metric-card p-3 text-center">
+                        <div class="h6 mb-1 text-muted">
+                            <i class="fas fa-check-circle text-success me-2"></i>Active
+                        </div>
+                        <div id="metricActive" class="fs-5 fw-bold text-success">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-4">
+                    <div class="card metric-card p-3 text-center">
+                        <div class="h6 mb-1 text-muted">
+                            <i class="fas fa-ban text-secondary me-2"></i>Inactive
+                        </div>
+                        <div id="metricInactive" class="fs-5 fw-bold text-secondary">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Card -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                        <div>
+                            <h2 class="card-title mb-0">
+                                <i class="fas fa-bullhorn text-pink me-2"></i>Announcements
+                            </h2>
+                            <div class="small text-muted">Manage website announcements and notifications</div>
+                        </div>
+                        <button class="btn btn-pink btn-sm" id="createAnnouncementBtn">
+                            <i class="fas fa-plus me-1"></i>Create Announcement
+                        </button>
+                    </div>
+
+                    <!-- Search and Filters -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search announcements...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="statusFilter">
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="typeFilter">
+                                <option value="all">All Types</option>
+                                <option value="general">General</option>
+                                <option value="sale">Sale</option>
+                                <option value="new_product">New Product</option>
+                                <option value="event">Event</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Create/Edit Form (Hidden by default) -->
+                    <div id="announcementFormContainer" class="form-section mb-4" style="display: none;">
+                        <h5 class="mb-3">
+                            <i class="fas fa-edit me-2"></i><span id="formTitle">Create New Announcement</span>
+                        </h5>
+                        <form id="announcementForm" enctype="multipart/form-data">
+                            <input type="hidden" id="announcementId">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Title *</label>
+                                    <input type="text" class="form-control" id="title" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Type</label>
+                                    <select class="form-control" id="type">
+                                        <option value="general">General</option>
+                                        <option value="sale">Sale</option>
+                                        <option value="new_product">New Product</option>
+                                        <option value="event">Event</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Description *</label>
+                                <textarea class="form-control" id="description" rows="3" required></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Image</label>
+                                <input type="file" class="form-control" id="image" accept="image/*">
+                                <small class="text-muted">Recommended size: 1200x400px</small>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active" checked>
+                                    <label class="form-check-label fw-bold" for="is_active">
+                                        Active (Show on website)
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-pink">
+                                <i class="fas fa-save me-2"></i><span id="submitBtnText">Create Announcement</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="cancelBtn">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Announcements List -->
+                    <div id="announcementsList">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-pink" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading announcements...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/admin-announcements.js"></script>
+</body>
+</html>

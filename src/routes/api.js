@@ -3,6 +3,8 @@ const supabase = require('../config/supabase');
 const validate = require('../middleware/validate');
 const { validateOrderCreation, validateReview, sanitizeBody } = require('../middleware/validators');
 const { cacheMiddleware, clearCache } = require('../middleware/cache');
+const { authenticateToken: authenticateCustomer } = require('./auth');
+const adminAuth = require('../middleware/auth');
 const mailer = require('../lib/mailer');
 const templates = require('../lib/email-templates');
 const rateLimit = require('express-rate-limit');
@@ -10,6 +12,65 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const router = express.Router();
 const multer = require('multer');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const { getSession } = require('../lib/sessionStore');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'chamflorals-secret-key-change-in-production';
+
+// Flexible authentication middleware that accepts either customer or admin tokens
+const authenticateCustomerOrAdmin = async (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  // Try customer JWT authentication first
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded && decoded.id) {
+      req.user = decoded;
+      req.userType = 'customer';
+      return next();
+    }
+  } catch (err) {
+    // Not a customer JWT, try admin authentication
+  }
+
+  // Try admin session token authentication
+  try {
+    // Check in-memory session first
+    const tokenStr = String(token || '').trim();
+    const rec = getSession(tokenStr);
+    if (rec && rec.expires && rec.expires > Date.now()) {
+      req.admin = rec.admin || { id: rec.adminId };
+      req.user = { id: null }; // Set dummy user for admin orders
+      req.userType = 'admin';
+      return next();
+    }
+
+    // Check database session
+    const { data: sessionRow, error: sessErr } = await supabase
+      .from('admins')
+      .select('id,email,session_expires')
+      .eq('session_token', tokenStr)
+      .limit(1)
+      .single();
+      
+    if (!sessErr && sessionRow && sessionRow.session_expires && 
+        new Date(sessionRow.session_expires).getTime() > Date.now()) {
+      req.admin = { id: sessionRow.id, email: sessionRow.email };
+      req.user = { id: null }; // Set dummy user for admin orders
+      req.userType = 'admin';
+      return next();
+    }
+  } catch (err) {
+    // Admin auth also failed
+  }
+
+  return res.status(403).json({ error: 'Invalid or expired token' });
+};
 
 // Health check endpoint to verify API and database connectivity
 // Returns minimal info - safe for public access
@@ -59,11 +120,16 @@ const sanitizeString = (str, maxLength = 1000) => {
 };
 
 // Apply a stricter rate limit to the public inquiry endpoint to mitigate abuse.
+// Skip rate limiting for admin users
 const inquiryLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting if user is authenticated as admin
+    return req.userType === 'admin';
+  },
   keyGenerator: (req /*, res*/) => {
     const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
     if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
@@ -75,13 +141,17 @@ const inquiryLimiter = rateLimit({
   },
 });
 
-router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
+router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
   try {
     // Log minimal info to avoid leaking PII in logs
     const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');
     
     // Check what we're receiving
     console.log('Received inquiry request with manual_order:', req.body.manual_order, 'type:', typeof req.body.manual_order);
+    console.log('User type:', req.userType);
+    
+    // Get customer_id from authenticated user (null for admin-created orders)
+    const customer_id = req.user?.id || null;
     
     // SECURITY FIX: Sanitize user inputs
     const {
@@ -188,19 +258,21 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
         }
 
         // parse addon prices if present (attempt to extract numeric ₱ value from addon label)
+        // Multiply addon prices by total quantity
         if (addons && Array.isArray(addons)) {
+          const totalQuantity = parseInt(quantity) || 1;
           for (const a of addons) {
             if (!a) continue;
             const str = String(a);
             const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
             if (m && m[1]) {
               const num = Number(m[1].replace(/,/g, ''));
-              if (!Number.isNaN(num)) totalFee += num;
+              if (!Number.isNaN(num)) totalFee += num * totalQuantity;
             } else {
               const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
               if (mm && mm[1]) {
                 const num = Number(mm[1].replace(/,/g, ''));
-                if (!Number.isNaN(num)) totalFee += num;
+                if (!Number.isNaN(num)) totalFee += num * totalQuantity;
               }
             }
           }
@@ -253,6 +325,7 @@ router.post('/inquiry', validate.inquiry, sanitizeBody, inquiryLimiter, async (r
 
     const orderData = {
       order_id: orderId,
+      customer_id: customer_id, // Link order to authenticated customer
       name: sanitizedUserName || stripTags(user_name),
       email: String(user_email).trim(),
       fb_link: sanitizedFbLink || stripTags(fb_link) || 'Not provided',
@@ -529,6 +602,63 @@ router.get('/track/:orderId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to track order' });
+  }
+});
+
+// Get orders for authenticated customer
+router.get('/orders', authenticateCustomer, async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching customer orders:', error);
+      return res.status(500).json({ error: 'Failed to fetch orders' });
+    }
+
+    res.json(data || []);
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// Track order by tracking code (authenticated)
+router.get('/orders/track/:trackingCode', authenticateCustomer, async (req, res) => {
+  try {
+    const { trackingCode } = req.params;
+    const customerEmail = req.user.email;
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('tracking_code', trackingCode.toUpperCase())
+      .eq('email', customerEmail)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json({
+      id: data.id,
+      tracking_code: data.tracking_code,
+      flower_type: data.flower_type,
+      quantity: data.quantity,
+      total_price: data.total_price,
+      status: data.status,
+      created_at: data.created_at,
+      delivery_address: data.delivery_address,
+      phone: data.phone
+    });
+  } catch (error) {
+    console.error('Error tracking order:', error);
     res.status(500).json({ error: 'Failed to track order' });
   }
 });
@@ -917,6 +1047,31 @@ router.get('/products', cacheMiddleware(600), async (req, res) => {
   }
 });
 
+// Public single product by ID (no auth)
+// Cache for 10 minutes
+router.get('/products/:id', cacheMiddleware(600), async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Fetching product with ID:', id);
+    
+    const { data, error } = await supabase
+      .from('products')
+      .select('id,name,image_url,category,pricing,addons,colors')
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Supabase error fetching product:', error);
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    res.json(data);
+  } catch (err) {
+    console.error('Unexpected error fetching product:', err);
+    res.status(500).json({ error: 'Failed to fetch product', details: err.message });
+  }
+});
+
 // Public categories list (no auth)
 // Include rush_fee so the public site can show/apply rush fees per category
 // Cache for 10 minutes
@@ -1236,6 +1391,544 @@ router.get('/status/history', async (req, res) => {
   } catch (err) {
     console.error('Error fetching history:', err);
     res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// Chat endpoints for order-based messaging
+// Send a chat message for an order
+router.post('/chat/send', async (req, res) => {
+  try {
+    const { order_id, message, sender_type } = req.body;
+    
+    if (!order_id || !message || !sender_type) {
+      return res.status(400).json({ error: 'Order ID, message, and sender type are required' });
+    }
+    
+    if (!['customer', 'admin'].includes(sender_type)) {
+      return res.status(400).json({ error: 'Invalid sender type' });
+    }
+    
+    // Verify order exists and is not delivered
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('order_id, status')
+      .eq('order_id', order_id.toUpperCase())
+      .single();
+    
+    if (orderError || !order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    if (order.status === 'Delivered') {
+      return res.status(400).json({ error: 'Cannot send messages for delivered orders' });
+    }
+    
+    // Sanitize message
+    const sanitizedMessage = sanitizeString(message, 1000);
+    
+    // Insert message
+    const { data: chatData, error: chatError } = await supabase
+      .from('order_chats')
+      .insert([{
+        order_id: order_id.toUpperCase(),
+        sender_type,
+        message: sanitizedMessage,
+        created_at: new Date().toISOString()
+      }])
+      .select();
+    
+    if (chatError) {
+      console.error('Error sending chat message:', chatError);
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Message sent successfully',
+      data: chatData[0]
+    });
+  } catch (error) {
+    console.error('Chat send error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Get chat messages for an order
+router.get('/chat/:orderId', async (req, res) => {
+  try {
+    const orderId = req.params.orderId.toUpperCase();
+    
+    // Verify order exists
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('order_id, status')
+      .eq('order_id', orderId)
+      .single();
+    
+    if (orderError || !order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Get all messages for this order
+    const { data: messages, error: messagesError } = await supabase
+      .from('order_chats')
+      .select('*')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: true });
+    
+    if (messagesError) {
+      console.error('Error fetching chat messages:', messagesError);
+      return res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+    
+    res.json({ 
+      order_id: orderId,
+      order_status: order.status,
+      messages: messages || []
+    });
+  } catch (error) {
+    console.error('Chat fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Push notification subscription endpoints
+router.post('/push/subscribe', async (req, res) => {
+  try {
+    const { subscription, userId, userType } = req.body;
+    
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Invalid subscription data' });
+    }
+
+    // Store subscription in database
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        endpoint: subscription.endpoint,
+        keys: subscription.keys,
+        user_id: userId || null,
+        user_type: userType || 'customer',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      console.error('Error storing push subscription:', error);
+      return res.status(500).json({ error: 'Failed to store subscription' });
+    }
+
+    res.json({ success: true, message: 'Subscription saved' });
+  } catch (error) {
+    console.error('Push subscription error:', error);
+    res.status(500).json({ error: 'Failed to save subscription' });
+  }
+});
+
+router.post('/push/unsubscribe', async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Endpoint required' });
+    }
+
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint);
+
+    if (error) {
+      console.error('Error removing subscription:', error);
+      return res.status(500).json({ error: 'Failed to remove subscription' });
+    }
+
+    res.json({ success: true, message: 'Subscription removed' });
+  } catch (error) {
+    console.error('Push unsubscribe error:', error);
+    res.status(500).json({ error: 'Failed to remove subscription' });
+  }
+});
+
+// Customer Chat Endpoints (authenticated customers only)
+// Get all messages for authenticated customer
+router.get('/customer-chat', authenticateCustomer, async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    console.log('Getting chat messages for customer:', customerId);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Hard-delete messages older than 30 days to keep the inbox clean
+    await supabase
+      .from('customer_messages')
+      .delete()
+      .lt('created_at', thirtyDaysAgo.toISOString());
+    
+    // Get all messages from customer_messages table (general messaging)
+    const { data: messages, error: messagesError } = await supabase
+      .from('customer_messages')
+      .select(`
+        id,
+        customer_id,
+        order_id,
+        product_id,
+        sender_type,
+        message,
+        image_url,
+        created_at
+      `)
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: true });
+    
+    if (messagesError) {
+      // If the table is missing optional columns (e.g., deleted_for), avoid breaking chat
+      if (messagesError.code === '42703') {
+        console.warn('Column missing in customer_messages (likely deleted_for). Returning empty list.');
+        return res.json({ success: true, messages: [] });
+      }
+
+      console.error('Error fetching messages:', messagesError);
+      return res.status(500).json({ error: 'Failed to load messages' });
+    }
+    
+    console.log('Messages found:', messages ? messages.length : 0);
+    
+    res.json({ 
+      success: true,
+      messages: messages || []
+    });
+  } catch (error) {
+    console.error('Customer chat error:', error);
+    res.status(500).json({ error: 'Failed to load messages' });
+  }
+});
+
+// Send message as authenticated customer (supports text, images, and product inquiries)
+router.post('/customer-chat/send', authenticateCustomer, upload.single('image'), async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const { message, product_id, order_id } = req.body;
+    
+    console.log('Customer sending message:', { customerId, message: message ? 'yes' : 'no', product_id, order_id, hasImage: !!req.file });
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    // Sanitize message
+    const sanitizedMessage = sanitizeString(message, 1000);
+    
+    // Prepare message data
+    const messageData = {
+      customer_id: customerId,
+      sender_type: 'customer',
+      message: sanitizedMessage,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add optional product_id for product inquiries
+    if (product_id) {
+      messageData.product_id = parseInt(product_id);
+    }
+    
+    // Add optional order_id if related to an order
+    if (order_id) {
+      messageData.order_id = order_id;
+    }
+    
+    // Handle image upload if present
+    if (req.file && req.file.buffer) {
+      try {
+        // Validate file type
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!req.file.mimetype || !allowedMimeTypes.includes(req.file.mimetype.toLowerCase())) {
+          return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
+        }
+
+        // Validate file size (5MB limit)
+        if (req.file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        }
+
+        const bucket = process.env.SUPABASE_CHAT_BUCKET || 'chat-images';
+        // Sanitize filename
+        const sanitizedOriginalName = String(req.file.originalname || 'img').replace(/[^a-z0-9.\-]/gi, '_').substring(0, 100);
+        const filename = `${customerId}_${Date.now()}_${sanitizedOriginalName}`;
+        const path = `customer-${customerId}/${filename}`;
+        
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from(bucket)
+          .upload(path, req.file.buffer, { contentType: req.file.mimetype });
+        
+        if (uploadErr) {
+          console.error('Error uploading image:', uploadErr);
+        } else {
+          // Get public URL
+          try {
+            const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl(path);
+            if (urlData && urlData.publicUrl) {
+              messageData.image_url = urlData.publicUrl;
+            }
+          } catch (urlErr) {
+            console.error('Error getting public URL:', urlErr);
+          }
+        }
+      } catch (err) {
+        console.error('Image upload error:', err);
+      }
+    }
+    
+    // Insert message into customer_messages table
+    const { data: chatData, error: chatError } = await supabase
+      .from('customer_messages')
+      .insert([messageData])
+      .select();
+    
+    if (chatError) {
+      console.error('Error sending customer chat message:', chatError);
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
+    
+    console.log('Message sent successfully:', chatData);
+    
+    res.json({ 
+      success: true,
+      message: 'Message sent successfully',
+      data: chatData[0]
+    });
+  } catch (error) {
+    console.error('Customer chat send error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// Delete message endpoint
+router.delete('/customer-chat/:id/delete', authenticateCustomer, async (req, res) => {
+  try {
+    const messageId = req.params.id;
+    const customerId = req.user.id;
+    const { deleteType } = req.body; // 'me' or 'everyone'
+    
+    // Get the message to check ownership
+    const { data: message, error: fetchError } = await supabase
+      .from('customer_messages')
+      .select('*')
+      .eq('id', messageId)
+      .single();
+    
+    if (fetchError || !message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    
+    // Check if user is the sender
+    const isSender = message.customer_id === customerId && message.sender_type === 'customer';
+    
+    if (deleteType === 'everyone') {
+      // Only sender can delete for everyone
+      if (!isSender) {
+        return res.status(403).json({ error: 'You can only delete your own messages for everyone' });
+      }
+      
+      // Hard delete for everyone
+      const { error: deleteError } = await supabase
+        .from('customer_messages')
+        .delete()
+        .eq('id', messageId);
+      
+      if (deleteError) throw deleteError;
+    } else {
+      // For "delete for me", we'll just hard delete since we don't have deleted_for column
+      // This means it will be deleted for everyone, but we can add the column later
+      // For now, let's not support "delete for me" - only "delete for everyone"
+      return res.status(400).json({ error: 'Delete for me is not currently supported. Please use delete for everyone.' });
+    }
+    
+    res.json({ success: true, message: 'Message deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
+
+// Admin/Seller endpoints for customer messages
+// Get all customer conversations (for admin dashboard)
+router.get('/admin/customer-conversations', async (req, res) => {
+  try {
+    // Get all customers who have sent messages
+    const { data: conversations, error } = await supabase
+      .from('customer_messages')
+      .select(`
+        customer_id,
+        customers!inner (id, name, email),
+        created_at
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching conversations:', error);
+      return res.status(500).json({ error: 'Failed to load conversations' });
+    }
+    
+    // Group by customer and get latest message
+    const customerMap = new Map();
+    
+    if (conversations && conversations.length > 0) {
+      for (const conv of conversations) {
+        const customerId = conv.customer_id;
+        if (!customerMap.has(customerId)) {
+          customerMap.set(customerId, {
+            customer_id: customerId,
+            name: conv.customers?.name || 'Unknown',
+            email: conv.customers?.email || '',
+            last_message_at: conv.created_at
+          });
+        }
+      }
+    }
+    
+    const result = Array.from(customerMap.values());
+    
+    res.json({
+      success: true,
+      conversations: result
+    });
+  } catch (error) {
+    console.error('Admin conversations error:', error);
+    res.status(500).json({ error: 'Failed to load conversations' });
+  }
+});
+
+// Get messages for a specific customer (for admin)
+router.get('/admin/customer-messages/:customerId', async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    
+    // Get all messages for this customer
+    const { data: messages, error } = await supabase
+      .from('customer_messages')
+      .select(`
+        id,
+        customer_id,
+        order_id,
+        product_id,
+        sender_type,
+        message,
+        image_url,
+        created_at,
+        products:product_id (id, name, image_url),
+        customers!inner (id, name, email)
+      `)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching customer messages:', error);
+      return res.status(500).json({ error: 'Failed to load messages' });
+    }
+    
+    res.json({
+      success: true,
+      messages: messages || []
+    });
+  } catch (error) {
+    console.error('Admin customer messages error:', error);
+    res.status(500).json({ error: 'Failed to load messages' });
+  }
+});
+
+// Send message as seller (admin) to customer
+router.post('/admin/customer-messages/send', upload.single('image'), async (req, res) => {
+  try {
+    const { customer_id, message, product_id, order_id } = req.body;
+    
+    if (!customer_id || !message) {
+      return res.status(400).json({ error: 'Customer ID and message are required' });
+    }
+    
+    // Sanitize message
+    const sanitizedMessage = sanitizeString(message, 1000);
+    
+    // Prepare message data
+    const messageData = {
+      customer_id: customer_id,
+      sender_type: 'seller',
+      message: sanitizedMessage,
+      created_at: new Date().toISOString()
+    };
+    
+    // Add optional references
+    if (product_id) {
+      messageData.product_id = parseInt(product_id);
+    }
+    
+    if (order_id) {
+      messageData.order_id = order_id;
+    }
+    
+    // Handle image upload if present
+    if (req.file && req.file.buffer) {
+      try {
+        // Validate file type
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!req.file.mimetype || !allowedMimeTypes.includes(req.file.mimetype.toLowerCase())) {
+          return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
+        }
+
+        // Validate file size (5MB limit)
+        if (req.file.size > 5 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        }
+
+        const bucket = process.env.SUPABASE_CHAT_BUCKET || 'chat-images';
+        // Sanitize filename
+        const sanitizedOriginalName = String(req.file.originalname || 'img').replace(/[^a-z0-9.\-]/gi, '_').substring(0, 100);
+        const filename = `seller_${Date.now()}_${sanitizedOriginalName}`;
+        const path = `seller/${filename}`;
+        
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from(bucket)
+          .upload(path, req.file.buffer, { contentType: req.file.mimetype });
+        
+        if (uploadErr) {
+          console.error('Error uploading image:', uploadErr);
+        } else {
+          // Get public URL
+          try {
+            const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl(path);
+            if (urlData && urlData.publicUrl) {
+              messageData.image_url = urlData.publicUrl;
+            }
+          } catch (urlErr) {
+            console.error('Error getting public URL:', urlErr);
+          }
+        }
+      } catch (err) {
+        console.error('Image upload error:', err);
+      }
+    }
+    
+    // Insert message
+    const { data: chatData, error: chatError } = await supabase
+      .from('customer_messages')
+      .insert([messageData])
+      .select();
+    
+    if (chatError) {
+      console.error('Error sending seller message:', chatError);
+      return res.status(500).json({ error: 'Failed to send message' });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Message sent successfully',
+      data: chatData[0]
+    });
+  } catch (error) {
+    console.error('Admin send message error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 

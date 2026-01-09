@@ -83,4 +83,67 @@ function deliveredTemplate(order) {
   return { subject: `Chammy Florals - Order Delivered (${order.order_id})`, html };
 }
 
-module.exports = { orderConfirmationTemplate, statusUpdateTemplate, deliveredTemplate };
+function emailVerificationTemplate(name, otp) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, rgba(255,233,241,0.3) 0%, rgba(255,255,255,0.9) 100%);">
+      <div style="text-align: center; padding: 30px; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(255, 111, 155, 0.15);">
+        <div style="font-size: 48px; margin-bottom: 20px;">🌸</div>
+        <h2 style="color: #ff6f9b; font-size: 28px; margin-bottom: 10px;">Welcome to Chammy Florals!</h2>
+        <p style="color: #666; font-size: 16px; margin-bottom: 30px;">Hi ${escapeHtml(name)},</p>
+        <p style="color: #333; font-size: 15px; margin-bottom: 20px;">Thank you for creating an account with us. To complete your registration, please verify your email address using the code below:</p>
+        
+        <div style="background: linear-gradient(135deg, #ff6f9b 0%, #ff99bb 100%); color: white; font-size: 36px; font-weight: bold; letter-spacing: 8px; padding: 20px; border-radius: 10px; margin: 30px 0; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);">
+          ${escapeHtml(otp)}
+        </div>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 20px;">This code will expire in <strong>10 minutes</strong>.</p>
+        <p style="color: #666; font-size: 14px;">If you didn't create an account with Chammy Florals, please ignore this email.</p>
+        
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+          <p style="color: #999; font-size: 12px; margin: 0;">This is an automated message, please do not reply.</p>
+          <p style="color: #999; font-size: 12px; margin: 5px 0 0 0;">© 2026 Chammy Florals. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  `;
+  return { subject: 'Verify Your Email - Chammy Florals', html };
+}
+
+function passwordResetTemplate(name, resetLink) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(135deg, rgba(255,233,241,0.3) 0%, rgba(255,255,255,0.9) 100%);">
+      <div style="text-align: center; padding: 30px; background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(255, 111, 155, 0.15);">
+        <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+        <h2 style="color: #ff6f9b; font-size: 28px; margin-bottom: 10px;">Password Reset Request</h2>
+        <p style="color: #666; font-size: 16px; margin-bottom: 30px;">Hi ${escapeHtml(name)},</p>
+        <p style="color: #333; font-size: 15px; margin-bottom: 20px;">We received a request to reset your password. Click the button below to create a new password:</p>
+        
+        <a href="${escapeHtml(resetLink)}" style="display: inline-block; background: linear-gradient(135deg, #ff6f9b 0%, #ff99bb 100%); color: white; text-decoration: none; padding: 15px 40px; border-radius: 10px; font-weight: bold; font-size: 16px; margin: 20px 0; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);">
+          Reset Password
+        </a>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 20px;">Or copy and paste this link into your browser:</p>
+        <p style="color: #ff6f9b; font-size: 13px; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 5px;">
+          ${escapeHtml(resetLink)}
+        </p>
+        
+        <p style="color: #666; font-size: 14px; margin-top: 25px;">This link will expire in <strong>1 hour</strong>.</p>
+        <p style="color: #666; font-size: 14px;">If you didn't request a password reset, please ignore this email or contact us if you have concerns.</p>
+        
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+          <p style="color: #999; font-size: 12px; margin: 0;">This is an automated message, please do not reply.</p>
+          <p style="color: #999; font-size: 12px; margin: 5px 0 0 0;">© 2026 Chammy Florals. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+  `;
+  return { subject: 'Reset Your Password - Chammy Florals', html };
+}
+
+module.exports = { 
+  orderConfirmationTemplate, 
+  statusUpdateTemplate, 
+  deliveredTemplate,
+  emailVerificationTemplate,
+  passwordResetTemplate 
+};

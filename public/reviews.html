@@ -42,6 +42,7 @@
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     border: 1px solid rgba(0,0,0,0.05);
     margin-bottom: 2rem;
+    margin-top: -100px;
   }
 
   .rating-display {
@@ -304,9 +305,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
   <div class="container">
     <a class="navbar-brand" href="/">Chammy Florals</a>
-    <div class="ms-auto">
-      <button id="navSubmitReviewBtn" class="btn btn-pink btn-sm">Submit Review</button>
-    </div>
   </div>
 </nav>
 
@@ -325,9 +323,6 @@
               Bloom with love — hear what our customers are saying about their Chammy Florals experience.
             </p>
             <div class="d-flex justify-content-center gap-2 gap-md-3 flex-wrap mb-3">
-              <button class="btn btn-pink btn-lg px-4" id="heroSubmitReviewBtn">
-                <i class="fa fa-pen-to-square me-2"></i>Write a Review
-              </button>
               <button class="btn btn-outline-pink btn-lg px-4" id="heroReadReviewsBtn">
                 <i class="fa fa-comments me-2"></i>Read Reviews
               </button>
@@ -341,7 +336,7 @@
   <section class="container my-5">
 
   <div class="row">
-    <div class="col-lg-8">
+    <div class="col-12">
       <!-- Stats Card -->
       <div class="stats-card">
         <div class="row align-items-center g-4">
@@ -376,57 +371,7 @@
         <!-- reviews will be rendered here -->
       </div>
     </div>
-    <aside class="col-lg-4">
-      <div class="form-card mb-3">
-        <div class="form-header">
-          <h5><i class="fa fa-pen-to-square me-2"></i>Write a Review</h5>
-          <p class="mb-0 small" style="opacity: 0.9;">Share your experience with us</p>
-        </div>
-        <div class="p-4">
-          <form id="pageAddReviewForm" class="needs-validation" novalidate>
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" style="color: #2d2d2d;">
-                Order ID
-              </label>
-              <input type="text" id="pageReviewOrderId" class="form-control" placeholder="e.g., A5DW7DW" required />
-              <div class="invalid-feedback">Order ID is required</div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" style="color: #2d2d2d;">
-                Rating
-              </label>
-              <select id="pageReviewStars" class="form-select" required>
-                <option value="">Select rating</option>
-                <option value="5">★★★★★ Excellent</option>
-                <option value="4">★★★★☆ Very Good</option>
-                <option value="3">★★★☆☆ Good</option>
-                <option value="2">★★☆☆☆ Fair</option>
-                <option value="1">★☆☆☆☆ Poor</option>
-              </select>
-              <div class="invalid-feedback">Please select a rating</div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" style="color: #2d2d2d;">
-                Your Review
-              </label>
-              <textarea id="pageReviewMessage" class="form-control" rows="4" placeholder="Tell us about your experience..." required></textarea>
-              <div class="invalid-feedback">Message is required</div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" style="color: #2d2d2d;">
-                Photo
-              </label>
-              <input type="file" id="pageReviewImage" accept="image/*" class="form-control" required>
-              <div class="form-text small text-muted">Max 5MB</div>
-            </div>
-            <div id="pageAddReviewError" class="alert alert-danger small mb-3" role="alert" style="display:none;"></div>
-            <button type="submit" class="btn btn-pink w-100 py-2 fw-semibold">
-              <i class="fa fa-paper-plane me-2"></i>Submit Review
-            </button>
-          </form>
-        </div>
-      </div>
-    </aside>
+
   </section>
 </main>
 

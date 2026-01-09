@@ -12,6 +12,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const products = await res.json();
       allProducts = products || [];
       renderProducts(allProducts);
+      
+      // Check if URL has a product parameter to auto-open modal
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = urlParams.get('product');
+      if (productId) {
+        // Find and show the product
+        const product = allProducts.find(p => p.id == productId);
+        if (product) {
+          // Wait for DOM to be ready
+          setTimeout(() => {
+            showPriceModal(product);
+            // Wait for modal to be created, then show it
+            setTimeout(() => {
+              const modalEl = document.getElementById('productPriceModal');
+              if (modalEl && typeof bootstrap !== 'undefined') {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+              }
+            }, 100);
+          }, 300);
+        }
+        // Clean URL without reloading
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } catch (err) {
       console.error('Error loading products:', err);
       container.innerHTML = '<p class="text-center text-muted">Failed to load products.</p>';
@@ -308,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bodyEl.innerHTML = html;
 
-    // add a footer with an Order button that opens the inquiry form pre-filled for this product
+    // add a footer with an Order button and Ask Seller button
     let footer = modalEl.querySelector('.modal-footer');
     if (!footer) {
       footer = document.createElement('div');
@@ -317,8 +341,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     footer.innerHTML = `
       <div class="w-100 d-flex gap-2">
-        <button type="button" class="btn btn-outline-secondary flex-fill" data-bs-dismiss="modal">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
           <i class="fa fa-times me-2"></i>Close
+        </button>
+        <button type="button" id="productAskSellerBtn" class="btn btn-outline-pink flex-fill">
+          <i class="fa fa-comments me-2"></i>Ask Seller
         </button>
         <button type="button" id="productOrderBtn" class="btn btn-pink flex-fill">
           <i class="fa fa-shopping-bag me-2"></i>Order Now
@@ -328,6 +355,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
+
+    // Handle Ask Seller button click
+    const askSellerBtn = footer.querySelector('#productAskSellerBtn');
+    if (askSellerBtn) {
+      askSellerBtn.addEventListener('click', () => {
+        // Close the product modal
+        modal.hide();
+        
+        // Check if user is logged in
+        const token = localStorage.getItem('auth_token');
+        if (!token) {
+          // Redirect to login with return URL
+          // Removed alert to improve UX
+          localStorage.setItem('pendingProductInquiry', JSON.stringify({
+            productId: product.id,
+            productName: product.name
+          }));
+          window.location.href = '/customer-login.html';
+          return;
+        }
+        
+        // Save product inquiry data to localStorage
+        localStorage.setItem('pendingProductInquiry', JSON.stringify({
+          productId: product.id,
+          productName: product.name
+        }));
+        
+        // Redirect to dashboard (which will auto-open chat)
+        window.location.href = '/dashboard.html';
+      });
+    }
 
     // ensure we clean up the dynamically-created modal and any leftover backdrop when it's closed
     modalEl.addEventListener('hidden.bs.modal', function onHidden() {
@@ -351,7 +409,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // wire order button to open inquiry modal and prefill the items to this product
     const orderBtn = modalEl.querySelector('#productOrderBtn');
     if (orderBtn) {
-      orderBtn.addEventListener('click', () => {
+      orderBtn.addEventListener('click', async () => {
+        // Redirect to login if not authenticated
+        const isAuthenticated = typeof checkAuth === 'function' ? await checkAuth() : false;
+        if (!isAuthenticated) {
+          window.location.href = 'customer-login.html';
+          return;
+        }
+
         try {
           const inquiryEl = document.getElementById('inquiryModal');
           if (!inquiryEl) return;

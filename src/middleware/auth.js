@@ -28,6 +28,7 @@ module.exports = async (req, res, next) => {
       const rec = getSession(tokenStr);
       if (rec && rec.expires && rec.expires > Date.now()) {
         console.log('Auth middleware - In-memory session valid');
+        req.admin = rec.admin || { id: rec.adminId };
         return next();
       }
     }
@@ -41,6 +42,7 @@ module.exports = async (req, res, next) => {
       const { data: sessionRow, error: sessErr } = await supabase.from('admins').select('id,email,session_expires').eq('session_token', tokenStr).limit(1).single();
       if (!sessErr && sessionRow && sessionRow.session_expires && new Date(sessionRow.session_expires).getTime() > Date.now()) {
         // valid session token
+        req.admin = { id: sessionRow.id, email: sessionRow.email };
         return next();
       }
     }
@@ -69,6 +71,7 @@ module.exports = async (req, res, next) => {
   // First try legacy env-based check for compatibility
   if (safeEqual(normEmail, normEnvEmail) && safeEqual(password, process.env.ADMIN_PASSWORD)) {
     console.log('Auth middleware - Env auth successful');
+    req.admin = { email: normEmail, id: 'env-admin' };
     return next();
   }
 
@@ -93,6 +96,7 @@ module.exports = async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid token' });
     }
     console.log('Auth middleware - DB auth successful');
+    req.admin = { id: adminRow.id, email: adminRow.email };
     return next();
   } catch (err) {
     console.warn('Auth middleware DB validation failed:', err && err.message ? err.message : err);

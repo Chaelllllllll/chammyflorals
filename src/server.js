@@ -3,8 +3,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const session = require('express-session');
+const passport = require('./config/passport');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
+const authRoutes = require('./routes/auth');
+const announcementsRoutes = require('./routes/announcements');
+// const googleAuthRoutes = require('./routes/google-auth'); // Disabled - using manual auth only
 require('dotenv').config();
 
 const app = express();
@@ -28,28 +33,14 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
+// Simplify CSP to avoid inline script blocking during OAuth/embedded scripts.
+// If you want stricter CSP later, re-enable and serve scripts via external files.
 app.use(
   helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', "'unsafe-inline'"],
-        scriptSrc: [
-          "'self'",
-          'https://cdn.jsdelivr.net',
-          'https://www.google.com',
-          'https://www.gstatic.com',
-          "'sha256-Vf+GW0yKtct7GeV10jtC6PA6hf4F3eDZaI6YiPDkP2s='", // Hash for inline script
-        ],
-        scriptSrcAttr: ["'none'"],
-  imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
-        connectSrc: ["'self'", 'https://www.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
-        fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
-        frameSrc: ["'self'", 'https://www.google.com', 'https://www.gstatic.com'],
-        objectSrc: ["'none'"],
-        upgradeInsecureRequests: [],
-      },
-    },
+    contentSecurityPolicy: false, // disable CSP to avoid hash/nonce conflicts with inline scripts
+    referrerPolicy: {
+      policy: 'strict-origin-when-cross-origin' // Required for Google Sign-In to work
+    }
   })
 );
 // In production restrict CORS to a configured origin; allow all in development
@@ -61,6 +52,22 @@ app.use(cors(corsOptions));
 // SECURITY FIX: Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Session configuration for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Configure route-specific rate limiters. Values can be tuned via environment variables.
 const PUBLIC_RATE_MAX = Number(process.env.PUBLIC_RATE_MAX || 150); // requests per window
@@ -91,6 +98,9 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 
 // Register routes
+// app.use('/auth', googleAuthRoutes); // Google OAuth routes - DISABLED
+app.use('/api/auth', authRoutes); // Customer authentication routes
+app.use('/api/announcements', announcementsRoutes); // Announcements routes
 app.use('/api', apiRoutes);
 app.use('/admin', adminRoutes);
 

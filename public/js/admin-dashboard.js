@@ -1487,3 +1487,1055 @@ function showNotifToast(count, items) {
 
 // Start polling after a short delay once page loads (notifications disabled)
 // setTimeout(() => { try { startNotificationsPolling(); } catch (e) {} }, 2000);
+
+// --- Manual Order Form Logic ---
+(function initManualOrderForm() {
+  const manualOrderForm = document.getElementById('manualOrderForm');
+  if (!manualOrderForm) return;
+
+  const manualItemsContainer = document.getElementById('manualItemsContainer');
+  const manualAddItemBtn = document.getElementById('manualAddItemBtn');
+  const manualAddonsContainer = document.getElementById('manualAddonsContainer');
+  const manualAddonsSection = document.getElementById('manualAddonsSection');
+  
+  let _productsCache = null;
+  let _categoriesCache = null;
+
+  // Load products
+  async function loadProductsForManualOrder() {
+    try {
+      const res = await fetch('/api/products');
+      if (!res.ok) throw new Error('Failed to fetch products');
+      const products = await res.json();
+      _productsCache = products || [];
+      return _productsCache;
+    } catch (err) {
+      console.error('Failed loading products for manual order:', err);
+      return [];
+    }
+  }
+
+  // Load categories for rush fee
+  async function loadCategoriesForRush() {
+    try {
+      const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const cats = await res.json();
+      _categoriesCache = {};
+      (cats || []).forEach(c => {
+        const fee = Number(c.rush_fee) || 0;
+        const nameKey = String(c.name || '').trim().toLowerCase();
+        const slugKey = String(c.slug || '').trim().toLowerCase();
+        const idKey = c.id != null ? String(c.id).trim() : '';
+        if (nameKey) _categoriesCache[nameKey] = fee;
+        if (slugKey) _categoriesCache[slugKey] = fee;
+        if (idKey) _categoriesCache[idKey] = fee;
+      });
+    } catch (err) {
+      _categoriesCache = {};
+    }
+  }
+
+  function escapeHtml(unsafe) {
+    return String(unsafe || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Populate item select
+  function populateItemSelect(selectEl) {
+    if (!_productsCache || !_productsCache.length) return;
+    selectEl.innerHTML = '<option value="">Select Flower Type</option>';
+    const seen = new Set();
+    const groups = {};
+    
+    _productsCache.forEach(p => {
+      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+      if (!groups[cat]) groups[cat] = [];
+      if (Array.isArray(p.pricing)) {
+        p.pricing.forEach(r => {
+          const code = String(r.label || r.set || '').trim();
+          if (!code) return;
+          if (seen.has(code)) return;
+          seen.add(code);
+          const parts = [];
+          if (r.set) parts.push(String(r.set));
+          if (r.price != null) parts.push('\u20B1' + Number(r.price));
+          const text = `${code}${parts.length ? ' - ' + parts.join(' - ') : ''}`;
+          groups[cat].push({ code, text, productId: p.id });
+        });
+      }
+    });
+    
+    Object.keys(groups).sort().forEach(cat => {
+      const og = document.createElement('optgroup');
+      og.label = cat;
+      groups[cat].forEach(it => {
+        const opt = document.createElement('option');
+        opt.value = it.code;
+        opt.textContent = it.text;
+        if (it.productId) opt.dataset.productId = it.productId;
+        og.appendChild(opt);
+      });
+      selectEl.appendChild(og);
+    });
+  }
+
+  // Populate color select for a row
+  function populateColorSelectForRow(row) {
+    try {
+      const select = row.querySelector('.item-flower');
+      const colorSelect = row.querySelector('.item-color');
+      if (!select || !colorSelect) return;
+      const opt = select.selectedOptions && select.selectedOptions[0];
+      const productId = opt && opt.dataset && opt.dataset.productId;
+      
+      colorSelect.innerHTML = '<option value="">Select Color</option>';
+      if (!productId || !_productsCache) return;
+      
+      const prod = _productsCache.find(p => String(p.id) === String(productId));
+      if (!prod || !Array.isArray(prod.colors) || !prod.colors.length) return;
+      
+      prod.colors.forEach(c => {
+        let value = c.value || c.hex || c.color || '';
+        if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
+          const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+          if (m) {
+            const r = Math.max(0, Math.min(255, Number(m[1]||0)));
+            const g = Math.max(0, Math.min(255, Number(m[2]||0)));
+            const b = Math.max(0, Math.min(255, Number(m[3]||0)));
+            value = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+          }
+        }
+        const name = c.name || value || '';
+        const optEl = document.createElement('option');
+        optEl.value = value;
+        optEl.textContent = `● ${name}`;
+        if (value) optEl.style.color = value;
+        optEl.dataset.colorName = name;
+        colorSelect.appendChild(optEl);
+      });
+    } catch (err) {
+      console.error('Error populating color select:', err);
+    }
+  }
+
+  // Handle flower type change to show add-ons
+  async function onFlowerTypeChange(e) {
+    const code = (e.target.value || '').trim();
+    if (!code) {
+      if (manualAddonsSection) manualAddonsSection.style.display = 'none';
+      return;
+    }
+
+    try {
+      const products = _productsCache || [];
+      let match = null;
+      
+      for (const p of products) {
+        if (p.pricing && Array.isArray(p.pricing)) {
+          const row = p.pricing.find(r => {
+            const label = String(r.label || '');
+            const set = String(r.set || '');
+            return label === code || label.includes(code) || set === code || set.includes(code);
+          });
+          if (row) { match = { product: p, row }; break; }
+        }
+        if (String(p.name || '').toUpperCase().includes(code.toUpperCase())) {
+          match = { product: p, row: null };
+          break;
+        }
+      }
+
+      if (!match) {
+        if (manualAddonsSection) manualAddonsSection.style.display = 'none';
+        return;
+      }
+
+      const { product } = match;
+      
+      // Render add-ons
+      if (manualAddonsContainer) {
+        if (product.addons && Array.isArray(product.addons) && product.addons.length) {
+          const html = product.addons.map(a => {
+            if (typeof a === 'string') {
+              const val = escapeHtml(a);
+              return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input" id="manual_addon_${val}"><label class="form-check-label fw-semibold" for="manual_addon_${val}">${val}</label></div>`;
+            }
+            const label = String(a.label || '').trim();
+            const price = a.price != null ? `₱${Number(a.price).toLocaleString()}` : '';
+            const value = escapeHtml(label + (price ? ` - ${price}` : ''));
+            const id = 'manual_addon_' + label.replace(/\s+/g, '_');
+            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${value}" class="form-check-input" id="${id}"><label class="form-check-label" for="${id}"><span class="fw-semibold">${escapeHtml(label)}</span>${price ? ` <span class="badge bg-pink text-white ms-2">${price}</span>` : ''}</label></div>`;
+          }).join('');
+          manualAddonsContainer.innerHTML = html;
+          if (manualAddonsSection) manualAddonsSection.style.display = '';
+        } else {
+          if (manualAddonsSection) manualAddonsSection.style.display = 'none';
+          manualAddonsContainer.innerHTML = '';
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch product info:', err);
+      if (manualAddonsSection) manualAddonsSection.style.display = 'none';
+    }
+  }
+
+  // Compute rush fee
+  function computeRushFee() {
+    try {
+      if (!_categoriesCache) return;
+      const itemRows = manualItemsContainer.querySelectorAll('.order-item');
+      let totalRush = 0;
+      
+      itemRows.forEach(row => {
+        const select = row.querySelector('.item-flower');
+        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+        const opt = select && select.selectedOptions && select.selectedOptions[0];
+        const productId = opt && opt.dataset && opt.dataset.productId;
+        if (!productId) return;
+        
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const cat = prod && prod.category ? String(prod.category).trim() : '';
+        const key = String(cat || '').trim().toLowerCase();
+        const fee = _categoriesCache[key] || 0;
+        if (fee) totalRush += fee * qty;
+      });
+      
+      const rushSelect = manualOrderForm.querySelector('select[name="rush"]');
+      if (rushSelect) {
+        const yesOpt = rushSelect.querySelector('option[value="Yes"]');
+        if (yesOpt) {
+          yesOpt.textContent = `Yes - Rush Fee: ₱${Number(totalRush).toLocaleString()}`;
+        }
+      }
+    } catch (err) {
+      console.error('Error computing rush fee:', err);
+    }
+  }
+
+  // Create item row
+  function createItemRow(index) {
+    const row = document.createElement('div');
+    row.className = 'order-item mb-2';
+    row.innerHTML = `
+      <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
+        <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${index + 1}</span>
+        <select class="form-select form-select-sm item-flower" name="flower_type_${index}" required style="flex: 3;">
+          <option value="">Flower Type</option>
+        </select>
+        <select class="form-select form-select-sm item-color" name="color_${index}" aria-label="Color" style="flex: 2;">
+          <option value="">Color</option>
+        </select>
+        <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${index}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+    `;
+    
+    const selectEl = row.querySelector('.item-flower');
+    populateItemSelect(selectEl);
+    
+    setTimeout(() => {
+      populateColorSelectForRow(row);
+    }, 40);
+    
+    selectEl.addEventListener('change', (ev) => {
+      onFlowerTypeChange(ev);
+      computeRushFee();
+      populateColorSelectForRow(row);
+    });
+    
+    row.querySelector('.remove-item').addEventListener('click', () => {
+      if (manualItemsContainer.children.length <= 1) return;
+      row.remove();
+      updateItemNumbers();
+      computeRushFee();
+    });
+    
+    return row;
+  }
+
+  // Update item numbers
+  function updateItemNumbers() {
+    const items = manualItemsContainer.querySelectorAll('.order-item');
+    items.forEach((item, idx) => {
+      const badge = item.querySelector('.badge');
+      if (badge) badge.textContent = `Item ${idx + 1}`;
+    });
+  }
+
+  // Initialize
+  (async function init() {
+    await loadProductsForManualOrder();
+    await loadCategoriesForRush();
+    
+    // Populate initial item selects
+    const initialSelects = manualItemsContainer.querySelectorAll('.item-flower');
+    initialSelects.forEach(s => {
+      populateItemSelect(s);
+      s.addEventListener('change', (ev) => {
+        onFlowerTypeChange(ev);
+        computeRushFee();
+        populateColorSelectForRow(s.closest('.order-item'));
+      });
+      const row = s.closest('.order-item');
+      if (row) populateColorSelectForRow(row);
+    });
+    
+    computeRushFee();
+  })();
+
+  // Add item button
+  if (manualAddItemBtn) {
+    manualAddItemBtn.addEventListener('click', () => {
+      const idx = manualItemsContainer.children.length;
+      const newRow = createItemRow(idx);
+      manualItemsContainer.appendChild(newRow);
+      computeRushFee();
+    });
+  }
+
+  // Recompute rush fee when quantity changes
+  manualItemsContainer.addEventListener('input', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) {
+      computeRushFee();
+    }
+  });
+
+  // Form submission
+  manualOrderForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = manualOrderForm.querySelector('button[type="submit"]');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
+    
+    // Validate form
+    try {
+      if (typeof manualOrderForm.reportValidity === 'function') {
+        if (!manualOrderForm.reportValidity()) return;
+      } else if (!manualOrderForm.checkValidity || !manualOrderForm.checkValidity()) {
+        return;
+      }
+    } catch (valErr) {}
+    
+    const data = {};
+    data.user_name = manualOrderForm.querySelector('input[name="user_name"]').value;
+    data.user_email = manualOrderForm.querySelector('input[name="user_email"]').value;
+    data.fb_link = manualOrderForm.querySelector('input[name="fb_link"]').value;
+    data.message = manualOrderForm.querySelector('textarea[name="message"]').value;
+    data.rush = manualOrderForm.querySelector('select[name="rush"]').value;
+    data.addons = Array.from(manualOrderForm.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
+    
+    // Collect items
+    const items = [];
+    const itemRows = manualItemsContainer.querySelectorAll('.order-item');
+    itemRows.forEach((row, i) => {
+      const flower = row.querySelector('.item-flower').value;
+      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+      const colorEl = row.querySelector('.item-color');
+      const colorValue = colorEl ? (colorEl.value || '') : '';
+      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? 
+        (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
+      
+      if (!flower) return;
+      
+      const itemObj = { flower_type: flower, quantity: qty };
+      if (colorValue) itemObj.color = { name: colorName, value: colorValue };
+      items.push(itemObj);
+    });
+    
+    if (!items.length) {
+      alert('Please add at least one item to the order');
+      return;
+    }
+    
+    data.items = items;
+    data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
+    data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
+    
+    // Add timestamps
+    try {
+      const now = new Date();
+      data.created_at = now.toISOString();
+      data.created_at_local = now.toLocaleString();
+      data.tz_offset_minutes = now.getTimezoneOffset();
+      const pad = (n) => String(n).padStart(2, '0');
+      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    } catch (e) {}
+    
+    try {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating...';
+      }
+      
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/inquiry', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data),
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('manualOrderModal'));
+        if (modal) modal.hide();
+        
+        // Show success
+        showSuccessModal('Manual order created successfully!');
+        
+        // Reset form
+        manualOrderForm.reset();
+        
+        // Reset items container to single item
+        manualItemsContainer.innerHTML = '';
+        const initialRow = createItemRow(0);
+        manualItemsContainer.appendChild(initialRow);
+        
+        // Hide addons
+        if (manualAddonsSection) manualAddonsSection.style.display = 'none';
+        
+        // Reload orders
+        await loadOrders();
+      } else {
+        showErrorModal(result.error || 'Failed to create manual order');
+      }
+    } catch (error) {
+      console.error('Error creating manual order:', error);
+      showErrorModal(error.message || 'Error creating manual order');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+        if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml;
+      }
+    }
+  });
+})();
+
+// Admin Chat Functions
+async function loadAdminChatMessages(orderId) {
+  const chatMessages = document.getElementById('adminChatMessages');
+  if (!chatMessages) return;
+
+  try {
+    const token = localStorage.getItem('adminToken');
+    const response = await fetch(`/api/chat/${encodeURIComponent(orderId)}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+
+    if (response.ok && data.messages) {
+      if (data.messages.length === 0) {
+        chatMessages.innerHTML = `
+          <div class="text-center text-muted small py-2">
+            <i class="fas fa-comments me-2"></i>No messages yet
+          </div>
+        `;
+      } else {
+        chatMessages.innerHTML = data.messages.map(msg => {
+          const isAdmin = msg.sender_type === 'admin';
+          const time = new Date(msg.created_at).toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+          
+          return `
+            <div class="mb-2 ${isAdmin ? 'text-end' : ''}">
+              <div class="d-inline-block ${isAdmin ? 'bg-pink text-white' : 'bg-white border'} rounded px-3 py-2" style="max-width: 80%;">
+                <div class="small fw-semibold mb-1">${isAdmin ? 'You (Admin)' : 'Customer'}</div>
+                <div style="word-wrap: break-word;">${escapeHtml(msg.message)}</div>
+                <div class="small opacity-75 mt-1">${time}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+    } else {
+      chatMessages.innerHTML = `
+        <div class="text-center text-danger small">
+          <i class="fas fa-exclamation-circle me-2"></i>Failed to load messages
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('Error loading admin chat messages:', error);
+    chatMessages.innerHTML = `
+      <div class="text-center text-danger small">
+        <i class="fas fa-exclamation-circle me-2"></i>Failed to load messages
+      </div>
+    `;
+  }
+}
+
+async function sendAdminChatMessage(orderId) {
+  const chatInput = document.getElementById('adminChatInput');
+  const chatForm = document.getElementById('adminChatForm');
+  
+  if (!chatInput || !chatForm) return;
+
+  const message = chatInput.value.trim();
+  if (!message) return;
+
+  // Disable form while sending
+  const submitBtn = chatForm.querySelector('button[type="submit"]');
+  const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  }
+
+  try {
+    const token = localStorage.getItem('adminToken');
+    const response = await fetch('/api/chat/send', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        order_id: orderId,
+        message: message,
+        sender_type: 'admin'
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      // Clear input
+      chatInput.value = '';
+      
+      // Reload messages
+      await loadAdminChatMessages(orderId);
+    } else {
+      showErrorModal(result.error || 'Failed to send message');
+    }
+  } catch (error) {
+    console.error('Error sending admin message:', error);
+    showErrorModal('Failed to send message. Please try again.');
+  } finally {
+    // Re-enable form
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalBtnHtml;
+    }
+  }
+}
+
+// Floating Message Button Functionality
+(function initAdminFloatingMessages() {
+  const messagesNavLink = document.getElementById('messagesNavLink');
+  const messagesModal = document.getElementById('adminMessagesModal');
+  const conversationModal = document.getElementById('adminChatConversationModal');
+  
+  let currentChatOrderId = null;
+  let chatRefreshInterval = null;
+
+  // Messages navigation is now handled by direct link to messages.html page
+  // No modal needed anymore
+
+  // Load all undelivered orders
+  async function loadOrdersWithMessages() {
+    const messagesList = document.getElementById('adminMessagesList');
+    if (!messagesList) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      // Get all undelivered orders
+      const ordersResponse = await fetch('/api/admin/orders', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!ordersResponse.ok) {
+        messagesList.innerHTML = '<div class="alert alert-danger">Failed to load orders</div>';
+        return;
+      }
+
+      const orders = await ordersResponse.json();
+      const undeliveredOrders = orders.filter(o => o.status !== 'Delivered');
+
+      // Get message counts for each order
+      const ordersWithData = [];
+      let totalMessagesCount = 0;
+      
+      for (const order of undeliveredOrders) {
+        try {
+          const chatResponse = await fetch(`/api/chat/${encodeURIComponent(order.order_id)}`);
+          if (chatResponse.ok) {
+            const chatData = await chatResponse.json();
+            const messageCount = chatData.messages ? chatData.messages.length : 0;
+            const lastMessage = chatData.messages && chatData.messages.length > 0 ? chatData.messages[chatData.messages.length - 1] : null;
+            
+            ordersWithData.push({
+              ...order,
+              messageCount,
+              lastMessage
+            });
+            
+            if (messageCount > 0) totalMessagesCount++;
+          }
+        } catch (err) {
+          ordersWithData.push({
+            ...order,
+            messageCount: 0,
+            lastMessage: null
+          });
+        }
+      }
+
+      // Update badge
+      const badge = document.getElementById('messagesBadge');
+      if (badge) {
+        if (totalMessagesCount > 0) {
+          badge.textContent = totalMessagesCount;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
+      // Display orders
+      if (ordersWithData.length === 0) {
+        messagesList.innerHTML = `
+          <div class="text-center text-muted py-4">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <div>No active orders</div>
+          </div>
+        `;
+      } else {
+        messagesList.innerHTML = ordersWithData.map(order => {
+          let messagePreview = '';
+          if (order.lastMessage) {
+            const lastMsgTime = new Date(order.lastMessage.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            });
+            const isCustomerLast = order.lastMessage.sender_type === 'customer';
+            messagePreview = `
+              <div class="small text-muted">
+                <strong>${isCustomerLast ? 'Customer' : 'You'}:</strong> ${escapeHtml(order.lastMessage.message.substring(0, 60))}${order.lastMessage.message.length > 60 ? '...' : ''}
+              </div>
+              <div class="small text-muted mt-1">
+                <i class="fas fa-clock me-1"></i>${lastMsgTime}
+              </div>
+            `;
+          } else {
+            messagePreview = '<div class="small text-muted">No messages yet</div>';
+          }
+          
+          return `
+            <div class="order-message-item" data-order-id="${order.order_id}">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <div class="fw-bold text-pink">${escapeHtml(order.order_id)}</div>
+                  <div class="small text-muted">${escapeHtml(order.name)}</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  ${order.messageCount > 0 ? `<span class="message-count-badge">${order.messageCount} msg${order.messageCount > 1 ? 's' : ''}</span>` : ''}
+                  <span class="badge bg-${getStatusColorClass(order.status)}">${escapeHtml(order.status)}</span>
+                </div>
+              </div>
+              ${messagePreview}
+            </div>
+          `;
+        }).join('');
+
+        // Add click handlers
+        messagesList.querySelectorAll('.order-message-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const orderId = item.dataset.orderId;
+            const order = ordersWithData.find(o => o.order_id === orderId);
+            openChatInModal(order);
+          });
+        });
+      }
+    } catch (error) {
+      console.error('Error loading orders with messages:', error);
+      messagesList.innerHTML = '<div class="alert alert-danger">Failed to load messages</div>';
+    }
+  }
+
+  function getStatusColorClass(status) {
+    const statusMap = {
+      'Pending': 'warning',
+      'Processing': 'primary',
+      'To Receive': 'success',
+      'Delivered': 'secondary',
+      'Cancelled': 'danger'
+    };
+    return statusMap[status] || 'secondary';
+  }
+
+  function openChatInModal(order) {
+    currentChatOrderId = order.order_id;
+    
+    // Hide order list and show chat section
+    const messagesList = document.getElementById('adminMessagesList');
+    messagesList.style.display = 'none';
+    
+    // Create chat section
+    const chatSection = document.createElement('div');
+    chatSection.id = 'adminChatSection';
+    chatSection.innerHTML = `
+      <div class="mb-3 pb-3 border-bottom">
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-2" id="backToOrdersList">
+          <i class="fas fa-arrow-left me-1"></i>Back to Orders
+        </button>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold text-pink">${escapeHtml(order.order_id)}</div>
+            <div class="small text-muted">${escapeHtml(order.name)} · ${escapeHtml(order.status)}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="adminFloatingChatMessages" class="bg-light rounded p-3 mb-3" style="max-height: 400px; overflow-y: auto;">
+        <div class="text-center text-muted small">
+          <i class="fas fa-spinner fa-spin me-2"></i>Loading messages...
+        </div>
+      </div>
+
+      <form id="adminFloatingChatForm" class="d-flex gap-2">
+        <input type="text" id="adminFloatingChatInput" class="form-control" placeholder="Type your message..." required>
+        <button type="submit" class="btn btn-pink">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </form>
+    `;
+    
+    messagesList.parentElement.appendChild(chatSection);
+    
+    // Back button handler
+    document.getElementById('backToOrdersList').addEventListener('click', () => {
+      const section = document.getElementById('adminChatSection');
+      if (section) section.remove();
+      messagesList.style.display = 'block';
+      currentChatOrderId = null;
+      if (chatRefreshInterval) {
+        clearInterval(chatRefreshInterval);
+        chatRefreshInterval = null;
+      }
+    });
+    
+    // Form submit handler
+    document.getElementById('adminFloatingChatForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await sendFloatingChatMessage();
+    });
+    
+    // Load messages
+    loadFloatingChatMessages();
+    
+    // Start auto-refresh
+    if (chatRefreshInterval) clearInterval(chatRefreshInterval);
+    chatRefreshInterval = setInterval(loadFloatingChatMessages, 10000);
+  }
+
+  async function loadFloatingChatMessages() {
+    if (!currentChatOrderId) return;
+
+    const messagesDiv = document.getElementById('adminFloatingChatMessages');
+    if (!messagesDiv) return;
+
+    try {
+      const response = await fetch(`/api/chat/${encodeURIComponent(currentChatOrderId)}`);
+      const data = await response.json();
+
+      if (response.ok && data.messages) {
+        if (data.messages.length === 0) {
+          messagesDiv.innerHTML = `
+            <div class="text-center text-muted small py-3 chat-empty">
+              <i class="fas fa-comments me-2"></i>No messages yet. Start the conversation!
+            </div>
+          `;
+        } else {
+          const scrollAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 50;
+
+          messagesDiv.innerHTML = data.messages.map((msg, index) => {
+            const isAdmin = msg.sender_type === 'admin';
+            const time = new Date(msg.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            });
+            const senderName = isAdmin ? 'You' : 'Customer';
+            const avatarIcon = isAdmin ? '<i class="fas fa-user-shield"></i>' : '<i class="fas fa-user"></i>';
+            
+            // Determine message status (for admin messages only)
+            let statusHtml = '';
+            if (isAdmin) {
+              // For demo: mark last message as seen, second-to-last as delivered, others as sent
+              const isLast = index === data.messages.length - 1;
+              const isSecondLast = index === data.messages.length - 2;
+              if (isLast) {
+                statusHtml = '<div class="chat-status status-seen"><i class="fas fa-check-double"></i></div>';
+              } else if (isSecondLast) {
+                statusHtml = '<div class="chat-status status-delivered"><i class="fas fa-check-double"></i></div>';
+              } else {
+                statusHtml = '<div class="chat-status status-sent"><i class="fas fa-check"></i></div>';
+              }
+            }
+            
+            return `
+              <div class="chat-message-wrapper ${isAdmin ? 'customer' : 'seller'}">
+                <div class="chat-avatar ${isAdmin ? 'customer' : 'seller'}">${avatarIcon}</div>
+                <div class="chat-message-content">
+                  <div class="chat-sender-name">${senderName}</div>
+                  <div class="chat-bubble ${isAdmin ? 'customer' : 'seller'}" onclick="this.classList.toggle('show-time')">
+                    <div>${escapeHtml(msg.message)}</div>
+                    <span class="chat-time">${time}</span>
+                  </div>
+                  ${statusHtml}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          if (scrollAtBottom) {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading floating chat messages:', error);
+    }
+  }
+
+  async function sendFloatingChatMessage() {
+    if (!currentChatOrderId) return;
+
+    const input = document.getElementById('adminFloatingChatInput');
+    const form = document.getElementById('adminFloatingChatForm');
+    const message = input.value.trim();
+    
+    if (!message) return;
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+
+    // optimistic append
+    const messagesDiv = document.getElementById('adminFloatingChatMessages');
+    const pendingId = `pending-${Date.now()}`;
+    if (messagesDiv) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'chat-message-wrapper customer';
+      wrapper.innerHTML = `
+        <div class="chat-avatar customer"><i class="fas fa-user-shield"></i></div>
+        <div class="chat-message-content">
+          <div class="chat-sender-name">You</div>
+          <div class="chat-bubble customer" data-pending="${pendingId}">
+            <div>${escapeHtml(message)}</div>
+          </div>
+          <div class="chat-status status-sent"><i class="fas fa-spinner fa-spin"></i></div>
+        </div>
+      `;
+      messagesDiv.appendChild(wrapper);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/chat/send', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          order_id: currentChatOrderId,
+          message: message,
+          sender_type: 'admin'
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        input.value = '';
+        await loadFloatingChatMessages();
+      } else {
+        alert(result.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      // remove pending bubble if present
+      const pending = document.querySelector(`[data-pending="${pendingId}"]`);
+      if (pending && pending.parentElement && pending.parentElement.parentElement) {
+        pending.parentElement.parentElement.remove();
+      }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    }
+  }
+
+  async function loadChatConversation() {
+    if (!currentChatOrderId) return;
+
+    const messagesDiv = document.getElementById('adminChatConversationMessages');
+    if (!messagesDiv) return;
+
+    try {
+      const response = await fetch(`/api/chat/${encodeURIComponent(currentChatOrderId)}`);
+      const data = await response.json();
+
+      if (response.ok && data.messages) {
+        if (data.messages.length === 0) {
+          messagesDiv.innerHTML = `
+            <div class="text-center text-muted small py-3">
+              <i class="fas fa-comments me-2"></i>No messages yet
+            </div>
+          `;
+        } else {
+          const scrollAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop <= messagesDiv.clientHeight + 50;
+
+          messagesDiv.innerHTML = data.messages.map(msg => {
+            const isAdmin = msg.sender_type === 'admin';
+            const time = new Date(msg.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            });
+            
+            return `
+              <div class="mb-3 ${isAdmin ? 'text-end' : ''}">
+                <div class="d-inline-block ${isAdmin ? 'bg-pink text-white' : 'bg-white'} rounded px-3 py-2" style="max-width: 80%;">
+                  <div class="small fw-semibold mb-1">${isAdmin ? 'You' : 'Customer'}</div>
+                  <div>${escapeHtml(msg.message)}</div>
+                  <div class="small opacity-75 mt-1">${time}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          if (scrollAtBottom) {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chat conversation:', error);
+    }
+  }
+
+  const conversationForm = document.getElementById('adminChatConversationForm');
+  if (conversationForm) {
+    conversationForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      if (!currentChatOrderId) return;
+
+      const input = document.getElementById('adminChatConversationInput');
+      const message = input.value.trim();
+      
+      if (!message) return;
+
+      const submitBtn = conversationForm.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+      
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      }
+
+      try {
+        const token = localStorage.getItem('adminToken');
+        const response = await fetch('/api/chat/send', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            order_id: currentChatOrderId,
+            message: message,
+            sender_type: 'admin'
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          input.value = '';
+          await loadChatConversation();
+        } else {
+          alert(result.error || 'Failed to send message');
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Failed to send message. Please try again.');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
+      }
+    });
+  }
+
+  // Stop auto-refresh when modal closes
+  if (messagesModal) {
+    messagesModal.addEventListener('hidden.bs.modal', () => {
+      if (chatRefreshInterval) {
+        clearInterval(chatRefreshInterval);
+        chatRefreshInterval = null;
+      }
+      currentChatOrderId = null;
+      
+      // Clean up chat section if exists
+      const chatSection = document.getElementById('adminChatSection');
+      if (chatSection) chatSection.remove();
+      
+      // Show orders list
+      const messagesList = document.getElementById('adminMessagesList');
+      if (messagesList) messagesList.style.display = 'block';
+    });
+  }
+
+  // Refresh orders list when messages modal is shown
+  if (messagesModal) {
+    messagesModal.addEventListener('shown.bs.modal', () => {
+      loadOrdersWithMessages();
+    });
+  }
+
+  // Initial badge update
+  setTimeout(loadOrdersWithMessages, 2000);
+
+  // Periodic badge update (every 30 seconds)
+  setInterval(() => {
+    if (!messagesModal.classList.contains('show')) {
+      loadOrdersWithMessages();
+    }
+  }, 30000);
+})();

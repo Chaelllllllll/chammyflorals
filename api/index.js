@@ -6,9 +6,14 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
+const session = require('express-session');
+const passport = require('../src/config/passport');
 const apiRoutes = require('../src/routes/api');
 const adminRoutes = require('../src/routes/admin');
 const messengerRoutes = require('../src/routes/messenger');
+const googleAuthRoutes = require('../src/routes/google-auth');
+const authRoutes = require('../src/routes/auth');
+const announcementsRoutes = require('../src/routes/announcements');
 
 const app = express();
 
@@ -33,7 +38,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         // Allow Google Fonts stylesheet and common CDNs for styles
-        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', "'unsafe-inline'"],
+        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://accounts.google.com', "'unsafe-inline'"],
         // Allow scripts from self and common CDNs. 'unsafe-inline' is added here
         // as a pragmatic compatibility measure for existing inline scripts in
         // the static HTML files. For stronger security, move inline scripts to
@@ -42,17 +47,18 @@ app.use(
           "'self'",
           'https://cdn.jsdelivr.net',
           'https://www.google.com',
+          'https://accounts.google.com',
           'https://www.gstatic.com',
-          "'sha256-Vf+GW0yKtct7GeV10jtC6PA6hf4F3eDZaI6YiPDkP2s='",
           "'unsafe-inline'",
+          "'unsafe-hashes'",
         ],
-        scriptSrcAttr: ["'none'"],
+        scriptSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
-        connectSrc: ["'self'", 'https://www.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
+        connectSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
         // Allow fonts.gstatic.com for font binary resources used by Google Fonts
   // Allow font resources from cdn.jsdelivr.net (bootstrap-icons), Cloudflare and Google Fonts
   fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
-        frameSrc: ["'self'", 'https://www.google.com', 'https://www.gstatic.com'],
+        frameSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com', 'https://www.gstatic.com'],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -70,6 +76,22 @@ app.use(cors(corsOptions));
 // SECURITY FIX: Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Session configuration for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret-change-this',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Rate limiter — use a keyGenerator that prefers the X-Forwarded-For header when
 // available (common on serverless platforms) and emit standard headers for
@@ -133,6 +155,9 @@ app.use(publicLimiter);
 app.use(express.static('public'));
 
 // Routes
+app.use('/auth', googleAuthRoutes); // Google OAuth routes
+app.use('/api/auth', authRoutes); // Customer authentication
+app.use('/api/announcements', announcementsRoutes); // Announcements routes
 app.use('/api', apiRoutes);
 // Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
 // Express router when Vercel routes them to /api/index.js.

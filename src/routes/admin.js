@@ -19,6 +19,52 @@ const NOTIF_STATE_FILE = path.join(__dirname, '..', 'data', 'notifications_state
 
 const STORAGE_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'product-images';
 
+// Helper function to broadcast messages to all customers
+async function broadcastToAllCustomers(message, productId = null) {
+  try {
+    // Get all customers
+    const { data: customers, error: customersError } = await supabase
+      .from('customers')
+      .select('id');
+    
+    if (customersError) {
+      console.error('Error fetching customers for broadcast:', customersError);
+      return;
+    }
+    
+    if (!customers || customers.length === 0) {
+      console.log('No customers found to broadcast message');
+      return;
+    }
+    
+    // Prepare messages for all customers
+    const messages = customers.map(customer => ({
+      customer_id: customer.id,
+      sender_type: 'seller',
+      message: message,
+      product_id: productId,
+      created_at: new Date().toISOString()
+    }));
+    
+    // Insert all messages into customer_messages table
+    const { error: messagesError } = await supabase
+      .from('customer_messages')
+      .insert(messages);
+    
+    if (messagesError) {
+      console.error('Error broadcasting messages to customers:', messagesError);
+      return;
+    }
+    
+    console.log(`Broadcast message sent to ${customers.length} customers`);
+    
+    // Note: Push notifications via Expo tokens would require expo_push_token column in customers table
+    // Currently skipping push notifications as the column doesn't exist
+  } catch (error) {
+    console.error('Error in broadcastToAllCustomers:', error);
+  }
+}
+
 // Try to ensure the storage bucket exists (best-effort). This uses the service key so it can create buckets.
 // Try to ensure the storage bucket exists (best-effort). This uses the service key so it can create buckets.
 // Guard this behavior in environments (like Vercel serverless) where outgoing fetch/TLS may fail
@@ -70,25 +116,25 @@ async function uploadBase64ToStorage(dataUrl) {
   return { publicUrl: data.publicUrl, path };
 }
 
-// Rate limit login attempts to mitigate brute force attacks (configurable via ADMIN_LOGIN_MAX)
-const LOGIN_RATE_MAX = Number(process.env.ADMIN_LOGIN_MAX || 6);
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: LOGIN_RATE_MAX,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req /*, res*/) => {
-    const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
-    if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
-    try {
-      return ipKeyGenerator(req.ip);
-    } catch (err) {
-      return req.ip || '';
-    }
-  },
-});
+// Rate limiting disabled for admin routes
+// const LOGIN_RATE_MAX = Number(process.env.ADMIN_LOGIN_MAX || 6);
+// const loginLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: LOGIN_RATE_MAX,
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   keyGenerator: (req /*, res*/) => {
+//     const xf = req.headers['x-forwarded-for'] || req.headers['forwarded'] || req.headers['x-real-ip'];
+//     if (xf && typeof xf === 'string') return xf.split(',')[0].trim();
+//     try {
+//       return ipKeyGenerator(req.ip);
+//     } catch (err) {
+//       return req.ip || '';
+//     }
+//   },
+// });
 
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password, totp } = req.body;
     if (!email || !password) {
@@ -227,7 +273,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 // Setup TOTP - Enable TOTP after scanning QR code
-router.post('/login/enable-totp', loginLimiter, async (req, res) => {
+router.post('/login/enable-totp', async (req, res) => {
   try {
     const { email, password, totp } = req.body;
     if (!email || !password || !totp) {
@@ -306,12 +352,12 @@ router.post('/login/enable-totp', loginLimiter, async (req, res) => {
 });
 
 // Verify 2FA code and issue token (kept for backwards compatibility, but now unused)
-router.post('/login/verify', loginLimiter, async (req, res) => {
+router.post('/login/verify', async (req, res) => {
   res.status(404).json({ error: 'This endpoint is deprecated. Use Google Authenticator instead.' });
 });
 
 // Old verify endpoint - remove after migration
-router.post('/login/verify-old', loginLimiter, async (req, res) => {
+router.post('/login/verify-old', async (req, res) => {
   try {
   const { email, code } = req.body || {};
   if (!email || !code) return res.status(400).json({ error: 'Email and code are required' });
@@ -803,6 +849,22 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
             const mail = templates.deliveredTemplate(updated);
             await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
             console.log('Delivered email sent successfully');
+            
+            // Delete chat messages for this order since it's delivered
+            try {
+              const { error: deleteChatError } = await supabase
+                .from('order_chats')
+                .delete()
+                .eq('order_id', orderId);
+              
+              if (deleteChatError) {
+                console.error('Failed to delete chat messages for delivered order:', deleteChatError);
+              } else {
+                console.log('Chat messages deleted for delivered order:', orderId);
+              }
+            } catch (chatErr) {
+              console.error('Error deleting chat messages:', chatErr);
+            }
           } else {
             console.log('Sending status update email...');
             const mail = templates.statusUpdateTemplate(updated, previousStatus);
@@ -1304,6 +1366,39 @@ router.post('/products', auth, async (req, res) => {
   const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,created_at');
       if (error) throw error;
       console.log('Admin: insert result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
+      
+      // Create notifications for all customers about new product
+      if (data && data[0]) {
+        try {
+          const { data: customers } = await supabase
+            .from('customers')
+            .select('id');
+          
+          if (customers && customers.length > 0) {
+            const notifications = customers.map(customer => ({
+              product_id: data[0].id,
+              customer_id: customer.id,
+              is_read: false
+            }));
+            
+            await supabase
+              .from('product_notifications')
+              .insert(notifications);
+            
+            console.log(`Created ${customers.length} product notifications for new product: ${data[0].name}`);
+          }
+          
+          // Broadcast message to all customers about new product
+          await broadcastToAllCustomers(
+            `🌸 New Product Available: ${data[0].name}`,
+            data[0].id
+          );
+        } catch (notifError) {
+          console.error('Failed to create product notifications:', notifError);
+          // Don't fail the product creation if notifications fail
+        }
+      }
+      
       return res.json(data[0]);
     } catch (err) {
       console.error('Insert error, attempting minimal fallback:', err);

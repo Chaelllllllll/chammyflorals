@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign Up - Chammy Florals</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="shortcut icon" href="flowers/cherry-blossom.png" type="image/x-icon">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <style>
+    body {
+      background: linear-gradient(135deg, rgba(255,233,241,0.8) 0%, rgba(255,255,255,0.9) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    
+    .signup-container {
+      max-width: 450px;
+      width: 100%;
+    }
+    
+    .signup-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(255, 111, 155, 0.15);
+      padding: 40px;
+    }
+    
+    .logo-section {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+    
+    .logo-section i {
+      font-size: 60px;
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff99bb 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 15px;
+    }
+    
+    .logo-section h2 {
+      color: #333;
+      font-weight: 700;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .logo-section p {
+      color: #666;
+      font-size: 15px;
+    }
+    
+    .form-label {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    .form-control {
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 2px solid #f0f0f0;
+      transition: all 0.3s;
+      font-size: 15px;
+    }
+    
+    .form-control:focus {
+      border-color: #ff6f9b;
+      box-shadow: 0 0 0 0.2rem rgba(255, 111, 155, 0.15);
+      outline: none;
+    }
+    
+    .password-field {
+      position: relative;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: none;
+      color: #999;
+      cursor: pointer;
+      padding: 0;
+      font-size: 16px;
+      z-index: 10;
+    }
+    
+    .password-toggle:hover {
+      color: #ff6f9b;
+    }
+    
+    .btn-pink {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff99bb 100%);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);
+    }
+    
+    .btn-pink:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 111, 155, 0.4);
+      color: white;
+    }
+    
+    .btn-google {
+      width: 100%;
+      padding: 13px;
+      background: white;
+      border: 2px solid #f0f0f0;
+      border-radius: 10px;
+      color: #333;
+      font-weight: 600;
+      font-size: 15px;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .btn-google:hover {
+      border-color: #ff6f9b;
+      background: rgba(255, 111, 155, 0.05);
+    }
+    
+    .google-icon {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .divider {
+      text-align: center;
+      margin: 25px 0;
+      position: relative;
+    }
+    
+    .divider::before,
+    .divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 45%;
+      height: 1px;
+      background: #e0e0e0;
+    }
+    
+    .divider::before {
+      left: 0;
+    }
+    
+    .divider::after {
+      right: 0;
+    }
+    
+    .divider span {
+      color: #999;
+      font-size: 14px;
+      background: white;
+      padding: 0 15px;
+    }
+    
+    .login-link,
+    .back-home {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    
+    .login-link a,
+    .back-home a {
+      color: #ff6f9b;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .login-link a:hover,
+    .back-home a:hover {
+      text-decoration: underline;
+    }
+    
+    .alert {
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      border: none;
+      margin-bottom: 20px;
+    }
+    
+    .alert-danger {
+      background: #fee;
+      color: #c33;
+    }
+    
+    .alert-success {
+      background: #efe;
+      color: #383;
+    }
+    
+    .password-strength {
+      font-size: 12px;
+      margin-top: 5px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    
+    .password-strength.weak {
+      background: #fee;
+      color: #c33;
+      display: block;
+    }
+    
+    .password-strength.medium {
+      background: #ffe;
+      color: #993;
+      display: block;
+    }
+    
+    .password-strength.strong {
+      background: #efe;
+      color: #383;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="signup-container">
+    <div class="signup-card">
+      <div class="logo-section">
+        <i class="fas fa-flower"></i>
+        <h2>Create Account</h2>
+        <p>Join Chammy Florals today</p>
+      </div>
+
+      <div id="alertContainer"></div>
+
+      <!-- Email/Password Signup Form -->
+      <form id="signupForm">
+        <div class="mb-3">
+          <label for="fullName" class="form-label">Full Name</label>
+          <input 
+            type="text" 
+            class="form-control" 
+            id="fullName" 
+            name="fullName" 
+            placeholder="Chammy Florals" 
+            required
+            minlength="2"
+          >
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label">Email Address</label>
+          <input 
+            type="email" 
+            class="form-control" 
+            id="email" 
+            name="email" 
+            placeholder="your@email.com" 
+            required
+          >
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <div class="password-field">
+            <input 
+              type="password" 
+              class="form-control" 
+              id="password" 
+              name="password" 
+              placeholder="Create a strong password" 
+              required
+              minlength="8"
+            >
+            <button type="button" class="password-toggle" onclick="togglePassword('password', 'toggleIcon1')">
+              <i class="fas fa-eye" id="toggleIcon1"></i>
+            </button>
+          </div>
+          <div id="passwordStrength" class="password-strength"></div>
+        </div>
+
+        <div class="mb-3">
+          <label for="confirmPassword" class="form-label">Confirm Password</label>
+          <div class="password-field">
+            <input 
+              type="password" 
+              class="form-control" 
+              id="confirmPassword" 
+              name="confirmPassword" 
+              placeholder="Confirm your password" 
+              required
+              minlength="8"
+            >
+            <button type="button" class="password-toggle" onclick="togglePassword('confirmPassword', 'toggleIcon2')">
+              <i class="fas fa-eye" id="toggleIcon2"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-pink" id="signupBtn">
+          <span id="signupBtnText">Create Account</span>
+          <span id="signupBtnSpinner" class="d-none">
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Creating account...
+          </span>
+        </button>
+      </form>
+
+      <div class="divider">
+        <span>OR</span>
+      </div>
+
+      <!-- Google Sign Up Button -->
+      <div id="googleSignupBtn"></div>
+
+      <div class="login-link">
+        Already have an account? <a href="customer-login.html">Sign In</a>
+      </div>
+    
+
+      <div class="back-home">
+        <a href="index.html"><i class="fas fa-home me-1"></i>Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const API_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3000' 
+      : 'https://chamflorals.vercel.app';
+
+    // Toggle password visibility
+    function togglePassword(fieldId, iconId) {
+      const passwordInput = document.getElementById(fieldId);
+      const toggleIcon = document.getElementById(iconId);
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('fa-eye');
+        toggleIcon.classList.add('fa-eye-slash');
+      } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('fa-eye-slash');
+        toggleIcon.classList.add('fa-eye');
+      }
+    }
+
+    // Check password strength
+    document.getElementById('password').addEventListener('input', function() {
+      const password = this.value;
+      const strengthDiv = document.getElementById('passwordStrength');
+      
+      if (password.length === 0) {
+        strengthDiv.style.display = 'none';
+        return;
+      }
+      
+      let strength = 0;
+      if (password.length >= 8) strength++;
+      if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
+      if (password.match(/[0-9]/)) strength++;
+      if (password.match(/[^a-zA-Z0-9]/)) strength++;
+      
+      strengthDiv.className = 'password-strength';
+      if (strength <= 1) {
+        strengthDiv.classList.add('weak');
+        strengthDiv.textContent = '⚠️ Weak password - Add uppercase, numbers, and symbols';
+      } else if (strength === 2 || strength === 3) {
+        strengthDiv.classList.add('medium');
+        strengthDiv.textContent = '⚡ Medium strength - Consider adding more variety';
+      } else {
+        strengthDiv.classList.add('strong');
+        strengthDiv.textContent = '✓ Strong password';
+      }
+    });
+
+    // Show alert message
+    function showAlert(message, type = 'danger') {
+      const alertContainer = document.getElementById('alertContainer');
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+          ${message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+    }
+
+    // Email/Password Signup
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const signupBtn = document.getElementById('signupBtn');
+      const signupBtnText = document.getElementById('signupBtnText');
+      const signupBtnSpinner = document.getElementById('signupBtnSpinner');
+      
+      const fullName = document.getElementById('fullName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      // Validation
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match!');
+        return;
+      }
+      
+      if (password.length < 8) {
+        showAlert('Password must be at least 8 characters long!');
+        return;
+      }
+      
+      if (fullName.length < 2) {
+        showAlert('Please enter your full name!');
+        return;
+      }
+      
+      signupBtn.disabled = true;
+      signupBtnText.classList.add('d-none');
+      signupBtnSpinner.classList.remove('d-none');
+      
+      try {
+        const response = await fetch(`${API_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: fullName, email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Store email temporarily for verification
+          sessionStorage.setItem('verifyEmail', email);
+          
+          showAlert('Account created! Please check your email for verification code.', 'success');
+          
+          // Redirect to verification page
+          setTimeout(() => {
+            window.location.href = 'verify-email.html';
+          }, 2000);
+        } else {
+          showAlert(data.error || 'Registration failed. Please try again.');
+          signupBtn.disabled = false;
+          signupBtnText.classList.remove('d-none');
+          signupBtnSpinner.classList.add('d-none');
+        }
+      } catch (error) {
+        console.error('Signup error:', error);
+        showAlert('An error occurred. Please try again.');
+        signupBtn.disabled = false;
+        signupBtnText.classList.remove('d-none');
+        signupBtnSpinner.classList.add('d-none');
+      }
+    });
+  </script>
+</body>
+</html>

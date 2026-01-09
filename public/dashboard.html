@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chammy Florals - Dashboard</title>
+      <link rel="shortcut icon" href="flowers/cherry-blossom.png" type="image/x-icon">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            overflow-x: hidden;
+            background-color: #fff5f8;
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            color: #5a4a4a;
+        }
+        
+        .navbar {
+            background-color: #ffffff !important;
+            box-shadow: 0 2px 15px rgba(255, 111, 155, 0.08);
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(16,24,40,0.06);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: #3a2b33 !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: 0.3px;
+        }
+        
+        .navbar-brand i {
+            color: #ff6f9b;
+            font-size: 28px;
+        }
+        
+        .nav-link {
+            color: #5b4952 !important;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            opacity: 0.9;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+        }
+        
+        .nav-link:hover {
+            color: #ff6f9b !important;
+            opacity: 1;
+            background: rgba(255,111,155,0.06);
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 50px 20px;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 50px 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 40px rgba(255, 111, 155, 0.25);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+        }
+        
+        .dashboard-header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -5%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 40px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.5px;
+        }
+        
+        .dashboard-header p {
+            font-size: 17px;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 30px;
+            margin-bottom: 45px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(180deg, #fffafc, #fff1f6);
+            border-radius: 20px;
+            padding: 35px 30px;
+            box-shadow: 0 8px 30px rgba(255, 111, 155, 0.12);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 111, 155, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff99bb 0%, #ff6f9b 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(255, 111, 155, 0.2);
+        }
+        
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+        
+        .stat-card-icon {
+            width: 75px;
+            height: 75px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 22px;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover .stat-card-icon {
+            transform: scale(1.1);
+        }
+        
+        .stat-card-icon.purple {
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 111, 155, 0.3);
+        }
+        
+        .stat-card-icon.green {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            box-shadow: 0 10px 25px rgba(76, 175, 80, 0.3);
+        }
+        
+        .stat-card-icon.orange {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 152, 0, 0.3);
+        }
+        
+        .stat-card-icon.blue {
+            background: linear-gradient(135deg, #ffc1e3 0%, #ff99bb 100%);
+            color: white;
+            box-shadow: 0 10px 25px rgba(255, 193, 227, 0.3);
+        }
+        
+        .stat-card-content h3 {
+            font-size: 13px;
+            color: #999;
+            font-weight: 700;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card-content .value {
+            font-size: 42px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ff6f9b 0%, #d63384 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+        
+        .dashboard-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 35px;
+            box-shadow: 0 8px 30px rgba(255, 111, 155, 0.1);
+            border: 1px solid rgba(255, 111, 155, 0.08);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+            padding-bottom: 25px;
+            border-bottom: 3px solid #ffe9f5;
+        }
+        
+        .section-header h2 {
+            font-size: 26px;
+            font-weight: 800;
+            color: #3a2b33;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            letter-spacing: -0.5px;
+        }
+        
+        .section-header h2 i {
+            color: #ff6f9b;
+            font-size: 28px;
+        }
+        
+        .order-item {
+            display: flex;
+            align-items: center;
+            padding: 25px;
+            border-radius: 16px;
+            margin-bottom: 18px;
+            background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+            border: 2px solid #ffe9f5;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .order-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: linear-gradient(180deg, #ff99bb 0%, #ff6f9b 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .order-item:hover {
+            background: white;
+            border-color: #ff99bb;
+            transform: translateX(12px);
+            box-shadow: 0 12px 35px rgba(255, 111, 155, 0.2);
+        }
+        
+        .order-item:hover::before {
+            opacity: 1;
+        }
+        
+        .order-icon {
+            width: 65px;
+            height: 65px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 26px;
+            margin-right: 22px;
+            box-shadow: 0 8px 20px rgba(255, 111, 155, 0.3);
+            transition: transform 0.3s;
+        }
+        
+        .order-item:hover .order-icon {
+            transform: rotate(10deg) scale(1.05);
+        }
+        
+        .order-details {
+            flex: 1;
+        }
+        
+        .order-details h4 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #3a2b33;
+            margin-bottom: 8px;
+            letter-spacing: -0.2px;
+        }
+        
+        .order-details p {
+            font-size: 14px;
+            color: #999;
+            margin: 0;
+            font-weight: 500;
+        }
+        
+        .order-status {
+            padding: 10px 22px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+        }
+        
+        .status-pending {
+            background: linear-gradient(135deg, #fff4e5 0%, #ffe5cc 100%);
+            color: #ff9800;
+            box-shadow: 0 6px 18px rgba(255, 193, 7, 0.12);
+        }
+        
+        .status-processing {
+            background: linear-gradient(135deg, #fff0f7 0%, #ffe9f5 100%);
+            color: #ff6f9b;
+            box-shadow: 0 6px 18px rgba(255, 111, 155, 0.12);
+        }
+        
+        .status-delivered {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            color: #4caf50;
+            box-shadow: 0 6px 18px rgba(76, 175, 80, 0.12);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #ccc;
+        }
+        
+        .empty-state i {
+            font-size: 100px;
+            margin-bottom: 25px;
+            color: #ffe9f5;
+            opacity: 0.5;
+        }
+        
+        .empty-state p {
+            font-size: 20px;
+            color: #bbb;
+            font-weight: 600;
+        }
+        
+        /* Modal Styles */
+        .order-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 9999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .order-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .order-modal-content {
+            background: white;
+            border-radius: 20px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .order-modal-header {
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .order-modal-header h3 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 24px;
+        }
+        
+        .close-modal {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.3s;
+        }
+        
+        .close-modal:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+        
+        .order-modal-body {
+            padding: 35px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .order-detail-section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: linear-gradient(180deg, #fffafc, #fff1f6);
+            border-radius: 15px;
+            border: 2px solid #ffe9f5;
+        }
+        
+        .order-detail-section h4 {
+            color: #ff6f9b;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .order-detail-section h4:before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            border-radius: 4px;
+        }
+        
+        .order-detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 15px 0;
+            border-bottom: 1px solid #ffe9f5;
+        }
+        
+        .order-detail-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-detail-label {
+            font-weight: 600;
+            color: #7a6975;
+            font-size: 14px;
+            flex: 0 0 140px;
+        }
+        
+        .order-detail-value {
+            color: #3a2b33;
+            font-weight: 500;
+            text-align: right;
+            flex: 1;
+            word-break: break-word;
+        }
+        
+        .progress-tracker {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        
+        .progress-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 20px 0;
+            position: relative;
+        }
+        
+        .progress-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 60px;
+            width: 2px;
+            height: calc(100% - 40px);
+            background: #ffe9f5;
+        }
+        
+        .progress-step.active:not(:last-child)::after {
+            background: linear-gradient(180deg, #ff6f9b 0%, #ffe9f5 100%);
+        }
+        
+        .progress-step.completed .progress-icon {
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            border-color: #ff6f9b;
+            color: white;
+        }
+        
+        .progress-step.completed:not(:last-child)::after {
+            background: #ff6f9b;
+        }
+        
+        .progress-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border: 3px solid #ffe9f5;
+            color: #d4bfd1;
+            font-size: 20px;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .progress-step.active .progress-icon {
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            border-color: #ff6f9b;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);
+        }
+        
+        .progress-info {
+            flex: 1;
+            padding-top: 8px;
+        }
+        
+        .progress-name {
+            font-weight: 700;
+            color: #3a2b33;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .progress-step.active .progress-name {
+            color: #ff6f9b;
+        }
+        
+        .progress-desc {
+            font-size: 13px;
+            color: #999;
+            line-height: 1.5;
+        }
+        
+        .btn-review {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);
+            margin-top: 10px;
+        }
+        
+        .btn-review:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 111, 155, 0.4);
+        }
+
+        /* Review Form Styles */
+        .review-form {
+            padding: 20px;
+        }
+
+        .review-form h4 {
+            color: #3a2b33;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 25px;
+            font-size: 40px;
+        }
+
+        .star-rating i {
+            color: #ddd;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .star-rating i:hover,
+        .star-rating i.active {
+            color: #ffc107;
+            transform: scale(1.2);
+        }
+
+        .review-form textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #e8e8e8;
+            border-radius: 12px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .review-form textarea:focus {
+            outline: none;
+            border-color: #ff6f9b;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        /* Floating Chat Button */
+        .floating-chat-btn {
+            position: fixed !important;
+            bottom: 24px !important;
+            right: 24px !important;
+            width: 60px !important;
+            height: 60px !important;
+            border-radius: 50% !important;
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%) !important;
+            color: white !important;
+            border: none !important;
+            box-shadow: 0 10px 28px rgba(255, 111, 155, 0.4) !important;
+            font-size: 24px !important;
+            cursor: pointer !important;
+            z-index: 9998 !important;
+            transition: all 0.25s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .floating-chat-btn:hover {
+            transform: scale(1.06) !important;
+            box-shadow: 0 12px 32px rgba(255, 111, 155, 0.5) !important;
+        }
+
+        .floating-chat-btn:active {
+            transform: scale(0.95) !important;
+        }
+
+        /* Chat Modal Styles */
+        .chat-modal .modal-content {
+            border-radius: 16px;
+            border: none;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+        }
+
+        .chat-modal .modal-header {
+            padding: 14px 18px;
+            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+            color: #fff;
+        }
+
+        .chat-modal .modal-body {
+            background: #f7f8fa;
+            padding: 18px;
+        }
+
+        .chat-message-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .chat-message-wrapper.customer {
+            flex-direction: row-reverse;
+        }
+
+        .chat-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+            color: #fff;
+            margin-top: 18px;
+        }
+
+        .chat-avatar.seller {
+            background: linear-gradient(135deg, #ff99bb, #ff6f9b);
+        }
+
+        .chat-avatar.customer {
+            background: linear-gradient(135deg, #a8a8a8, #6c757d);
+        }
+
+        .chat-message-content {
+            display: flex;
+            flex-direction: column;
+            max-width: calc(100% - 45px);
+            min-width: 0;
+        }
+
+        .chat-sender-name {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #65676b;
+            padding: 0 4px;
+        }
+
+        .chat-message-wrapper.customer .chat-sender-name {
+            text-align: right;
+        }
+
+        .chat-bubble {
+            max-width: 100%;
+            border-radius: 18px;
+            padding: 10px 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            word-wrap: break-word;
+            word-break: break-word;
+            position: relative;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .chat-bubble.customer {
+            background: linear-gradient(135deg, #ff99bb, #ff6f9b);
+            color: #fff;
+            border-radius: 18px 18px 4px 18px;
+        }
+
+        .chat-bubble.seller {
+            background: #e4e6eb;
+            color: #050505;
+            border-radius: 18px 18px 18px 4px;
+        }
+        
+        .broadcast-attachment {
+            background: linear-gradient(135deg, #fff 0%, #fffbfd 100%);
+            border: 2px solid #ff6f9b;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 8px 0;
+            box-shadow: 0 4px 12px rgba(255, 111, 155, 0.15);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .broadcast-attachment:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 111, 155, 0.25);
+        }
+        
+        .broadcast-attachment .attachment-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #ff99bb, #ff6f9b);
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .broadcast-attachment .attachment-content {
+            flex: 1;
+        }
+        
+        .broadcast-attachment .attachment-title {
+            font-weight: 600;
+            color: #3a2b33;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+        
+        .broadcast-attachment .attachment-subtitle {
+            color: #8e8e93;
+            font-size: 13px;
+        }
+        
+        .broadcast-attachment .attachment-arrow {
+            color: #ff6f9b;
+            font-size: 18px;
+        }
+
+        .chat-bubble .chat-time {
+            font-size: 11px;
+            opacity: 0.7;
+            display: none;
+            margin-top: 4px;
+            text-align: center;
+            color: #65676b;
+        }
+
+        .chat-bubble.show-time .chat-time {
+            display: block;
+        }
+
+        .chat-input-row {
+            border: 1px solid #ffe9f5;
+            border-radius: 12px;
+            padding: 6px 6px 6px 12px;
+            background: #fff;
+        }
+
+        .chat-input-row input {
+            border: none;
+            box-shadow: none;
+        }
+
+        .chat-input-row input:focus {
+            box-shadow: none;
+            outline: none;
+        }
+
+        .chat-send-btn {
+            border-radius: 12px;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, #ff99bb, #ff6f9b);
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #imageUploadBtn {
+             background: linear-gradient(135deg, #ff99bb, #ff6f9b);
+             color: #fff;
+             border: none;
+        }
+
+        .chat-send-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .chat-send-btn:disabled {
+            opacity: 0.7;
+        }
+
+        .chat-empty {
+            color: #637083;
+            background: #fff;
+            border: 1px dashed #ffe9f5;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .order-modal {
+                padding: 10px;
+            }
+            
+            .order-modal-content {
+                max-height: 95vh;
+                border-radius: 15px;
+            }
+            
+            .order-modal-header {
+                padding: 20px;
+                border-radius: 15px 15px 0 0;
+            }
+            
+            .order-modal-header h3 {
+                font-size: 18px;
+            }
+            
+            .close-modal {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+            
+            .order-modal-body {
+                padding: 20px;
+            }
+            
+            .order-detail-section {
+                padding: 18px;
+                margin-bottom: 20px;
+            }
+            
+            .order-detail-section h4 {
+                font-size: 16px;
+                margin-bottom: 15px;
+            }
+            
+            .order-detail-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                padding: 12px 0;
+            }
+            
+            .order-detail-label {
+                flex: none;
+                font-size: 13px;
+            }
+            
+            .order-detail-value {
+                text-align: left;
+                font-size: 14px;
+            }
+            
+            .progress-step {
+                padding: 15px 0;
+                gap: 15px;
+            }
+            
+            .progress-step:not(:last-child)::after {
+                left: 20px;
+                top: 50px;
+            }
+            
+            .progress-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            
+            .progress-info {
+                padding-top: 4px;
+            }
+            
+            .progress-name {
+                font-size: 14px;
+            }
+            
+            .progress-desc {
+                font-size: 12px;
+            }
+            
+            .btn-review {
+                padding: 14px;
+                font-size: 15px;
+            }
+
+            .floating-chat-btn {
+                bottom: 16px !important;
+                right: 16px !important;
+                width: 54px !important;
+                height: 54px !important;
+                font-size: 22px !important;
+            }
+            
+            .dashboard-header {
+                padding: 35px 25px;
+            }
+            
+            .dashboard-header h1 {
+                font-size: 30px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .section-header h2 {
+                font-size: 22px;
+            }
+            
+            .order-item {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">
+                <i class="fa fa-flower"></i>
+                <span>Chammy Florals</span>
+            </a>
+            <div class="d-flex align-items-center d-lg-none">
+                <div id="authSectionMobile" class="me-2">
+                    <!-- Populated by JavaScript - Mobile -->
+                </div>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+            <button class="navbar-toggler d-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html"><i class="fa fa-home me-1"></i>Home</a>
+                    </li>
+                    <li class="nav-item d-none d-lg-block" id="authSection">
+                        <!-- Populated by JavaScript - Desktop -->
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <h1><i class="fa fa-tachometer-alt me-3"></i>Dashboard</h1>
+            <p>Track your orders and manage your account</p>
+        </div>
+
+        <!-- All Orders -->
+        <div class="dashboard-section">
+            <div class="section-header">
+                <h2><i class="fa fa-shopping-bag"></i>My Orders</h2>
+            </div>
+            <div id="allOrdersList">
+                <div class="empty-state">
+                    <i class="fa fa-box-open"></i>
+                    <p>No orders yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Detail Modal -->
+    <div class="order-modal" id="orderModal">
+        <div class="order-modal-content">
+            <div class="order-modal-header">
+                <h3 id="modalOrderTitle">Order Details</h3>
+                <button class="close-modal" id="closeOrderModalBtn">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="order-modal-body" id="modalOrderContent">
+                <!-- Order details populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div class="order-modal" id="profileModal">
+        <div class="order-modal-content">
+            <div class="order-modal-header">
+                <h3><i class="fa fa-user-edit me-2"></i>Edit Profile</h3>
+                <button class="close-modal" id="closeProfileModalBtn">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+            <div class="order-modal-body">
+                <div id="profileAlertContainer"></div>
+                <form id="profileForm">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: #3a2b33;">Full Name *</label>
+                            <input type="text" class="form-control" id="profileName" name="name" required style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px;">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: #3a2b33;">Email Address</label>
+                            <input type="email" class="form-control" id="profileEmail" name="email" disabled style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px; background: #f5f5f5;">
+                        </div>
+                        
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 12px 30px; border-radius: 10px; font-weight: 600; border: none; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);">
+                                <i class="fa fa-save me-2"></i>Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <hr style="margin: 30px 0; border-color: #e8e8e8;">
+                
+                <div id="passwordAlertContainer"></div>
+                <form id="changePasswordForm">
+                    <h5 style="font-weight: 600; color: #3a2b33; margin-bottom: 20px;">
+                        <i class="fa fa-lock me-2"></i>Change Password
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: #3a2b33;">Current Password *</label>
+                            <input type="password" class="form-control" id="currentPassword" name="currentPassword" required style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px;">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: #3a2b33;">New Password *</label>
+                            <input type="password" class="form-control" id="newPassword" name="newPassword" required minlength="6" style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px;">
+                            <small class="text-muted">Minimum 6 characters</small>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: #3a2b33;">Confirm New Password *</label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required minlength="6" style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px;">
+                        </div>
+                        
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); color: white; padding: 12px 30px; border-radius: 10px; font-weight: 600; border: none;">
+                                <i class="fa fa-key me-2"></i>Change Password
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div class="modal fade chat-modal" id="chatModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content rounded-4 border-0">
+                <div class="modal-header border-0">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa fa-comments" style="color: #ff6f9b;"></i>
+                        </div>
+                        <h5 class="modal-title text-white mb-0">Chat with Seller</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div id="chatMessages" class="rounded p-3 mb-3" style="max-height: 400px; overflow-y: auto;">
+                        <div class="text-center text-muted small">
+                            <i class="fa fa-spinner fa-spin me-2"></i>Loading messages...
+                        </div>
+                    </div>
+
+                    <form id="chatForm" class="chat-input-row d-flex gap-2 align-items-center">
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                        <button type="button" id="imageUploadBtn" class="btn btn-sm btn-outline-primary" title="Upload image">
+                            <i class="fa fa-image"></i>
+                        </button>
+                        <input type="text" id="chatInput" class="form-control" placeholder="Type your message..." required>
+                        <button type="submit" class="chat-send-btn">
+                            <i class="fa fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chat Button -->
+    <button id="floatingChatBtn" class="floating-chat-btn" title="Chat with seller" data-bs-toggle="modal" data-bs-target="#chatModal">
+        <i class="fa fa-comments"></i>
+        <span id="chatNotificationBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display: none; font-size: 11px; padding: 3px 6px;">0</span>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/products-list.js"></script>
+    <script src="/js/dashboard.js"></script>
+    <script src="/js/dashboard-chat-enhanced.js"></script>
+    <script src="/js/product-notifications.js"></script>
+</body>
+</html>

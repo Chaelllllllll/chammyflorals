@@ -267,11 +267,6 @@
       <!-- Use ms-md-auto so on small screens the buttons stay left; on md+ they align right -->
       <ul class="navbar-nav ms-md-auto align-items-lg-center">
         <li class="nav-item me-2 my-2 my-lg-0">
-          <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#trackModal">
-            <i class="fa fa-map-marker-alt me-1"></i>Track Order
-          </button>
-        </li>
-        <li class="nav-item me-2 my-2 my-lg-0">
           <a class="btn btn-sm btn-outline-pink" id="navReviewsBtn" href="/reviews.html">
             <i class="fa fa-star me-1"></i>Reviews
           </a>
@@ -281,15 +276,44 @@
             <i class="fa fa-heartbeat me-1"></i>Status
           </a>
         </li>
-        <li class="nav-item my-2 my-lg-0">
-          <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#inquiryModal">
-            <i class="fa fa-shopping-bag me-1"></i>Order Now
-          </button>
+        
+        <!-- Authentication section -->
+        <li class="nav-item me-2 my-2 my-lg-0" id="authSection">
+          <!-- Will be populated by JavaScript -->
         </li>
       </ul>
     </div>
   </div>
 </nav>
+
+  <!-- Announcements Carousel -->
+  <div id="announcementsCarousel" class="carousel slide mb-4" style="display: none;">
+    <div class="carousel-inner" id="carouselContent">
+      <!-- Announcements will be loaded here -->
+    </div>
+    <div class="carousel-indicators" id="carouselIndicators">
+      <!-- Indicators will be added dynamically -->
+    </div>
+  </div>
+
+  <!-- Announcement Details Modal -->
+  <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-pink text-white">
+          <h5 class="modal-title" id="announcementModalLabel">
+            <i class="fa fa-bullhorn me-2"></i>Announcement Details
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="announcementModalContent">
+            <!-- Content will be loaded here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <section class="text-center py-4 py-md-5">
     <div class="hero">
@@ -305,15 +329,9 @@
               Bloom with love — Chammy Florals crafts delicate, handcrafted bouquets and keepsakes for every occasion.
             </p>
             <div class="d-flex justify-content-center gap-2 gap-md-3 flex-wrap mb-3">
-              <button class="btn btn-pink btn-lg px-4" data-bs-toggle="modal" data-bs-target="#inquiryModal">
+              <button class="btn btn-pink btn-lg px-4" id="heroOrderBtn">
                 <i class="fa fa-shopping-bag me-2"></i>Order Now
               </button>
-              <button class="btn btn-outline-pink btn-lg px-4" data-bs-toggle="modal" data-bs-target="#trackModal">
-                <i class="fa fa-map-marker-alt me-2"></i>Track Order
-              </button>
-              <a class="btn btn-success btn-lg px-4" href="https://expo.dev/artifacts/eas/X12tDZ9DJ77cjNGZJgbQM.apk" download>
-                <i class="fa fa-download me-2"></i>Download App
-              </a>
             </div>
           </div>
         </div>
@@ -345,6 +363,37 @@
     </div>
   </div>
 
+  <!-- Authentication Required Modal -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-labelledby="authRequiredModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <h5 class="modal-title text-white fw-bold mb-0" id="authRequiredModalLabel">
+            <i class="fas fa-lock me-2"></i>Authentication Required
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-4">
+            <i class="fas fa-user-circle" style="font-size: 80px; color: #667eea;"></i>
+          </div>
+          <h5 class="mb-3">Create an Account to Continue</h5>
+          <p class="text-muted mb-4">
+            To place an order, you need to create an account first. This helps us track your orders and provide better service.
+          </p>
+          <div class="d-grid gap-2">
+            <a href="customer-signup.html" class="btn btn-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
+              <i class="fas fa-user-plus me-2"></i>Create Account
+            </a>
+            <a href="customer-login.html" class="btn btn-outline-secondary btn-lg">
+              <i class="fas fa-sign-in-alt me-2"></i>Already Have Account? Login
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <section class="container my-5">
     <div class="mb-3">
@@ -366,63 +415,7 @@
     </div>
   </section>
 
-  <!-- Track Order Modal -->
-  <div class="modal fade" id="trackModal" tabindex="-1" aria-labelledby="trackModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);">
-          <div class="d-flex align-items-center gap-2">
-            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-              <i class="fa fa-map-marker-alt text-pink"></i>
-            </div>
-            <h5 class="modal-title text-dark mb-0" id="trackModalLabel">Track Your Order</h5>
-          </div>
-          <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="modal">X</button>
-        </div>
-        <div class="modal-body p-4">
-          <div class="alert alert-light border-0 mb-4">
-            <div class="d-flex align-items-start gap-3">
-              <i class="fa fa-info-circle text-pink mt-1" style="font-size: 1.2rem;"></i>
-              <div>
-                <div class="fw-semibold mb-1">How to track your order</div>
-                <div class="small text-muted">Enter your Order ID (found in your receipt) to see real-time status updates.</div>
-                <div class="small text-muted mt-1"><strong>Example:</strong> <code class="bg-white px-2 py-1 rounded">A5DW7DW</code></div>
-              </div>
-            </div>
-          </div>
 
-          <form id="trackForm">
-            <div class="row g-3 align-items-end">
-              <div class="col-12 col-md-8">
-                <label for="orderId" class="form-label fw-semibold">Order ID</label>
-                <div class="input-group input-group-lg">
-                  <span class="input-group-text bg-light border-end-0"><i class="fa fa-search text-muted"></i></span>
-                  <input type="text" class="form-control border-start-0 ps-0" id="orderId" placeholder="e.g., A5DW7DW" required aria-label="Order ID" style="font-size: 1rem;" />
-                </div>
-              </div>
-              <div class="col-12 col-md-4 d-grid">
-                <div class="d-flex gap-2">
-                  <button type="submit" class="btn btn-pink btn-lg flex-fill"><i class="fa fa-search me-2"></i>Track Now</button>
-                  <button type="button" id="copyTrackLinkBtn" class="btn btn-outline-secondary btn-lg" title="Copy tracking link"><i class="fa fa-link"></i></button>
-                </div>
-              </div>
-            </div>
-          </form>
-
-          <!-- Track Result -->
-          <div id="trackResult" class="mt-4"></div>
-
-          <!-- Alternative Tracking Methods -->
-          <div class="mt-4 pt-3 border-top">
-            <div class="small text-muted mb-2 fw-semibold">Other ways to track:</div>
-            <div class="d-flex flex-column flex-md-row gap-2">
-              <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="btn btn-sm btn-outline-primary flex-fill"><i class="fa-brands fa-facebook-messenger me-2"></i>Track via Messenger</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Reviews preview -->
   <section class="container my-5">
@@ -573,9 +566,22 @@
             </div>
           </div>
 
+          <!-- Terms and Conditions Checkbox -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+              <label class="form-check-label" for="agreeTerms">
+                I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" class="text-pink fw-semibold">Terms and Conditions</a>
+              </label>
+              <div class="invalid-feedback">
+                You must agree to the terms and conditions before placing an order.
+              </div>
+            </div>
+          </div>
+
           <!-- Submit Button -->
           <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-pink btn-lg py-3">
+            <button type="submit" class="btn btn-pink btn-lg py-3" id="placeOrderBtn">
               <i class="fa fa-shopping-bag me-2"></i>Place Order Now
             </button>
             <div class="text-center small text-muted">
@@ -587,10 +593,346 @@
     </div>
   </div>
 
-  
+  <style>
+    /* Removed chat styles - moved to dashboard.html */
+  </style>
 
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
+  <script src="/js/auth.js"></script>
+  
+  <!-- Announcement Carousel Styles -->
+  <style>
+    #announcementsCarousel {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      box-shadow: 0 8px 30px rgba(255,111,155,0.2);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 40px;
+      border: 1px solid rgba(255,111,155,0.1);
+    }
+    
+    #announcementsCarousel .carousel-item {
+      min-height: 320px;
+      max-height: 320px;
+      position: relative;
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff5082 50%, #ff4172 100%);
+      /* display: flex; Removing this to allow Bootstrap to manage visibility */
+      padding: 60px 40px;
+      transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+    }
+
+    #announcementsCarousel .carousel-item.active,
+    #announcementsCarousel .carousel-item-next,
+    #announcementsCarousel .carousel-item-prev {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #announcementsCarousel .carousel-caption {
+      position: static;
+      padding: 0;
+      color: white;
+      text-align: center;
+    }
+    
+    #announcementsCarousel .carousel-caption h3 {
+      color: white;
+      font-weight: 700;
+      text-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      margin-bottom: 20px;
+      font-size: 2.5rem;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+    }
+    
+    #announcementsCarousel .carousel-caption p {
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      margin-bottom: 30px;
+      font-size: 1.15rem;
+      line-height: 1.6;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      font-weight: 400;
+    }
+    
+    #announcementsCarousel .btn-light {
+      background: white;
+      border: none;
+      font-weight: 600;
+      color: #ff6f9b;
+      padding: 14px 35px;
+      transition: all 0.3s ease;
+      border-radius: 50px;
+      font-size: 1rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    #announcementsCarousel .btn-light:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+      background: #fff;
+      color: #ff5082;
+    }
+    
+    #announcementsCarousel .carousel-indicators {
+      bottom: 20px;
+      margin-bottom: 0;
+    }
+    
+    #announcementsCarousel .carousel-indicators [data-bs-target] {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin: 0 6px;
+      background-color: rgba(255,255,255,0.5);
+      border: 2px solid rgba(255,255,255,0.8);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    #announcementsCarousel .carousel-indicators .active {
+      background-color: white;
+      transform: scale(1.2);
+    }
+    
+    .announcement-placeholder {
+      display: none;
+    }
+    
+    /* Modal Styles */
+    #announcementModal .modal-content {
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    #announcementModal .modal-header {
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff5082 100%);
+      border-bottom: none;
+      padding: 20px;
+      color: white;
+    }
+    
+    #announcementModal .modal-body {
+      padding: 30px;
+    }
+    
+    .announcement-detail-image {
+      width: 100%;
+      max-height: 400px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    
+    .announcement-detail-image:hover {
+      opacity: 0.9;
+    }
+    
+    .announcement-detail-type {
+      display: inline-block;
+      background: #ff6f9b;
+      color: white;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 15px;
+    }
+    
+    .announcement-detail-title {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #ff6f9b;
+      margin-bottom: 15px;
+    }
+    
+    .announcement-detail-description {
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #333;
+    }
+    
+    @media (max-width: 768px) {
+      #announcementsCarousel .carousel-item {
+        min-height: 280px;
+        max-height: 280px;
+        padding: 40px 20px 60px 20px; /* Increased bottom padding for indicators */
+      }
+      #announcementsCarousel .carousel-caption h3 {
+        font-size: 1.75rem;
+        margin-bottom: 15px;
+      }
+      #announcementsCarousel .carousel-caption p {
+        font-size: 1rem;
+        margin-bottom: 20px;
+      }
+      #announcementsCarousel .btn-light {
+        padding: 12px 28px;
+        font-size: 0.9rem;
+      }
+      #announcementModal .announcement-detail-title {
+        font-size: 1.5rem;
+      }
+      /* Ensure indicators are visible and don't overlap */
+      #announcementsCarousel .carousel-indicators {
+        bottom: 15px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #announcementsCarousel .carousel-item {
+        padding-bottom: 50px;
+      }
+      #announcementsCarousel .carousel-indicators {
+        bottom: 10px;
+        margin-bottom: 0;
+      }
+      #announcementsCarousel .carousel-indicators [data-bs-target] {
+        width: 8px;
+        height: 8px;
+        margin: 0 4px;
+      }
+    }
+
+    /* Floating Chat Button */
+    .floating-chat-btn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 60px;
+        height: 60px; /* Fixed height typo from dashboard */
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 10px 28px rgba(255, 111, 155, 0.4);
+        font-size: 24px;
+        cursor: pointer;
+        z-index: 9998;
+        transition: all 0.25s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .floating-chat-btn:hover {
+        transform: scale(1.06);
+        box-shadow: 0 12px 32px rgba(255, 111, 155, 0.5);
+        color: white;
+    }
+
+    .floating-chat-btn:active {
+        transform: scale(0.95);
+    }
+  </style>
+  <script>
+    // Store announcements globally for modal access
+    let allAnnouncements = [];
+    
+    // Show announcement details in modal
+    function showAnnouncementDetails(announcementId) {
+      const announcement = allAnnouncements.find(a => a.id === announcementId);
+      if (!announcement) return;
+      
+      const modalContent = document.getElementById('announcementModalContent');
+      modalContent.innerHTML = `
+        ${announcement.image_url ? `
+          <img src="${announcement.image_url}" alt="${announcement.title}" class="announcement-detail-image"
+               onclick="window.open('${announcement.image_url}', '_blank')"
+               title="Click to view full size"
+               onerror="this.style.display='none';">
+        ` : ''}
+        <span class="announcement-detail-type">
+          <i class="fa fa-tag me-1"></i>${announcement.type.replace('_', ' ').toUpperCase()}
+        </span>
+        <h3 class="announcement-detail-title">${announcement.title}</h3>
+        <p class="announcement-detail-description">${announcement.description}</p>
+      `;
+      
+      const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
+      modal.show();
+    }
+    
+    // Global carousel instance
+    let carouselInstance = null;
+    
+    // Load announcements carousel
+    async function loadAnnouncements() {
+      try {
+        const API_URL = window.location.hostname === 'localhost' 
+          ? 'http://localhost:3000' 
+          : 'https://chamflorals.vercel.app';
+        
+        const response = await fetch(`${API_URL}/api/announcements`);
+        const data = await response.json();
+        
+        if (data.announcements && data.announcements.length > 0) {
+          allAnnouncements = data.announcements;
+          const carousel = document.getElementById('announcementsCarousel');
+          const carouselContent = document.getElementById('carouselContent');
+          const carouselIndicators = document.getElementById('carouselIndicators');
+          
+          // Completely destroy any existing carousel instance
+          if (carouselInstance) {
+            carouselInstance.dispose();
+            carouselInstance = null;
+          }
+          
+          // Clear existing content
+          carouselContent.innerHTML = '';
+          carouselIndicators.innerHTML = '';
+          
+          // Generate carousel items
+          carouselContent.innerHTML = data.announcements.map((ann, index) => `
+            <div class="carousel-item ${index === 0 ? 'active' : ''}">
+              <div class="carousel-caption">
+                <h3>${ann.title}</h3>
+                <p>${ann.description.length > 150 ? ann.description.substring(0, 150) + '...' : ann.description}</p>
+                <button onclick="showAnnouncementDetails('${ann.id}')" class="btn btn-light btn-sm">
+                  Learn More <i class="fa fa-arrow-right ms-2"></i>
+                </button>
+              </div>
+            </div>
+          `).join('');
+          
+          // Generate indicators (standard Bootstrap attributes)
+          carouselIndicators.innerHTML = data.announcements.map((ann, index) => `
+            <button type="button" data-bs-target="#announcementsCarousel" data-bs-slide-to="${index}" 
+                    ${index === 0 ? 'class="active" aria-current="true"' : ''}
+                    aria-label="Slide ${index + 1}"></button>
+          `).join('');
+          
+          carousel.style.display = 'block';
+          
+          // Initialize carousel after a short delay to allow DOM paint
+          setTimeout(() => {
+            carouselInstance = new bootstrap.Carousel(carousel, {
+              interval: 5000,
+              wrap: true,
+              keyboard: false,
+              touch: true,
+              pause: 'hover', // Pause on hover is standard UX
+              ride: 'carousel'
+            });
+            carouselInstance.cycle();
+          }, 150);
+        }
+      } catch (error) {
+        console.error('Error loading announcements:', error);
+      }
+    }
+    
+    // Load announcements on page load
+    document.addEventListener('DOMContentLoaded', loadAnnouncements);
+  </script>
 </body>
 </html>

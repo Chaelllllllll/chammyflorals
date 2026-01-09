@@ -5,6 +5,39 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // Pre-fill customer information if logged in
+  function prefillCustomerInfo() {
+    const customerData = localStorage.getItem('customer');
+    if (customerData) {
+      try {
+        const customer = JSON.parse(customerData);
+        
+        // Pre-fill name field
+        const nameInput = inquiryForm.querySelector('input[name="user_name"]');
+        if (nameInput && customer.name) {
+          nameInput.value = customer.name;
+          nameInput.readOnly = true;
+          nameInput.style.backgroundColor = '#f8f9fa';
+        }
+        
+        // Pre-fill email field
+        const emailInput = inquiryForm.querySelector('input[name="user_email"]');
+        if (emailInput && customer.email) {
+          emailInput.value = customer.email;
+          emailInput.readOnly = true;
+          emailInput.style.backgroundColor = '#f8f9fa';
+        }
+        
+        console.log('Customer info pre-filled:', { name: customer.name, email: customer.email });
+      } catch (error) {
+        console.error('Error pre-filling customer info:', error);
+      }
+    }
+  }
+
+  // Call prefill function
+  prefillCustomerInfo();
+
   // --- Auto-fetch product & addons when Flower Type changes ---
   const flowerSelect = inquiryForm.querySelector('select[name="flower_type"]');
   const addonsContainer = document.getElementById('addonsContainer');
@@ -487,10 +520,25 @@ document.addEventListener('DOMContentLoaded', () => {
         submitBtn.disabled = true;
         submitBtn.setAttribute('aria-busy', 'true');
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Placing...';
-      }// minimal debug
+      }
+      
+      // Check authentication (optional for orders)
+      const token = localStorage.getItem('auth_token');
+      
+      // Prepare headers with auth token if available
+      const headers = { 
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add auth header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      // minimal debug
       const response = await fetch('/api/inquiry', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify(data),
       });
       const result = await response.json();
@@ -517,6 +565,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (redirectErr) {alert(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
         }
       } else {
+        // Handle errors
+        if (response.status === 401) {
+          // Token expired or invalid - user needs to log in again
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('customer');
+          alert('Your session has expired. Please log in again to place an order.');
+          window.location.href = '/customer-login.html';
+          return;
+        }
         alert(result.error || 'Something went wrong. Please try again.');
       }
     } catch (error) {
@@ -727,9 +784,47 @@ document.addEventListener('DOMContentLoaded', () => {
                   </a>
                 </div>
               </div>
+
+              <!-- Chat Section (only show if order is not delivered) -->
+              ${status !== 'Delivered' ? `
+                <div class="mt-4 pt-3 border-top">
+                  <div class="fw-semibold mb-3 text-muted" style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    <i class="fa fa-comments me-2"></i>Chat with Seller
+                  </div>
+                  
+                  <!-- Chat Messages -->
+                  <div id="chatMessages" class="bg-light rounded p-3 mb-3" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted small">
+                      <i class="fa fa-spinner fa-spin me-2"></i>Loading messages...
+                    </div>
+                  </div>
+
+                  <!-- Chat Input -->
+                  <form id="chatForm" class="d-flex gap-2">
+                    <input type="text" id="chatInput" class="form-control" placeholder="Type your message..." required>
+                    <button type="submit" class="btn btn-pink">
+                      <i class="fa fa-paper-plane"></i>
+                    </button>
+                  </form>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
+
+        // Load chat messages if order is not delivered
+        if (status !== 'Delivered') {
+          loadChatMessages(result.orderId);
+          
+          // Setup chat form handler
+          const chatForm = document.getElementById('chatForm');
+          if (chatForm) {
+            chatForm.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              await sendChatMessage(result.orderId);
+            });
+          }
+        }
       } else {
         trackResult.innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
       }
@@ -784,4 +879,126 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Chat functionality for order tracking
+  async function loadChatMessages(orderId) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+
+    try {
+      const response = await fetch(`/api/chat/${encodeURIComponent(orderId)}`);
+      const data = await response.json();
+
+      if (response.ok && data.messages) {
+        if (data.messages.length === 0) {
+          chatMessages.innerHTML = `
+            <div class="text-center text-muted small py-3">
+              <i class="fa fa-comments me-2"></i>No messages yet. Start a conversation!
+            </div>
+          `;
+        } else {
+          chatMessages.innerHTML = data.messages.map(msg => {
+            const isCustomer = msg.sender_type === 'customer';
+            const time = new Date(msg.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit'
+            });
+            
+            return `
+              <div class="mb-3 ${isCustomer ? 'text-end' : ''}">
+                <div class="d-inline-block ${isCustomer ? 'bg-pink text-white' : 'bg-white'} rounded px-3 py-2" style="max-width: 80%;">
+                  <div class="small fw-semibold mb-1">${isCustomer ? 'You' : 'Seller'}</div>
+                  <div>${escapeHtml(msg.message)}</div>
+                  <div class="small opacity-75 mt-1">${time}</div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          // Scroll to bottom
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      } else {
+        chatMessages.innerHTML = `
+          <div class="text-center text-danger small">
+            <i class="fa fa-exclamation-circle me-2"></i>Failed to load messages
+          </div>
+        `;
+      }
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+      chatMessages.innerHTML = `
+        <div class="text-center text-danger small">
+          <i class="fa fa-exclamation-circle me-2"></i>Failed to load messages
+        </div>
+      `;
+    }
+  }
+
+  async function sendChatMessage(orderId) {
+    const chatInput = document.getElementById('chatInput');
+    const chatForm = document.getElementById('chatForm');
+    const chatMessages = document.getElementById('chatMessages');
+    
+    if (!chatInput || !chatForm) return;
+
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    // Disable form while sending
+    const submitBtn = chatForm.querySelector('button[type="submit"]');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+    }
+
+    try {
+      const response = await fetch('/api/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: orderId,
+          message: message,
+          sender_type: 'customer'
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        // Clear input
+        chatInput.value = '';
+        
+        // Reload messages
+        await loadChatMessages(orderId);
+      } else {
+        alert(result.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      // Re-enable form
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    }
+  }
+
+  // Helper function to escape HTML
+  function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return String(unsafe)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // Floating chat functionality removed - now in dashboard.html only
 });
