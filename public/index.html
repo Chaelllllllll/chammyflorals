@@ -870,8 +870,7 @@
       try {
         const API_URL = window.location.hostname === 'localhost' 
           ? 'http://localhost:3000' 
-          : 'https://chamflorals.vercel.app';
-        
+          : 'https://chammyflorals.vercel.app';
         const response = await fetch(`${API_URL}/api/announcements`);
         const data = await response.json();
         

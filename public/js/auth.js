@@ -1,9 +1,7 @@
 // auth.js - Customer authentication for index.html
 const API_URL = window.location.hostname === 'localhost' 
   ? 'http://localhost:3000' 
-  : 'https://chamflorals.vercel.app';
-
-let currentCustomer = null;
+  : 'https://chammyflorals.vercel.app';
 
 // Check authentication status and update UI
 async function checkAuth() {

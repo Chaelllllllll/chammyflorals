@@ -1,9 +1,7 @@
 // customer-signup.js - Handle signup form submission
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000' 
-    : 'https://chamflorals.vercel.app';
-
-function showAlert(message, type = 'danger') {
+    : 'https://chammyflorals.vercel.app';
     const alertContainer = document.getElementById('alertContainer');
     alertContainer.innerHTML = `
         <div class="alert alert-${type}">

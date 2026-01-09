@@ -1,9 +1,7 @@
 // dashboard.js - Customer Dashboard Functionality
 const API_URL = window.location.hostname === 'localhost' 
     ? 'http://localhost:3000' 
-    : 'https://chamflorals.vercel.app';
-
-let currentCustomer = null;
+    : 'https://chammyflorals.vercel.app';
 let allOrders = [];
 
 // Check authentication
