@@ -38,7 +38,7 @@ class NotificationManager {
 
     // Check current permission status
     const permission = Notification.permission;
-    
+
     if (permission === 'granted') {
       console.log('Notification permission already granted');
       await this.subscribeToPush();

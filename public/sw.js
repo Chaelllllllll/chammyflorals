@@ -37,17 +37,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event
+// Important: only handle same-origin GET requests. This prevents the service worker
+// from hijacking cross-origin requests (e.g., Google Fonts / Font Awesome) and
+// returning cached HTML (which causes MIME type errors).
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) {
+    // Let the browser handle cross-origin requests.
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        return response || fetch(event.request);
-      })
-      .catch(() => {
-        // Return offline page if available
-        return caches.match('/index.html');
-      })
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req);
+    }).catch(() => {
+      // Only fall back for navigations.
+      if (req.mode === 'navigate') return caches.match('/index.html');
+      return Response.error();
+    })
   );
 });
 
