@@ -198,6 +198,9 @@
             placeholder="your@email.com" 
             required
           >
+          <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">
+            <i class="fa fa-exclamation-circle me-1"></i>Please enter a valid email address
+          </div>
         </div>
 
         <div class="mb-3">
@@ -255,6 +258,9 @@
             <div class="mb-3">
               <label class="form-label" style="font-weight: 600;">Email Address *</label>
               <input type="email" class="form-control" id="forgotEmail" required style="border: 2px solid #e8e8e8; border-radius: 10px; padding: 12px;">
+              <div class="invalid-feedback" style="display: none; color: #dc3545; font-size: 0.875rem; margin-top: 0.25rem;">
+                <i class="fa fa-exclamation-circle me-1"></i>Please enter a valid email address
+              </div>
             </div>
             <button type="submit" class="btn w-100" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 12px; border-radius: 10px; font-weight: 600; border: none;">
               <i class="fa fa-paper-plane me-2"></i>Send Reset Link
@@ -270,6 +276,59 @@
     const API_URL = window.location.hostname === 'localhost' 
       ? 'http://localhost:3000' 
       : 'https://chammyflorals.vercel.app';
+
+    // Email validation function
+    function validateEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Add real-time email validation for login form
+    const emailInput = document.getElementById('email');
+    const emailFeedback = emailInput.parentElement.querySelector('.invalid-feedback');
+
+    emailInput.addEventListener('input', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc3545';
+        emailFeedback.style.display = 'block';
+      } else {
+        this.style.borderColor = '#e8e8e8';
+        emailFeedback.style.display = 'none';
+      }
+    });
+
+    emailInput.addEventListener('blur', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc3545';
+        emailFeedback.style.display = 'block';
+      }
+    });
+
+    // Add real-time email validation for forgot password modal
+    const forgotEmailInput = document.getElementById('forgotEmail');
+    const forgotEmailFeedback = forgotEmailInput.parentElement.querySelector('.invalid-feedback');
+
+    forgotEmailInput.addEventListener('input', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc3545';
+        forgotEmailFeedback.style.display = 'block';
+      } else {
+        this.style.borderColor = '#e8e8e8';
+        forgotEmailFeedback.style.display = 'none';
+      }
+    });
+
+    forgotEmailInput.addEventListener('blur', function() {
+      const email = this.value.trim();
+      if (email && !validateEmail(email)) {
+        this.style.borderColor = '#dc3545';
+        forgotEmailFeedback.style.display = 'block';
+      }
+    });
+
     // Toggle password visibility
     function togglePassword() {
       const passwordInput = document.getElementById('password');
@@ -301,6 +360,17 @@
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      // Validate email format
+      if (!validateEmail(email)) {
+        showAlert('Please enter a valid email address');
+        emailInput.style.borderColor = '#dc3545';
+        emailFeedback.style.display = 'block';
+        return;
+      }
+      
       const loginBtn = document.getElementById('loginBtn');
       const loginBtnText = document.getElementById('loginBtnText');
       const loginBtnSpinner = document.getElementById('loginBtnSpinner');
@@ -308,9 +378,6 @@
       loginBtn.disabled = true;
       loginBtnText.classList.add('d-none');
       loginBtnSpinner.classList.remove('d-none');
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
       
       try {
         const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -360,6 +427,21 @@
       e.preventDefault();
       
       const email = document.getElementById('forgotEmail').value.trim();
+      
+      // Validate email format
+      if (!validateEmail(email)) {
+        const alertDiv = document.getElementById('forgotPasswordAlert');
+        alertDiv.innerHTML = `
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa fa-exclamation-circle me-2"></i>Please enter a valid email address
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        `;
+        forgotEmailInput.style.borderColor = '#dc3545';
+        forgotEmailFeedback.style.display = 'block';
+        return;
+      }
+      
       const submitBtn = e.target.querySelector('button[type="submit"]');
       const originalHtml = submitBtn.innerHTML;
       

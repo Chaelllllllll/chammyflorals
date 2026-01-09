@@ -250,7 +250,7 @@ if (apiRoutes) {
 }
 
 if (adminRoutes) {
-  app.use('/admin', adminApiLimiter, adminRoutes);
+  app.use('/api/admin', adminApiLimiter, adminRoutes);
   console.log('✓ Admin routes registered at /admin');
 }
 
