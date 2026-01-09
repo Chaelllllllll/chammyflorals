@@ -191,48 +191,64 @@ class NotificationManager {
   }
 
   async subscribeToPush() {
+    console.log('📱 subscribeToPush() called');
+    
     if (!this.swRegistration) {
       console.error('Service Worker not registered');
       return;
     }
 
     try {
+      console.log('🔍 Checking for existing subscription...');
       // Check if already subscribed
       let subscription = await this.swRegistration.pushManager.getSubscription();
       
       if (!subscription) {
-        // Subscribe to push notifications
-        // IMPORTANT: Replace this with your actual VAPID public key after generating it
-        // Run: npx web-push generate-vapid-keys
+        console.log('📝 No existing subscription, creating new one...');
+        console.log('🔔 Notification.permission =', Notification.permission);
+        // Subscribe to push notifications with VAPID key
         const publicVapidKey = 'BBEyMia5Ji-_hoLh6wtfvIp0883dPi4C1JZ1DDNkThbBn5WzQHqqEBa0oNBPN-eVrMt-5ukycbAtTAzG0SFeT7A';
         
-        // Skip push subscription if VAPID key not configured
-        if (publicVapidKey === 'BBEyMia5Ji-_hoLh6wtfvIp0883dPi4C1JZ1DDNkThbBn5WzQHqqEBa0oNBPN-eVrMt-5ukycbAtTAzG0SFeT7A') {
-          console.warn('⚠️ Push notifications not configured. Generate VAPID keys to enable:');
-          console.warn('   1. Run: npx web-push generate-vapid-keys');
-          console.warn('   2. Replace publicVapidKey in notification-manager.js');
-          console.warn('   3. Add keys to .env and Vercel environment variables');
-          console.warn('   Basic in-browser notifications will still work!');
-          return;
+        console.log('🔑 Converting VAPID key...');
+        const applicationServerKey = this.urlBase64ToUint8Array(publicVapidKey);
+        console.log('🔑 VAPID key byte length:', applicationServerKey.length);
+        if (applicationServerKey.length !== 65) {
+          throw new Error('VAPID public key is invalid (expected 65 bytes after decode)');
         }
         
-        subscription = await this.swRegistration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: this.urlBase64ToUint8Array(publicVapidKey)
-        });
+        console.log('🚀 Subscribing to push manager...');
+        try {
+          const subscribePromise = this.swRegistration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey
+          });
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Timeout')), 5000);
+          });
 
-        console.log('✅ Push subscription created:', subscription);
+          subscription = await Promise.race([subscribePromise, timeoutPromise]);
+          console.log('✅ Push subscription created successfully!');
+          console.log('Subscription details:', subscription);
+        } catch (subscribeError) {
+          console.warn('⚠️ Could not create push subscription:', subscribeError.message);
+          console.info('💡 This is normal on localhost. In-browser notifications will still work!');
+          console.info('💡 Push notifications will work in production (HTTPS)');
+          // Don't throw - continue without push subscription
+          return;
+        }
       } else {
         console.log('✅ Already subscribed to push notifications');
       }
 
       this.subscription = subscription;
 
+      console.log('📤 Sending subscription to server...');
       // Send subscription to server
       await this.sendSubscriptionToServer(subscription);
       
     } catch (error) {
       console.error('❌ Failed to subscribe to push notifications:', error);
+      console.error('Error details:', error.message, error.stack);
       console.warn('Basic in-browser notifications will still work without push subscription');
     }
   }
@@ -280,9 +296,12 @@ class NotificationManager {
       });
 
       if (response.ok) {
-        console.log('Subscription saved to server');
+        const result = await response.json();
+        console.log('✅ Subscription saved to server:', result);
       } else {
-        console.error('Failed to save subscription to server');
+        const errorText = await response.text();
+        console.error('❌ Failed to save subscription to server. Status:', response.status);
+        console.error('Error details:', errorText);
       }
     } catch (error) {
       console.error('Error sending subscription to server:', error);

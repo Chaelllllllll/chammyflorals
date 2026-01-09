@@ -4,7 +4,6 @@ const urlsToCache = [
   '/',
   '/index.html',
   '/dashboard.html',
-  '/flowers/cherry-blossom.png',
   '/styles.css'
 ];
 
