@@ -2,9 +2,24 @@
 require('dotenv').config();
 
 // Log environment status for debugging
-console.log('API starting with NODE_ENV:', process.env.NODE_ENV);
-console.log('Supabase URL configured:', !!process.env.SUPABASE_URL);
-console.log('Session secret configured:', !!process.env.SESSION_SECRET);
+console.log('========================================');
+console.log('API Initialization');
+console.log('========================================');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'MISSING');
+console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? 'SET' : 'MISSING');
+console.log('SESSION_SECRET:', process.env.SESSION_SECRET ? 'SET' : 'MISSING');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'MISSING');
+console.log('========================================');
+
+// Validate critical environment variables
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_KEY'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+  console.error('CRITICAL: Missing required environment variables:', missingEnvVars);
+  console.error('Please set these in Vercel Environment Variables');
+}
 
 const express = require('express');
 const cors = require('cors');
@@ -12,13 +27,60 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const session = require('express-session');
-const passport = require('../src/config/passport');
-const apiRoutes = require('../src/routes/api');
-const adminRoutes = require('../src/routes/admin');
-const messengerRoutes = require('../src/routes/messenger');
-const googleAuthRoutes = require('../src/routes/google-auth');
-const authRoutes = require('../src/routes/auth');
-const announcementsRoutes = require('../src/routes/announcements');
+
+// Try to load routes with error handling
+let passport, apiRoutes, adminRoutes, messengerRoutes, googleAuthRoutes, authRoutes, announcementsRoutes;
+
+try {
+  passport = require('../src/config/passport');
+  console.log('✓ Passport loaded');
+} catch (err) {
+  console.error('✗ Failed to load passport:', err.message);
+}
+
+try {
+  apiRoutes = require('../src/routes/api');
+  console.log('✓ API routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load API routes:', err.message);
+}
+
+try {
+  adminRoutes = require('../src/routes/admin');
+  console.log('✓ Admin routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load admin routes:', err.message);
+}
+
+try {
+  messengerRoutes = require('../src/routes/messenger');
+  console.log('✓ Messenger routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load messenger routes:', err.message);
+}
+
+try {
+  googleAuthRoutes = require('../src/routes/google-auth');
+  console.log('✓ Google auth routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load google auth routes:', err.message);
+}
+
+try {
+  authRoutes = require('../src/routes/auth');
+  console.log('✓ Auth routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load auth routes:', err.message);
+}
+
+try {
+  announcementsRoutes = require('../src/routes/announcements');
+  console.log('✓ Announcements routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load announcements routes:', err.message);
+}
+
+console.log('========================================');
 
 const app = express();
 
@@ -71,12 +133,18 @@ app.use(
   })
 );
 
-// CORS setup
-const corsOptions =
-  process.env.NODE_ENV === 'production' && process.env.FRONTEND_ORIGIN
-    ? { origin: process.env.FRONTEND_ORIGIN }
-    : {};
+// CORS setup - Allow all origins in production for now
+const corsOptions = {
+  origin: '*', // Allow all origins
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
 app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 // SECURITY FIX: Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10mb' }));
@@ -164,12 +232,10 @@ app.use('/auth', googleAuthRoutes); // Google OAuth routes
 app.use('/api/auth', authRoutes); // Customer authentication
 app.use('/api/announcements', announcementsRoutes); // Announcements routes
 app.use('/api', apiRoutes);
-// Mount admin routes under /api/admin so requests sent to /api/admin/* reach the
-// Express router when Vercel routes them to /api/index.js.
 // Apply generous rate limiting to admin API (protects against compromised tokens)
-app.use('/api/admin', adminApiLimiter, adminRoutes);
+app.use('/admin', adminApiLimiter, adminRoutes);
 // Messenger webhook endpoint
-app.use('/api/messenger', messengerRoutes);
+app.use('/messenger', messengerRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
