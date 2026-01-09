@@ -240,6 +240,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await response.json();
 
       if (response.ok && data.messages) {
+        // Check for new customer messages and trigger notification
+        const storedLastMsgId = localStorage.getItem(`adminLastMsg_${currentOrderId}`);
+        
+        if (data.messages.length > 0) {
+          const lastMessage = data.messages[data.messages.length - 1];
+          
+          // If there's a new customer message, notify admin
+          if (storedLastMsgId && lastMessage.id !== parseInt(storedLastMsgId) && 
+              lastMessage.sender_type === 'customer') {
+            const order = allOrders.find(o => o.order_id === currentOrderId);
+            const customerName = order ? (order.customer_name || 'Customer') : 'Customer';
+            
+            if (window.notificationManager) {
+              window.notificationManager.notifyNewMessage(
+                lastMessage.message,
+                customerName
+              );
+            }
+          }
+          
+          // Update stored last message ID
+          localStorage.setItem(`adminLastMsg_${currentOrderId}`, lastMessage.id);
+        }
+        
         if (data.messages.length === 0) {
           chatMessages.innerHTML = `
             <div class="text-center text-muted py-4">

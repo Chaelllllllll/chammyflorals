@@ -176,6 +176,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                     msg.sender_type === 'seller' && !msg.is_read
                 ).length;
                 
+                // Check for new messages and trigger notification
+                if (data.messages.length > 0 && lastMessageId) {
+                    const newestMessage = data.messages[data.messages.length - 1];
+                    if (newestMessage.id !== lastMessageId && newestMessage.sender_type === 'seller') {
+                        // New message from seller - trigger notification
+                        if (window.notificationManager && (!chatModal || !chatModal.classList.contains('show'))) {
+                            let messagePreview = newestMessage.message;
+                            if (newestMessage.product_id) {
+                                messagePreview = 'Sent you a product recommendation';
+                            } else if (newestMessage.message.includes('📢')) {
+                                messagePreview = 'Sent you an announcement';
+                            }
+                            window.notificationManager.notifyNewMessage(messagePreview, 'Chammy Florals');
+                        }
+                    }
+                }
+                
+                // Update last message ID
+                if (data.messages.length > 0) {
+                    lastMessageId = data.messages[data.messages.length - 1].id;
+                }
+                
                 // Only update badge if chat is not open
                 if (!chatModal || !chatModal.classList.contains('show')) {
                     updateChatBadge(unreadCount);

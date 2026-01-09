@@ -35,6 +35,30 @@ async function loadOrders() {
     }
 
     if (response.ok) {
+      // Check for new orders and trigger notification
+      const storedOrderIds = localStorage.getItem('adminKnownOrderIds');
+      let knownOrderIds = storedOrderIds ? JSON.parse(storedOrderIds) : [];
+      
+      if (orders && orders.length > 0 && knownOrderIds.length > 0) {
+        const newOrders = orders.filter(order => !knownOrderIds.includes(order.order_id));
+        
+        // Trigger notification for each new order
+        if (newOrders.length > 0 && window.notificationManager) {
+          newOrders.forEach(order => {
+            window.notificationManager.notifyNewOrder(
+              order.order_id,
+              order.customer_name || 'Customer'
+            );
+          });
+        }
+      }
+      
+      // Update known order IDs
+      if (orders && orders.length > 0) {
+        const allOrderIds = orders.map(o => o.order_id);
+        localStorage.setItem('adminKnownOrderIds', JSON.stringify(allOrderIds));
+      }
+      
       // keep full orders data in window for detail lookups and filtering
       window.ordersData = orders || [];
         // pagination defaults

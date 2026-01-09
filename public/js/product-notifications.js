@@ -1,11 +1,7 @@
-// Product Notifications - Shows new products to customers
-// DISABLED: Modal removed per user request
+// Product Notifications - Shows new products to customers and triggers browser notifications
 
 // Load and display product notifications
 async function loadProductNotifications() {
-    // Disabled - modal removed
-    return;
-    /*
     const token = localStorage.getItem('auth_token');
     if (!token) return;
 
@@ -21,12 +17,19 @@ async function loadProductNotifications() {
         const data = await response.json();
         
         if (data.notifications && data.notifications.length > 0) {
-            displayProductNotifications(data.notifications);
+            // Trigger browser notification for new products
+            if (window.notificationManager) {
+                data.notifications.forEach(product => {
+                    window.notificationManager.notifyNewProduct({
+                        name: product.name,
+                        image: product.image_url
+                    });
+                });
+            }
         }
     } catch (error) {
         // Silently fail
     }
-    */
 }
 
 // Display product notifications

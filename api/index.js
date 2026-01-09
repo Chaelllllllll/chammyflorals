@@ -73,6 +73,14 @@ try {
   console.error('✗ Failed to load announcements routes:', err.message);
 }
 
+let pushRoutes;
+try {
+  pushRoutes = require('../src/routes/push');
+  console.log('✓ Push notification routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load push routes:', err.message);
+}
+
 console.log('Note: Google/Facebook OAuth removed from project');
 console.log('========================================');
 
@@ -242,6 +250,11 @@ if (authRoutes) {
 if (announcementsRoutes) {
   app.use('/api/announcements', announcementsRoutes);
   console.log('✓ Announcements routes registered at /api/announcements');
+}
+
+if (pushRoutes) {
+  app.use('/api/push', pushRoutes);
+  console.log('✓ Push notification routes registered at /api/push');
 }
 
 if (apiRoutes) {

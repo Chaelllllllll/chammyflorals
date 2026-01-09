@@ -1,14 +1,55 @@
 // Service Worker for Push Notifications
 const CACHE_NAME = 'chammy-florals-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/dashboard.html',
+  '/flowers/cherry-blossom.png',
+  '/styles.css'
+];
 
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
-  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Service Worker: Caching files');
+        return cache.addAll(urlsToCache).catch(err => {
+          console.log('Cache addAll error:', err);
+        });
+      })
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Service Worker: Clearing old cache');
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => clients.claim())
+  );
+});
+
+// Fetch event - serve from cache, fallback to network
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        return response || fetch(event.request);
+      })
+      .catch(() => {
+        // Return offline page if available
+        return caches.match('/index.html');
+      })
+  );
 });
 
 // Handle push notifications
