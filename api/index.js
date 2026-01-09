@@ -90,11 +90,9 @@ const app = express();
 // Use `1` to trust the first proxy (recommended on Vercel / serverless).
 app.set('trust proxy', 1);
 
-// Minimal request logging (only outside production)
+// Minimal request logging - Always log in production to debug
 app.use((req, res, next) => {
-  if ((process.env.NODE_ENV || 'development') !== 'production') {
-    console.log(`${req.method} ${req.url}`);
-  }
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
@@ -227,37 +225,83 @@ app.use(publicLimiter);
 // Static files (optional)
 app.use(express.static('public'));
 
-// Routes
-app.use('/auth', googleAuthRoutes); // Google OAuth routes
-app.use('/api/auth', authRoutes); // Customer authentication
-app.use('/api/announcements', announcementsRoutes); // Announcements routes
-app.use('/api', apiRoutes);
-// Apply generous rate limiting to admin API (protects against compromised tokens)
-app.use('/admin', adminApiLimiter, adminRoutes);
-// Messenger webhook endpoint
-app.use('/messenger', messengerRoutes);
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Error occurred:', {
-    message: err.message,
-    stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
-    url: req.url,
-    method: req.method
-  });
-  res.status(err.status || 500).json({ 
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Something went wrong!' 
-      : err.message 
-  });
-});
-
-// Health check endpoint
+// Health check endpoint (BEFORE routes)
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    env: process.env.NODE_ENV 
+    env: process.env.NODE_ENV,
+    routesLoaded: {
+      auth: !!authRoutes,
+      api: !!apiRoutes,
+      admin: !!adminRoutes,
+      announcements: !!announcementsRoutes,
+      google: !!googleAuthRoutes,
+      messenger: !!messengerRoutes
+    }
+  });
+});
+
+// Register routes only if they loaded successfully
+console.log('Registering routes...');
+
+if (googleAuthRoutes) {
+  app.use('/auth', googleAuthRoutes);
+  console.log('✓ Google OAuth routes registered at /auth');
+}
+
+if (authRoutes) {
+  app.use('/api/auth', authRoutes);
+  console.log('✓ Customer auth routes registered at /api/auth');
+}
+
+if (announcementsRoutes) {
+  app.use('/api/announcements', announcementsRoutes);
+  console.log('✓ Announcements routes registered at /api/announcements');
+}
+
+if (apiRoutes) {
+  app.use('/api', apiRoutes);
+  console.log('✓ API routes registered at /api');
+}
+
+if (adminRoutes) {
+  app.use('/admin', adminApiLimiter, adminRoutes);
+  console.log('✓ Admin routes registered at /admin');
+}
+
+if (messengerRoutes) {
+  app.use('/messenger', messengerRoutes);
+  console.log('✓ Messenger routes registered at /messenger');
+}
+
+console.log('Routes registration complete');
+console.log('========================================');
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('========================================');
+  console.error('ERROR OCCURRED');
+  console.error('URL:', req.url);
+  console.error('Method:', req.method);
+  console.error('Message:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('========================================');
+  
+  res.status(err.status || 500).json({ 
+    error: 'Internal server error',
+    message: err.message,
+    path: req.url
+  });
+});
+
+// 404 handler - Must be after all routes
+app.use((req, res) => {
+  console.log('404 Not Found:', req.method, req.url);
+  res.status(404).json({ 
+    error: 'Not Found',
+    path: req.url,
+    message: 'The requested resource does not exist'
   });
 });
 
