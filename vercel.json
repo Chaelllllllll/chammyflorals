@@ -8,7 +8,8 @@
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/auth/(.*)", "destination": "/api/index.js" },
     { "source": "/admin/(.*)", "destination": "/api/index.js" },
-    { "source": "/messenger/(.*)", "destination": "/api/index.js" }
+    { "source": "/messenger/(.*)", "destination": "/api/index.js" },
+    { "source": "/(.*)", "destination": "/public/$1" }
   ],
   "headers": [
     {
