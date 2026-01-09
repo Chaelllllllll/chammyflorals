@@ -4,13 +4,11 @@
     { "src": "api/index.js", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/auth/(.*)", "dest": "/api/index.js" },
-    { "src": "/admin/(.*)", "dest": "/api/index.js" },
-    { "src": "/messenger/(.*)", "dest": "/api/index.js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index.js" },
+    { "source": "/auth/(.*)", "destination": "/api/index.js" },
+    { "source": "/admin/(.*)", "destination": "/api/index.js" },
+    { "source": "/messenger/(.*)", "destination": "/api/index.js" }
   ],
   "headers": [
     {
