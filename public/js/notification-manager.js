@@ -204,14 +204,26 @@ class NotificationManager {
         // Subscribe to push notifications
         // IMPORTANT: Replace this with your actual VAPID public key after generating it
         // Run: npx web-push generate-vapid-keys
-        const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
+        const publicVapidKey = 'BBEyMia5Ji-_hoLh6wtfvIp0883dPi4C1JZ1DDNkThbBn5WzQHqqEBa0oNBPN-eVrMt-5ukycbAtTAzG0SFeT7A';
+        
+        // Skip push subscription if VAPID key not configured
+        if (publicVapidKey === 'BBEyMia5Ji-_hoLh6wtfvIp0883dPi4C1JZ1DDNkThbBn5WzQHqqEBa0oNBPN-eVrMt-5ukycbAtTAzG0SFeT7A') {
+          console.warn('⚠️ Push notifications not configured. Generate VAPID keys to enable:');
+          console.warn('   1. Run: npx web-push generate-vapid-keys');
+          console.warn('   2. Replace publicVapidKey in notification-manager.js');
+          console.warn('   3. Add keys to .env and Vercel environment variables');
+          console.warn('   Basic in-browser notifications will still work!');
+          return;
+        }
         
         subscription = await this.swRegistration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: this.urlBase64ToUint8Array(publicVapidKey)
         });
 
-        console.log('Push subscription created:', subscription);
+        console.log('✅ Push subscription created:', subscription);
+      } else {
+        console.log('✅ Already subscribed to push notifications');
       }
 
       this.subscription = subscription;
@@ -220,7 +232,8 @@ class NotificationManager {
       await this.sendSubscriptionToServer(subscription);
       
     } catch (error) {
-      console.error('Failed to subscribe to push:', error);
+      console.error('❌ Failed to subscribe to push notifications:', error);
+      console.warn('Basic in-browser notifications will still work without push subscription');
     }
   }
 
