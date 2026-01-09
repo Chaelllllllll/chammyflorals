@@ -202,8 +202,9 @@ class NotificationManager {
       
       if (!subscription) {
         // Subscribe to push notifications
-        // Using a public VAPID key (you'll need to generate this on the server)
-        const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
+        // IMPORTANT: Replace this with your actual VAPID public key after generating it
+        // Run: npx web-push generate-vapid-keys
+        const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
         
         subscription = await this.swRegistration.pushManager.subscribe({
           userVisibleOnly: true,
