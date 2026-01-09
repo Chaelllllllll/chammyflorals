@@ -1,4 +1,4 @@
-// auth-success.js - Handle Google OAuth callback
+// auth-success.js - Handle authentication callback
 (function() {
   try {
     console.log('Auth success page loaded');

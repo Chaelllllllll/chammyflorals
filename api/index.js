@@ -29,7 +29,7 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const session = require('express-session');
 
 // Try to load routes with error handling
-let passport, apiRoutes, adminRoutes, messengerRoutes, googleAuthRoutes, authRoutes, announcementsRoutes;
+let passport, apiRoutes, adminRoutes, messengerRoutes, authRoutes, announcementsRoutes;
 
 try {
   passport = require('../src/config/passport');
@@ -60,13 +60,6 @@ try {
 }
 
 try {
-  googleAuthRoutes = require('../src/routes/google-auth');
-  console.log('✓ Google auth routes loaded');
-} catch (err) {
-  console.error('✗ Failed to load google auth routes:', err.message);
-}
-
-try {
   authRoutes = require('../src/routes/auth');
   console.log('✓ Auth routes loaded');
 } catch (err) {
@@ -80,6 +73,7 @@ try {
   console.error('✗ Failed to load announcements routes:', err.message);
 }
 
+console.log('Note: Google/Facebook OAuth removed from project');
 console.log('========================================');
 
 const app = express();
@@ -103,7 +97,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         // Allow Google Fonts stylesheet and common CDNs for styles
-        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://accounts.google.com', "'unsafe-inline'"],
+        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', "'unsafe-inline'"],
         // Allow scripts from self and common CDNs. 'unsafe-inline' is added here
         // as a pragmatic compatibility measure for existing inline scripts in
         // the static HTML files. For stronger security, move inline scripts to
@@ -111,19 +105,17 @@ app.use(
         scriptSrc: [
           "'self'",
           'https://cdn.jsdelivr.net',
-          'https://www.google.com',
-          'https://accounts.google.com',
           'https://www.gstatic.com',
           "'unsafe-inline'",
           "'unsafe-hashes'",
         ],
         scriptSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
-        connectSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com', 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
+        connectSrc: ["'self'", 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
         // Allow fonts.gstatic.com for font binary resources used by Google Fonts
   // Allow font resources from cdn.jsdelivr.net (bootstrap-icons), Cloudflare and Google Fonts
   fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
-        frameSrc: ["'self'", 'https://www.google.com', 'https://accounts.google.com', 'https://www.gstatic.com'],
+        frameSrc: ["'self'", 'https://www.gstatic.com'],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: [],
       },
@@ -140,9 +132,6 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // SECURITY FIX: Limit JSON payload size to prevent DoS attacks
 app.use(express.json({ limit: '10mb' }));
@@ -236,19 +225,14 @@ app.get('/api/health', (req, res) => {
       api: !!apiRoutes,
       admin: !!adminRoutes,
       announcements: !!announcementsRoutes,
-      google: !!googleAuthRoutes,
       messenger: !!messengerRoutes
-    }
+    },
+    note: 'Google/Facebook OAuth removed'
   });
 });
 
 // Register routes only if they loaded successfully
 console.log('Registering routes...');
-
-if (googleAuthRoutes) {
-  app.use('/auth', googleAuthRoutes);
-  console.log('✓ Google OAuth routes registered at /auth');
-}
 
 if (authRoutes) {
   app.use('/api/auth', authRoutes);
@@ -275,7 +259,7 @@ if (messengerRoutes) {
   console.log('✓ Messenger routes registered at /messenger');
 }
 
-console.log('Routes registration complete');
+console.log('Routes registration complete (Google/Facebook auth removed)');
 console.log('========================================');
 
 // Error handler

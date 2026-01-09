@@ -662,9 +662,9 @@ router.put('/change-password', authenticateToken, async (req, res) => {
     
     console.log('Customer found, has password_hash:', !!customer.password_hash);
     
-    // Check if customer has a password (could be Google OAuth user)
+    // Check if customer has a password
     if (!customer.password_hash) {
-      return res.status(400).json({ error: 'Cannot change password for OAuth accounts' });
+      return res.status(400).json({ error: 'Cannot change password - no password set' });
     }
     
     console.log('Verifying current password...');
@@ -707,13 +707,6 @@ router.put('/change-password', authenticateToken, async (req, res) => {
     console.error('Change password error:', error);
     res.status(500).json({ error: 'An error occurred while changing password' });
   }
-});
-
-// GET /api/auth/config - Get public auth configuration
-router.get('/config', (req, res) => {
-  res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID
-  });
 });
 
 // POST /api/auth/forgot-password - Request password reset

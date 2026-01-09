@@ -9,7 +9,6 @@ const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const announcementsRoutes = require('./routes/announcements');
-// const googleAuthRoutes = require('./routes/google-auth'); // Disabled - using manual auth only
 require('dotenv').config();
 
 const app = express();
@@ -39,7 +38,7 @@ app.use(
   helmet({
     contentSecurityPolicy: false, // disable CSP to avoid hash/nonce conflicts with inline scripts
     referrerPolicy: {
-      policy: 'strict-origin-when-cross-origin' // Required for Google Sign-In to work
+      policy: 'strict-origin-when-cross-origin'
     }
   })
 );
@@ -98,7 +97,6 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 
 // Register routes
-// app.use('/auth', googleAuthRoutes); // Google OAuth routes - DISABLED
 app.use('/api/auth', authRoutes); // Customer authentication routes
 app.use('/api/announcements', announcementsRoutes); // Announcements routes
 app.use('/api', apiRoutes);
