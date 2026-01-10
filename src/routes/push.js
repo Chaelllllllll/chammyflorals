@@ -20,6 +20,9 @@ webpush.setVapidDetails(
 router.post('/subscribe', async (req, res) => {
   try {
     const { subscription, userType } = req.body;
+    if (userType === 'admin') {
+      return res.status(400).json({ error: 'Admin push subscriptions are not supported. Use Messenger PSID notifications instead.' });
+    }
     console.log('Push /subscribe called - auth header present:', !!req.headers.authorization, 'cookie present:', !!req.headers.cookie, 'session.passport.user:', req.session && req.session.passport ? req.session.passport.user : null, 'req.user:', !!req.user);
     if (!subscription) return res.status(400).json({ error: 'Subscription data required' });
 
@@ -114,14 +117,11 @@ router.post('/subscribe', async (req, res) => {
 router.post('/send', async (req, res) => {
   try {
     const { userId, userType, title, body, url, icon, data } = req.body;
-
     if (!userId || !userType) {
       return res.status(400).json({ error: 'userId and userType required' });
     }
-
-    const tableName = userType === 'admin' 
-      ? 'admin_push_subscriptions' 
-      : 'customer_push_subscriptions';
+    if (userType === 'admin') return res.status(400).json({ error: 'Admin push notifications not supported' });
+    const tableName = 'customer_push_subscriptions';
 
     // Get subscription from database
     const { data: subscriptions, error } = await supabase
@@ -164,9 +164,8 @@ router.post('/send-all', async (req, res) => {
       return res.status(400).json({ error: 'userType required' });
     }
 
-    const tableName = userType === 'admin' 
-      ? 'admin_push_subscriptions' 
-      : 'customer_push_subscriptions';
+    if (userType === 'admin') return res.status(400).json({ error: 'Admin push notifications not supported' });
+    const tableName = 'customer_push_subscriptions';
 
     // Get all subscriptions
     const { data: subscriptions, error } = await supabase
@@ -206,6 +205,7 @@ router.post('/send-all', async (req, res) => {
 router.post('/unsubscribe', async (req, res) => {
   try {
     const { userType } = req.body;
+    if (userType === 'admin') return res.status(400).json({ error: 'Admin push subscriptions not supported' });
     
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {

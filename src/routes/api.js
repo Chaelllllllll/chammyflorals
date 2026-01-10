@@ -1657,26 +1657,29 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
     }
     
     console.log('Message sent successfully:', chatData);
-    // Fire-and-forget: notify all admins via push
+    // Notify admins via Facebook Messenger PSIDs instead of push subscriptions
     try {
-      const { data: adminTokens } = await supabase
-        .from('push_subscriptions')
-        .select('subscription,endpoint')
-        .eq('user_type', 'admin')
-        .not('subscription', 'is', null);
+      const messenger = require('../lib/messenger');
+      let customerName = null;
+      try {
+        const { data: cust, error: custErr } = await supabase.from('customers').select('name').eq('id', customerId).single();
+        if (!custErr && cust) customerName = cust.name || null;
+      } catch (e) {}
 
-      if (adminTokens && adminTokens.length) {
-        const messages = adminTokens
-          .map(t => {
-            const sub = t && t.subscription ? t.subscription : (t && t.endpoint ? { endpoint: t.endpoint } : null);
-            return sub ? ({ subscription: sub, payload: { title: 'New customer message', body: sanitizedMessage, data: { type: 'customer_message', customer_id: customerId } } }) : null;
-          })
-          .filter(Boolean);
-        if (messages.length) {
-          try { await push.sendBatchWebPush(messages); } catch (pe) { console.warn('Failed sending admin push notifications:', pe); }
+      const title = customerName ? `${customerName} sent a message` : `Customer ${customerId} sent a message`;
+      const text = `${title}\n\n${sanitizedMessage}`;
+
+      try {
+        const notifyResult = await messenger.notifyAdmins(text);
+        if (!notifyResult || notifyResult.ok === false) {
+          console.warn('Failed to notify admins via Messenger:', notifyResult && (notifyResult.message || notifyResult.error));
         }
+      } catch (mErr) {
+        console.warn('Messenger notifyAdmins error:', mErr && mErr.message ? mErr.message : mErr);
       }
-    } catch (pe) { console.warn('Admin push notify error:', pe); }
+    } catch (err) {
+      console.warn('Admin messenger notify error:', err && err.message ? err.message : err);
+    }
 
     res.json({ 
       success: true, 
@@ -1981,6 +1984,11 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
       const user_type = req.userType === 'admin' ? 'admin' : 'customer';
       const user_id = req.userType === 'customer' ? (req.user && req.user.id ? req.user.id : null) : (req.admin && req.admin.id ? req.admin.id : null);
 
+      // Disallow admin push subscriptions — admins should use Messenger PSIDs instead
+      if (user_type === 'admin') {
+        return res.status(400).json({ error: 'Admin push subscriptions are not supported. Use Messenger PSID notifications instead.' });
+      }
+
       // Debug logging: capture auth context and incoming payload to help diagnose admin vs customer saves
       try {
         console.log('push/register - auth context:', { userType: req.userType, user: req.user ? { id: req.user.id, email: req.user.email } : null, admin: req.admin ? { id: req.admin.id, email: req.admin.email } : null });
@@ -2013,6 +2021,8 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
   // Unregister a subscription (accepts { endpoint })
   router.post('/push/unregister', authenticateCustomerOrAdmin, async (req, res) => {
     try {
+      // Prevent admins from unregistering push subscriptions because admin push is not supported
+      if (req.userType === 'admin') return res.status(400).json({ error: 'Admin push subscriptions are not supported.' });
       const { endpoint } = req.body;
       if (!endpoint) return res.status(400).json({ error: 'endpoint is required' });
 
