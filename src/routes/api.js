@@ -1667,15 +1667,22 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
       } catch (e) {}
 
       const title = customerName ? `${customerName} sent a message` : `Customer ${customerId} sent a message`;
-      const text = `${title}\n\n${sanitizedMessage}`;
+      let text = `${title}\n\n${sanitizedMessage}`;
+      try {
+        const inserted = (chatData && Array.isArray(chatData) && chatData[0]) ? chatData[0] : null;
+        if (inserted && inserted.image_url) {
+          text += `\n\nImage: ${inserted.image_url}`;
+        }
+      } catch (e) {}
 
       try {
-        const notifyResult = await messenger.notifyAdmins(text);
+        const imageUrl = (chatData && Array.isArray(chatData) && chatData[0]) ? chatData[0].image_url : null;
+        const notifyResult = await messenger.notifyAdminsMessage(text, imageUrl);
         if (!notifyResult || notifyResult.ok === false) {
           console.warn('Failed to notify admins via Messenger:', notifyResult && (notifyResult.message || notifyResult.error));
         }
       } catch (mErr) {
-        console.warn('Messenger notifyAdmins error:', mErr && mErr.message ? mErr.message : mErr);
+        console.warn('Messenger notifyAdminsMessage error:', mErr && mErr.message ? mErr.message : mErr);
       }
     } catch (err) {
       console.warn('Admin messenger notify error:', err && err.message ? err.message : err);

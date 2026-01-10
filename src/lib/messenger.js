@@ -302,3 +302,65 @@ async function broadcastAnnouncement(announcement) {
 }
 
 module.exports = { notifyAdmins, sendToPsid, notifyCustomer, sendTwoFactor, sendOrderUpdate, broadcastAnnouncement };
+
+// Notify all configured/approved admins with a custom message and optional image URL.
+// Sends a text message first, then an image attachment (if provided) using `sendToPsid`.
+async function notifyAdminsMessage(message, imageUrl) {
+  try {
+    const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || process.env.FB_PAGE_ACCESS_TOKEN;
+    if (!token) return { ok: false, message: 'Missing FB token' };
+
+    // Resolve admin PSIDs (reuse same logic as notifyAdmins)
+    let psids = [];
+    const psidsEnv = process.env.ADMIN_MESSENGER_PSIDS || process.env.FB_ADMIN_PSIDS || '';
+    if (psidsEnv && psidsEnv.trim()) {
+      psids = psidsEnv.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    if (!psids.length) {
+      try {
+        const supabase = require('../config/supabase');
+        if (supabase) {
+          const { data, error } = await supabase.from('admins').select('id,psid,status').limit(200);
+          if (!error && Array.isArray(data)) {
+            psids = (data || [])
+              .filter(r => r && r.psid && String(r.status || '').toLowerCase() === 'approved')
+              .map(r => String(r.psid))
+              .filter(Boolean);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('notifyAdminsMessage: failed to read admin PSIDs from Supabase', dbErr && dbErr.message ? dbErr.message : dbErr);
+      }
+    }
+    if (!psids.length) return { ok: false, message: 'No admin PSIDs available' };
+
+    const results = [];
+    for (const psid of psids) {
+      try {
+        // Send text first (if provided)
+        if (typeof message === 'string' && message.trim()) {
+          const txtRes = await sendToPsid(psid, message);
+          results.push({ psid, type: 'text', result: txtRes });
+        } else if (message && typeof message === 'object') {
+          const objRes = await sendToPsid(psid, message);
+          results.push({ psid, type: 'object', result: objRes });
+        }
+
+        // Then send image attachment if present
+        if (imageUrl) {
+          const attachment = { attachment: { type: 'image', payload: { url: String(imageUrl), is_reusable: false } } };
+          const imgRes = await sendToPsid(psid, attachment);
+          results.push({ psid, type: 'image', result: imgRes });
+        }
+      } catch (err) {
+        results.push({ psid, ok: false, error: err && err.message ? err.message : String(err) });
+      }
+    }
+    return { ok: true, results };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+}
+
+// Export the new helper
+module.exports.notifyAdminsMessage = notifyAdminsMessage;
