@@ -283,51 +283,75 @@
       return emailRegex.test(email);
     }
 
-    // Add real-time email validation for login form
+    // Add real-time email validation for login form (guard for element existence)
     const emailInput = document.getElementById('email');
-    const emailFeedback = emailInput.parentElement.querySelector('.invalid-feedback');
+    if (emailInput) {
+      const emailFeedback = emailInput.parentElement.querySelector('.invalid-feedback');
+      emailInput.addEventListener('input', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+          this.style.borderColor = '#dc3545';
+          if (emailFeedback) emailFeedback.style.display = 'block';
+          this.setAttribute('aria-invalid', 'true');
+        } else {
+          this.style.borderColor = '#e8e8e8';
+          if (emailFeedback) emailFeedback.style.display = 'none';
+          this.removeAttribute('aria-invalid');
+        }
+      });
 
-    emailInput.addEventListener('input', function() {
-      const email = this.value.trim();
-      if (email && !validateEmail(email)) {
-        this.style.borderColor = '#dc3545';
-        emailFeedback.style.display = 'block';
-      } else {
-        this.style.borderColor = '#e8e8e8';
-        emailFeedback.style.display = 'none';
-      }
-    });
+      emailInput.addEventListener('blur', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+          this.style.borderColor = '#dc3545';
+          if (emailFeedback) emailFeedback.style.display = 'block';
+          this.setAttribute('aria-invalid', 'true');
+        }
+      });
+    }
 
-    emailInput.addEventListener('blur', function() {
-      const email = this.value.trim();
-      if (email && !validateEmail(email)) {
-        this.style.borderColor = '#dc3545';
-        emailFeedback.style.display = 'block';
-      }
-    });
-
-    // Add real-time email validation for forgot password modal
+    // Add real-time email validation for forgot password modal (guard existence)
     const forgotEmailInput = document.getElementById('forgotEmail');
-    const forgotEmailFeedback = forgotEmailInput.parentElement.querySelector('.invalid-feedback');
+    let forgotEmailFeedback = null;
+    if (forgotEmailInput) {
+      forgotEmailFeedback = forgotEmailInput.parentElement.querySelector('.invalid-feedback');
+      forgotEmailInput.addEventListener('input', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+          this.style.borderColor = '#dc3545';
+          if (forgotEmailFeedback) forgotEmailFeedback.style.display = 'block';
+          this.setAttribute('aria-invalid', 'true');
+        } else {
+          this.style.borderColor = '#e8e8e8';
+          if (forgotEmailFeedback) forgotEmailFeedback.style.display = 'none';
+          this.removeAttribute('aria-invalid');
+        }
+      });
 
-    forgotEmailInput.addEventListener('input', function() {
-      const email = this.value.trim();
-      if (email && !validateEmail(email)) {
-        this.style.borderColor = '#dc3545';
-        forgotEmailFeedback.style.display = 'block';
-      } else {
-        this.style.borderColor = '#e8e8e8';
-        forgotEmailFeedback.style.display = 'none';
-      }
-    });
+      forgotEmailInput.addEventListener('blur', function() {
+        const email = this.value.trim();
+        if (email && !validateEmail(email)) {
+          this.style.borderColor = '#dc3545';
+          if (forgotEmailFeedback) forgotEmailFeedback.style.display = 'block';
+          this.setAttribute('aria-invalid', 'true');
+        }
+      });
 
-    forgotEmailInput.addEventListener('blur', function() {
-      const email = this.value.trim();
-      if (email && !validateEmail(email)) {
-        this.style.borderColor = '#dc3545';
-        forgotEmailFeedback.style.display = 'block';
+      // Reset feedback when modal opens
+      const forgotModalEl = document.getElementById('forgotPasswordModal');
+      if (forgotModalEl) {
+        forgotModalEl.addEventListener('show.bs.modal', () => {
+          try {
+            forgotEmailInput.value = '';
+            forgotEmailInput.style.borderColor = '#e8e8e8';
+            if (forgotEmailFeedback) forgotEmailFeedback.style.display = 'none';
+            forgotEmailInput.removeAttribute('aria-invalid');
+            const alertDiv = document.getElementById('forgotPasswordAlert'); if (alertDiv) alertDiv.innerHTML = '';
+            setTimeout(() => { try { forgotEmailInput.focus(); } catch(e){} }, 100);
+          } catch (e) { /* ignore */ }
+        });
       }
-    });
+    }
 
     // Toggle password visibility
     function togglePassword() {
@@ -440,6 +464,34 @@
         forgotEmailInput.style.borderColor = '#dc3545';
         forgotEmailFeedback.style.display = 'block';
         return;
+      }
+
+      // Check with server whether email exists
+      try {
+        const checkUrl = (typeof API_URL === 'string' && API_URL) ? `${API_URL}/api/auth/check-email` : '/api/auth/check-email';
+        const checkResp = await fetch(checkUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        if (checkResp.ok) {
+          const j = await checkResp.json();
+          if (!j.exists) {
+            const alertDiv = document.getElementById('forgotPasswordAlert');
+            alertDiv.innerHTML = `
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fa fa-exclamation-circle me-2"></i>Invalid email
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              </div>
+            `;
+            forgotEmailInput.style.borderColor = '#dc3545';
+            if (forgotEmailFeedback) forgotEmailFeedback.style.display = 'block';
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error checking email existence:', err);
+        // If check fails, fall back to generic flow
       }
       
       const submitBtn = e.target.querySelector('button[type="submit"]');

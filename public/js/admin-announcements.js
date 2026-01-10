@@ -5,11 +5,21 @@ if (!adminToken) {
 }
 
 // Logout functionality
-document.getElementById('logoutButton').addEventListener('click', () => {
-    if (confirm('Are you sure you want to logout?')) {
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('adminName');
-        window.location.href = '/admin/login.html';
+document.getElementById('logoutButton').addEventListener('click', async () => {
+    try {
+        const ok = await window.showConfirmModal('Are you sure you want to logout?');
+        if (ok) {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminName');
+            window.location.href = '/admin/login.html';
+        }
+    } catch (e) {
+        // fallback to old behaviour
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminName');
+            window.location.href = '/admin/login.html';
+        }
     }
 });
 
@@ -19,16 +29,27 @@ let editingId = null;
 let allAnnouncements = []; // Store all announcements for filtering
 const imageInputEl = document.getElementById('image');
 
-// Toggle form visibility
+// Toggle form visibility (inline container)
+const formContainer = document.getElementById('announcementFormContainer');
+
+// Wire up cancel buttons (close inline form)
+const cancelBtn = document.getElementById('cancelBtn');
+const cancelBtnInline = document.getElementById('cancelBtnInline');
+if (cancelBtn) cancelBtn.addEventListener('click', () => { resetForm(); if (formContainer) formContainer.classList.add('d-none'); });
+if (cancelBtnInline) cancelBtnInline.addEventListener('click', () => { resetForm(); if (formContainer) formContainer.classList.add('d-none'); });
+
 document.getElementById('createAnnouncementBtn').addEventListener('click', () => {
-    document.getElementById('announcementFormContainer').style.display = 'block';
-    document.getElementById('title').focus();
+        resetForm();
+        document.getElementById('formTitle').textContent = 'Create New Announcement';
+        document.getElementById('submitBtnText').textContent = 'Create Announcement';
+    if (formContainer) {
+        formContainer.classList.remove('d-none');
+        setTimeout(() => { try { document.getElementById('title').focus(); } catch(e){} }, 200);
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 });
 
-document.getElementById('cancelBtn').addEventListener('click', () => {
-    resetForm();
-    document.getElementById('announcementFormContainer').style.display = 'none';
-});
 
 // Search and filter functionality
 document.getElementById('searchInput').addEventListener('input', filterAnnouncements);
@@ -199,12 +220,12 @@ document.getElementById('announcementForm').addEventListener('submit', async (e)
             throw new Error(error.error || 'Failed to save announcement');
         }
         
-        alert(editingId ? 'Announcement updated successfully!' : 'Announcement created successfully!');
+        try { await window.showAlertModal(editingId ? 'Announcement updated successfully!' : 'Announcement created successfully!'); } catch(e){}
         resetForm();
-        document.getElementById('announcementFormContainer').style.display = 'none';
+        if (formContainer) formContainer.classList.add('d-none');
         loadAnnouncements();
     } catch (error) {
-        alert('Failed to save announcement: ' + error.message);
+        try { await window.showAlertModal('Failed to save announcement: ' + error.message, 'Error'); } catch(e){ alert('Failed to save announcement: ' + error.message); }
     }
 });
 
@@ -223,43 +244,47 @@ window.editAnnouncement = async function(id) {
             
             document.getElementById('formTitle').textContent = 'Edit Announcement';
             document.getElementById('submitBtnText').textContent = 'Update Announcement';
-            document.getElementById('announcementFormContainer').style.display = 'block';
-            
-            // Scroll to form
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (formContainer) {
+                formContainer.classList.remove('d-none');
+                setTimeout(() => { try { document.getElementById('title').focus(); } catch(e){} }, 200);
+            } else {
+                // Scroll to top fallback
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
     } catch (error) {
-        alert('Error loading announcement details: ' + error.message);
+        try { await window.showAlertModal('Error loading announcement details: ' + error.message, 'Error'); } catch(e){ alert('Error loading announcement details: ' + error.message); }
     }
 };
 
 // Delete announcement
 window.deleteAnnouncement = async function(id) {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
-    
     try {
+        const confirmed = await window.showConfirmModal('Are you sure you want to delete this announcement?');
+        if (!confirmed) return;
+
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${adminToken}`
             }
         });
-        
+
         if (response.status === 401) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
             window.location.href = '/admin/login.html';
             return;
         }
-        
+
         if (!response.ok) {
             throw new Error('Failed to delete announcement');
         }
-        
-        alert('Announcement deleted successfully!');
+
+        try { await window.showAlertModal('Announcement deleted successfully!'); } catch(e){}
         loadAnnouncements();
     } catch (error) {
-        alert('Failed to delete announcement: ' + error.message);
+        try { await window.showAlertModal('Failed to delete announcement: ' + error.message, 'Error'); } catch(e){ alert('Failed to delete announcement: ' + error.message); }
     }
 };
 

@@ -42,6 +42,11 @@
       color: white;
     }
 
+    /* Mobile: hide the "To Receive" filter in the mobile status dropdown */
+    @media (max-width: 768px) {
+      .mobile-status-filter[data-status="To Receive"] { display: none !important; }
+    }
+
     /* Badge styles */
     .bg-pink {
       background-color: #ff6f9b !important;

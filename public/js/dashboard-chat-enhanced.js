@@ -89,6 +89,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (error) {
             }
         }
+
+        // Auto-open chat modal when arriving from other pages
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if ((params.get('openChat') === '1' || window.location.hash === '#openChat') && chatModal) {
+                const bs = new bootstrap.Modal(chatModal);
+                bs.show();
+            }
+        } catch (e) { }
     }
 
     // Image upload button handler

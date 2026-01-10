@@ -727,7 +727,7 @@ router.post('/forgot-password', async (req, res) => {
     
     // Don't reveal if email exists or not (security best practice)
     if (fetchError || !customer) {
-      return res.json({ message: 'If that email exists, a password reset link has been sent' });
+      return res.json({ message: 'If the email is registered, a password reset link has been sent.' });
     }
     
     // Generate secure random token
@@ -757,7 +757,15 @@ router.post('/forgot-password', async (req, res) => {
     
     // Send email with reset link
     const mailer = require('../lib/mailer');
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password.html?token=${token}`;
+    // Build frontend URL for reset link. Prefer explicit FRONTEND_URL, otherwise
+    // derive from the incoming request (X-Forwarded-Proto or req.protocol + host).
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3000';
+    const inferredFrontend = `${proto}://${host}`;
+    const frontendUrl = (process.env.FRONTEND_URL && process.env.FRONTEND_URL.trim())
+      ? process.env.FRONTEND_URL.trim()
+      : inferredFrontend;
+    const resetUrl = `${frontendUrl.replace(/\/$/, '')}/reset-password.html?token=${token}`;
     
     try {
       await mailer.sendMail({
@@ -784,11 +792,40 @@ router.post('/forgot-password', async (req, res) => {
       // Don't reveal email error to user
     }
     
-    res.json({ message: 'If that email exists, a password reset link has been sent' });
+    res.json({ message: 'If the email is registered, a password reset link has been sent.' });
     
   } catch (error) {
     console.error('Forgot password error:', error);
     res.status(500).json({ error: 'An error occurred' });
+  }
+});
+
+// POST /api/auth/check-email - Check if an email is registered (returns { exists: true/false })
+router.post('/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const { data, error } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('email', String(email).toLowerCase().trim())
+      .limit(1)
+      .single();
+
+    if (error) {
+      // If the record is not found supabase returns an error; interpret as not exists
+      if (error.code === 'PGRST116' || /No rows/.test(error.message || '')) {
+        return res.json({ exists: false });
+      }
+      console.error('Error checking email existence:', error);
+      return res.status(500).json({ error: 'Failed to check email' });
+    }
+
+    return res.json({ exists: !!data });
+  } catch (err) {
+    console.error('check-email error:', err);
+    return res.status(500).json({ error: 'An error occurred' });
   }
 });
 

@@ -258,6 +258,38 @@ body {
       height: 20px;
       padding: 0 6px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+
+    /* Floating Chat Button - shared styles so pages without inline CSS render correctly */
+    .floating-chat-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
+      color: white;
+      border: none;
+      box-shadow: 0 10px 28px rgba(255, 111, 155, 0.4);
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 9998;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .floating-chat-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 12px 32px rgba(255, 111, 155, 0.5);
+      color: white;
+    }
+
+    .floating-chat-btn:active {
+      transform: scale(0.95);
+    }
       border: none; /* compact red bubble with no white ring */
       pointer-events: none; /* don't intercept clicks */
     }
@@ -517,6 +549,16 @@ body.admin-page {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+}
+
+/* Hide native scrollbar for the sidebar navigation while keeping scroll behavior */
+.sidebar-nav {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.sidebar-nav::-webkit-scrollbar {
+  width: 0px;
+  background: transparent; /* Chrome/Safari */
 }
 
 .sidebar-nav-item {
