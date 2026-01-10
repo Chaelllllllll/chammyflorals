@@ -290,10 +290,8 @@ body {
     .floating-chat-btn:active {
       transform: scale(0.95);
     }
-      border: none; /* compact red bubble with no white ring */
-      pointer-events: none; /* don't intercept clicks */
-    }
-
+    
+    /* Floating Dashboard was converted to inline CTA under the hero; floating styles removed */
   /* Mobile bell pill and badge styling: keep the count visually attached to the bell */
   .notif-pill {
     position: relative;

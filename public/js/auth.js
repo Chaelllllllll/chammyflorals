@@ -18,6 +18,7 @@ async function checkAuth() {
         <i class="fa fa-sign-in-alt me-2"></i>Login
       </a>
     `;
+    // clear any dashboard CTAs on the page (none by default)
     return false;
   }
 
@@ -33,6 +34,8 @@ async function checkAuth() {
         <i class="fa fa-tachometer-alt me-2"></i>Dashboard
       </a>
     `;
+
+    // No inline hero CTAs injected here anymore; authSection contains the Dashboard link
     
     return true;
   } catch (error) {
