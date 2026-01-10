@@ -7,6 +7,29 @@ const urlsToCache = [
   '/styles.css'
 ];
 
+// Helper: fetch with timeout so install doesn't hang on a slow/blocked request
+function fetchWithTimeout(url, opts = {}, timeout = 3000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('fetch-timeout')), timeout);
+    fetch(url, opts).then((r) => {
+      clearTimeout(timer);
+      resolve(r);
+    }).catch((e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
+  });
+}
+
+// Helper: promise race with timeout
+function promiseTimeout(p, ms, fallback) {
+  return Promise.race([p, new Promise((res, rej) => setTimeout(() => rej(new Error('timeout')), ms))])
+    .catch((err) => {
+      if (fallback !== undefined) return fallback;
+      throw err;
+    });
+}
+
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
   event.waitUntil(
@@ -15,30 +38,84 @@ self.addEventListener('install', (event) => {
       console.log('Service Worker: Caching files (individual add)');
       for (const url of urlsToCache) {
         try {
-          await cache.add(url);
+          // Use fetchWithTimeout + cache.put so a single slow/failed request doesn't hang install
+          const resp = await fetchWithTimeout(url, { cache: 'no-store' }, 3000);
+          if (resp && resp.ok) {
+            await cache.put(url, resp.clone());
+            console.log('Cached:', url);
+          } else {
+            console.warn('Service Worker: fetch for caching returned non-ok', url, resp && resp.status);
+          }
         } catch (err) {
-          console.warn('Service Worker: failed to cache', url, err && err.message ? err.message : err);
+          console.warn('Service Worker: failed to fetch/cache', url, err && err.message ? err.message : err);
         }
       }
-      await self.skipWaiting();
+      // Ensure the new worker activates promptly. Await skipWaiting with a
+      // short timeout fallback so install doesn't hang if skipWaiting stalls.
+      try {
+        await promiseTimeout(self.skipWaiting(), 2000, null);
+      } catch (e) {
+        console.warn('skipWaiting failed or timed out', e);
+      }
     })()
   );
 });
 
 self.addEventListener('activate', (event) => {
   console.log('Service Worker activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+  event.waitUntil((async () => {
+    console.log('Activate: begin');
+    try {
+      console.log('Activate: listing caches');
+      const cacheNames = await caches.keys();
+      console.log('Activate: found caches', cacheNames);
+      await Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Clearing old cache');
+            console.log('Service Worker: Clearing old cache', cacheName);
             return caches.delete(cacheName);
           }
+          return Promise.resolve();
         })
       );
-    }).then(() => clients.claim())
-  );
+      console.log('Activate: cache cleanup complete');
+    } catch (e) {
+      console.warn('Error clearing caches during activate', e && e.message ? e.message : e);
+    }
+
+    try {
+      console.log('Activate: calling clients.claim()');
+      await clients.claim();
+      console.log('Activate: clients.claim() resolved');
+      // Notify controlled clients that activation is complete so they can proceed
+      try {
+        console.log('Activate: matching clients to notify');
+        const allClients = await clients.matchAll({ includeUncontrolled: true });
+        console.log('Activate: matched clients count', allClients && allClients.length);
+        for (const c of allClients) {
+          try { c.postMessage({ type: 'ACTIVATED' }); } catch (e) { console.warn('postMessage to client failed', e); }
+        }
+        console.log('Activate: posted ACTIVATED to clients');
+      } catch (e) {
+        console.warn('failed to post activation message to clients', e && e.message ? e.message : e);
+      }
+    } catch (e) {
+      console.warn('clients.claim failed', e && e.message ? e.message : e);
+    }
+
+    console.log('Activate: end');
+  })());
+});
+
+// Allow the page to trigger skipWaiting via postMessage when a new SW is installed
+self.addEventListener('message', (event) => {
+  try {
+    const d = event.data || {};
+    if (d && d.type === 'SKIP_WAITING') {
+      console.log('Service Worker received SKIP_WAITING message');
+      self.skipWaiting();
+    }
+  } catch (e) {}
 });
 
 // Fetch event

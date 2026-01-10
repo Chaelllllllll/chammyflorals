@@ -151,7 +151,9 @@
         // fetch public key
         let pub = null;
         try {
-          const res = await fetch('/api/push/public-key');
+          const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000');
+          const base = isLocal ? 'http://localhost:3000' : '';
+          const res = await fetch(base + '/api/push/public-key');
           if (res.ok) {
             const j = await res.json(); pub = j.publicKey || null;
           }
@@ -222,7 +224,9 @@
         if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
         // Attempt register; if 401 and we have a session cookie, try session refresh then retry once
         const doRegister = async (useHeaders) => {
-          return fetch('/api/push/register', { method: 'POST', headers: useHeaders, body: JSON.stringify(body), credentials: 'include' });
+          const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000');
+          const url = (isLocal ? 'http://localhost:3000' : '') + '/api/push/register';
+          return fetch(url, { method: 'POST', headers: useHeaders, body: JSON.stringify(body), credentials: 'include' });
         };
 
         let res = await doRegister(headers);

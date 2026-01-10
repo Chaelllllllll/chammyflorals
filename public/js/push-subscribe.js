@@ -11,10 +11,14 @@
 
   async function fetchPublicKey() {
     try {
-      const res = await fetch('/api/push/public-key');
+      const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000');
+      const base = isLocal ? 'http://localhost:3000' : '';
+      const res = await fetch(base + '/api/push/public-key');
+      console.log('fetchPublicKey: status', res.status);
       if (!res.ok) return null;
-      const j = await res.json();
-      return j.publicKey || null;
+      const j = await res.json().catch(() => null);
+      console.log('fetchPublicKey: body', j);
+      return j && j.publicKey ? j.publicKey : null;
     } catch (e) {
       return null;
     }
@@ -25,7 +29,24 @@
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     // include credentials so cookie-based sessions (admin) are sent
-    return fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
+    try {
+      const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000');
+      if (typeof url === 'string' && url.startsWith('/api/')) {
+        url = (isLocal ? 'http://localhost:3000' : '') + url;
+      }
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
+      try {
+        const bodyParsed = await res.clone().json().catch(() => null);
+        console.log('postJSON response:', { url, status: res.status, body: bodyParsed });
+      } catch (e) {}
+      if (!res.ok) {
+        try { const txt = await res.text(); console.warn('postJSON non-ok response:', res.status, txt); } catch (e) {}
+      }
+      return res;
+    } catch (e) {
+      console.warn('postJSON fetch error:', e);
+      throw e;
+    }
   }
 
   async function sendSubscriptionToServer(subscription) {
@@ -36,7 +57,12 @@
         email: customer.email || null,
         phone: customer.phone || null
       };
+      console.log('Sending subscription to server...', body);
       const res = await postJSON('/api/push/register', body);
+      try {
+        const j = await res.clone().json().catch(() => null);
+        console.log('push/register response parsed:', res.status, j);
+      } catch (e) { console.warn('error parsing push/register response', e); }
       return res.ok;
     } catch (e) {
       return false;
@@ -56,22 +82,154 @@
   async function registerServiceWorkerAndSubscribe() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('registerServiceWorkerAndSubscribe: ensuring service worker ready...');
+      // Register the service worker first
+      const reg = await navigator.serviceWorker.register('/sw.js');
+
+      // If there's a waiting worker (newly installed), ask it to skipWaiting and wait
+      if (reg.waiting) {
+        try {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          console.log('Posted SKIP_WAITING to waiting service worker');
+
+          // Wait for the new worker to take control via controllerchange
+          await new Promise((resolve) => {
+            if (navigator.serviceWorker.controller) return resolve();
+            const onChange = () => {
+              navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+              resolve();
+            };
+            navigator.serviceWorker.addEventListener('controllerchange', onChange);
+            // fallback timeout
+            setTimeout(resolve, 2000);
+          });
+        } catch (pmErr) {
+          console.warn('Failed to postMessage SKIP_WAITING', pmErr);
+        }
+      }
+
+      // Also listen for an activation message from the service worker (helps when ready() stalls)
+      const activationPromise = new Promise((resolve) => {
+        const onMsg = (ev) => {
+          try {
+            if (ev && ev.data && ev.data.type === 'ACTIVATED') {
+              navigator.serviceWorker.removeEventListener('message', onMsg);
+              resolve();
+            }
+          } catch (e) {}
+        };
+        navigator.serviceWorker.addEventListener('message', onMsg);
+        // fallback timeout
+        setTimeout(() => {
+          try { navigator.serviceWorker.removeEventListener('message', onMsg); } catch (e) {}
+          resolve();
+        }, 3000);
+      });
+
+      // Wait either for ready() or the activation message, whichever comes first
+      await Promise.race([navigator.serviceWorker.ready, activationPromise]);
+      const registration = await navigator.serviceWorker.getRegistration();
+      console.log('Service worker ready/activated; registration:', registration);
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
         const publicKey = await fetchPublicKey();
         if (!publicKey) return false;
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey)
-        });
+        // Try subscribing; on some browsers this can still fail immediately after activation.
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
+          });
+        } catch (subErr) {
+          console.warn('Initial subscribe attempt failed, retrying after short delay', subErr);
+          // brief wait and retry once
+          await new Promise(r => setTimeout(r, 350));
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
+          });
+        }
+        console.log('Subscription created:', subscription && (subscription.endpoint || (subscription.toJSON && subscription.toJSON().endpoint)));
       }
-      const ok = await sendSubscriptionToServer(subscription);
-      if (ok) localStorage.setItem('push_subscribed', '1');
-      return ok;
+      // Try to send subscription to server with retries. If server doesn't record it,
+      // attempt to unsubscribe/resubscribe a few times before showing instructions.
+      const MAX_SEND_ATTEMPTS = 3;
+      let ok = false;
+      for (let i = 0; i < MAX_SEND_ATTEMPTS; i++) {
+        ok = await sendSubscriptionToServer(subscription);
+        if (ok) break;
+        await new Promise(r => setTimeout(r, 500 * (i + 1)));
+      }
+      if (ok) {
+        localStorage.setItem('push_subscribed', '1');
+        return true;
+      }
+
+      // Server did not accept subscription. Attempt to clean up and retry one more time.
+      try {
+        await subscription.unsubscribe();
+      } catch (e) {}
+      try { await sendUnregisterToServer(subscription && (subscription.endpoint || (subscription.toJSON && subscription.toJSON().endpoint))); } catch (e) {}
+
+      // Final attempt to re-subscribe and send
+      try {
+        const publicKey = await fetchPublicKey();
+        if (publicKey) {
+          const newSub = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+          const finalOk = await sendSubscriptionToServer(newSub);
+          if (finalOk) {
+            localStorage.setItem('push_subscribed', '1');
+            return true;
+          }
+        }
+      } catch (e) {}
+
+      // Still failing: show user instructions to re-enable or reset notification permission
+      showPushFailureInstructions();
+      return false;
     } catch (e) {
       return false;
     }
+  }
+
+  function showPushFailureInstructions() {
+    // Simple modal explaining steps to the user
+    const existing = document.getElementById('push-failure-modal');
+    if (existing) return;
+    const modal = document.createElement('div');
+    modal.id = 'push-failure-modal';
+    modal.style.position = 'fixed';
+    modal.style.left = '12px';
+    modal.style.right = '12px';
+    modal.style.top = '20px';
+    modal.style.background = '#fff';
+    modal.style.border = '1px solid #eee';
+    modal.style.boxShadow = '0 6px 30px rgba(0,0,0,0.12)';
+    modal.style.padding = '16px';
+    modal.style.borderRadius = '8px';
+    modal.style.zIndex = 99999;
+
+    modal.innerHTML = `
+      <div style="font-weight:600;margin-bottom:8px">Notifications setup failed</div>
+      <div style="margin-bottom:8px">We couldn't complete the browser subscription. To fix this:
+        <ol>
+          <li>Open your browser's notification settings for this site and disable notifications.</li>
+          <li>Reload this page, then click "Enable" and allow notifications again.</li>
+        </ol>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button id="push-failure-close" class="btn btn-cancel">Close</button>
+        <button id="push-failure-open" class="btn btn-save">Open browser notification settings</button>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.getElementById('push-failure-close').onclick = () => modal.remove();
+    document.getElementById('push-failure-open').onclick = () => {
+      // Try to open common settings pages (works in Chrome/Edge). If blocked, user must open manually.
+      try { window.open('chrome://settings/content/notifications'); } catch (e) {}
+      try { window.open('edge://settings/content/notifications'); } catch (e) {}
+    };
   }
 
   async function unsubscribeFromPush() {
@@ -117,9 +275,32 @@
     btnEnable.textContent = 'Enable';
     btnEnable.onclick = async () => {
       try {
+        // Ensure service worker is registered and active before requesting permission
+        let registration = null;
+        if ('serviceWorker' in navigator) {
+          try {
+            await navigator.serviceWorker.register('/sw.js');
+            registration = await navigator.serviceWorker.ready;
+          } catch (swErr) {
+            console.warn('Enable flow: service worker registration failed', swErr);
+          }
+        }
+
         const p = await Notification.requestPermission();
         if (p === 'granted') {
-          await registerServiceWorkerAndSubscribe();
+          // Always attempt the robust subscribe flow after permission is granted.
+          // This ensures that even if the inline subscribe attempts fail due to
+          // timing, the dedicated helper will handle waiting for activation and
+          // POSTing the subscription to the server.
+          try {
+            if (!localStorage.getItem('push_subscribed')) {
+              await registerServiceWorkerAndSubscribe();
+            } else {
+              console.log('push_subscribed already set, skipping subscribe helper');
+            }
+          } catch (e) {
+            console.warn('Enable flow: final subscribe helper failed', e);
+          }
         }
       } finally {
         bar.remove();
@@ -139,6 +320,33 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    // Pre-register service worker early so it's active before permission prompt.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('Service Worker pre-registered to avoid permission/subscribe race.');
+      }).catch(err => {
+        console.warn('Service Worker pre-register failed:', err);
+      });
+
+      // If a new service worker becomes controller, reload once so the page is controlled
+      // by the active worker and registration.pushManager is reliable.
+      try {
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          try {
+            if (window.__chammy_waiting_for_controller) {
+              console.log('controllerchange fired but subscribe flow is waiting; skipping reload');
+              return;
+            }
+            if (!window.__sw_reloaded) {
+              window.__sw_reloaded = true;
+              console.log('Service worker controller changed — reloading page to ensure active worker');
+              window.location.reload();
+            }
+          } catch (e) { console.warn('controllerchange handler error', e); }
+        });
+      } catch (e) {}
+    }
+
     const token = localStorage.getItem('auth_token');
     const hasSessionCookie = typeof document !== 'undefined' && document.cookie && document.cookie.indexOf('connect.sid') !== -1;
     if (!token && !hasSessionCookie) return; // only for logged-in users (token or session cookie)
@@ -150,8 +358,33 @@
     if (Notification && Notification.permission === 'granted' && !localStorage.getItem('push_subscribed')) {
       setTimeout(() => registerServiceWorkerAndSubscribe(), 800);
     }
+
+    // Watch for permission changes (some browsers don't emit an event when user accepts prompt)
+    // Poll for a short window and trigger subscribe when permission becomes 'granted'.
+    try {
+      if (Notification && Notification.permission !== 'granted' && !localStorage.getItem('push_subscribed')) {
+        let checks = 0;
+        const maxChecks = 20; // ~10s
+        const watcher = setInterval(async () => {
+          checks++;
+          if (Notification.permission === 'granted') {
+            clearInterval(watcher);
+            console.log('Permission changed to granted — initiating subscribe flow');
+            try { await registerServiceWorkerAndSubscribe(); } catch (e) { console.warn('permission-watcher subscribe error', e); }
+          } else if (checks >= maxChecks) {
+            clearInterval(watcher);
+          }
+        }, 500);
+      }
+    } catch (e) { console.warn('permission watcher setup failed', e); }
   });
 
   // Expose unsubscribe for other UI
-  window.__chammyPush = { unsubscribe: unsubscribeFromPush };
+  // Expose helpers for UI and debugging. Use `window.__chammyPush.subscribe()` to
+  // manually trigger the robust subscribe flow (useful when auth/session gating
+  // prevents automatic prompts during testing).
+  window.__chammyPush = {
+    unsubscribe: unsubscribeFromPush,
+    subscribe: registerServiceWorkerAndSubscribe
+  };
 })();

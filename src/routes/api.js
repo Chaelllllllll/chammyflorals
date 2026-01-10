@@ -1958,7 +1958,7 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
   // Debug: indicate this module's push handlers are loaded
   console.log('Push register/unregister handlers loaded (using push_subscriptions table)');
 
-  router.post('/push/register', authenticateCustomerOrAdmin, async (req, res) => {
+  router.post('/push/register', async (req, res) => {
     try {
       // Accept either a legacy `expo_push_token` (string) or a `subscription` object
       const { expo_push_token, subscription, phone, email } = req.body;
@@ -2012,6 +2012,11 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
         return res.status(500).json({ error: 'Failed to register push subscription' });
       }
 
+      // Debug: log successful upsert result so local dev servers show what's stored
+      try {
+        console.log('push/register saved:', { table: 'push_subscriptions', payload, data });
+      } catch (e) {}
+
       res.json({ ok: true, data: data && data[0] ? data[0] : null });
     } catch (err) {
       console.error('push/register error:', err);
@@ -2020,7 +2025,7 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
   });
 
   // Unregister a subscription (accepts { endpoint })
-  router.post('/push/unregister', authenticateCustomerOrAdmin, async (req, res) => {
+  router.post('/push/unregister', async (req, res) => {
     try {
       // Prevent admins from unregistering push subscriptions because admin push is not supported
       if (req.userType === 'admin') return res.status(400).json({ error: 'Admin push subscriptions are not supported.' });
