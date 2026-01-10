@@ -1668,12 +1668,6 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
 
       const title = customerName ? `${customerName} sent a message` : `Customer ${customerId} sent a message`;
       let text = `${title}\n\n${sanitizedMessage}`;
-      try {
-        const inserted = (chatData && Array.isArray(chatData) && chatData[0]) ? chatData[0] : null;
-        if (inserted && inserted.image_url) {
-          text += `\n\nImage: ${inserted.image_url}`;
-        }
-      } catch (e) {}
 
       try {
         const imageUrl = (chatData && Array.isArray(chatData) && chatData[0]) ? chatData[0].image_url : null;
