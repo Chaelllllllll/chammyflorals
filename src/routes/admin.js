@@ -5,7 +5,11 @@ const { validateOrderStatus, validateProduct, sanitizeBody } = require('../middl
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
-const { sendPushNotification } = require('../lib/push-notifications');
+// Push notifications disabled. Stub function kept so existing callers remain safe.
+const push = require('../lib/push-notifications');
+const mailer = require('../lib/mailer');
+
+function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
 const router = express.Router();
 const fs = require('fs');
@@ -58,8 +62,46 @@ async function broadcastToAllCustomers(message, productId = null) {
     
     console.log(`Broadcast message sent to ${customers.length} customers`);
     
-    // Note: Push notifications via Expo tokens would require expo_push_token column in customers table
-    // Currently skipping push notifications as the column doesn't exist
+    // Send push notifications via push_subscriptions
+    try {
+      const { data: tokens } = await supabase
+        .from('push_subscriptions')
+        .select('subscription,endpoint')
+        .not('subscription', 'is', null)
+        .eq('user_type', 'customer');
+
+      if (tokens && tokens.length) {
+        const msgs = tokens
+          .map(t => {
+            const sub = t && t.subscription ? t.subscription : (t && t.endpoint ? { endpoint: t.endpoint } : null);
+            return sub ? ({ subscription: sub, payload: { title: 'New product available', body: message, data: { type: 'product', product_id: productId } } }) : null;
+          })
+          .filter(Boolean);
+
+        const chunk = (arr, size) => { const out=[]; for (let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; };
+        const batches = chunk(msgs, 100);
+        for (const b of batches) {
+          try {
+            const results = await push.sendBatchWebPush(b);
+            console.log('Product push batch results:', results);
+          } catch (pe) { console.warn('Failed sending product push batch:', pe); }
+        }
+      }
+    } catch (pe) { console.warn('Product broadcast push error:', pe); }
+
+    // Send product announcement emails (best-effort)
+    try {
+      const { data: emails } = await supabase.from('customers').select('email').not('email', 'is', null);
+      if (emails && emails.length) {
+        const subject = `Chammy Florals - ${escapeHtml(String(message)).slice(0,60)}`;
+        const html = `<div style="font-family:Arial,sans-serif;color:#333"><h2 style="color:#ff69b4">New Product Available</h2><div>${escapeHtml(String(message))}</div><p style="color:#666;font-size:0.9em">Visit our shop to see details.</p></div>`;
+        const batchSize = 100;
+        for (let i=0;i<emails.length;i+=batchSize) {
+          const batch = emails.slice(i,i+batchSize).map(e => e.email).filter(Boolean);
+          await Promise.all(batch.map(to => mailer.sendMail({ to, subject, html }).catch(e => console.warn('Product email failed to', to, e))));
+        }
+      }
+    } catch (me) { console.warn('Product email error:', me); }
   } catch (error) {
     console.error('Error in broadcastToAllCustomers:', error);
   }
@@ -261,6 +303,20 @@ router.post('/login', async (req, res) => {
       token = Buffer.from(`${normEmail}:${password}`).toString('base64');
     }
 
+    // Success - establish a passport/session-based cookie so client can use cookie auth
+    try {
+      if (req && req.session) {
+        // Store a primitive value (id or email) so Passport's serialize/deserialize
+        // flow works correctly and we don't accidentally persist an object into
+        // the session which could cause DB queries to receive "[object Object]".
+        req.session.passport = { user: (adminId ? adminId : normEmail) };
+        // populate req.user for the immediate request lifecycle (non-persistent)
+        req.user = (adminId ? { id: adminId, email: normEmail } : { email: normEmail });
+      }
+    } catch (se) {
+      console.warn('Failed to set session on admin login:', se && se.message ? se.message : se);
+    }
+
     // Success - return token
     res.json({
       token,
@@ -454,6 +510,38 @@ router.get('/verify-token', auth, async (req, res) => {
     res.status(401).json({ error: 'Invalid token' });
   }
 });
+
+// POST /api/admin/session/refresh
+// If the request carries a valid passport/cookie session this will
+// create a new `session_token` in the `admins` table and return it so
+// client-side code (e.g. admin UI) can populate `localStorage.adminToken`.
+router.post('/session/refresh', auth, async (req, res) => {
+  try {
+    // auth middleware will populate req.admin for cookie or other valid sessions
+    const adminEmail = (req.admin && req.admin.email) || (req.user && req.user.email) || null;
+    if (!adminEmail) return res.status(401).json({ error: 'Not authenticated' });
+
+    const sessionToken = require('crypto').randomBytes(32).toString('hex');
+    const sessionExpiresAt = new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(); // 8 hours
+
+    // Persist to DB (best-effort)
+    try {
+      await supabase.from('admins').update({ session_token: sessionToken, session_expires: sessionExpiresAt }).eq('email', String(adminEmail).trim().toLowerCase());
+    } catch (e) {
+      console.warn('Failed to persist refreshed session token to DB (best-effort):', e && e.message ? e.message : e);
+    }
+
+    // Populate in-memory session store so the token is usable immediately
+    try { setSession(sessionToken, adminEmail, new Date(sessionExpiresAt).getTime()); } catch (e) { /* ignore */ }
+
+    return res.json({ token: sessionToken, expires: sessionExpiresAt });
+  } catch (err) {
+    console.error('Session refresh error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to refresh session' });
+  }
+});
+
+// Cookie consent endpoint removed - cookie consent UI cleaned from client.
 
 // Dashboard stats
 router.get('/dashboard', auth, async (req, res) => {
@@ -893,77 +981,8 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
           console.error('Failed to send messenger notification to customer:', mErr);
         }
 
-        // Send push notification to mobile app users
-        try {
-          console.log('Checking for mobile push token...');
-          // Query user's push token from database based on phone or email
-          const phone = updated.phone;
-          const email = updated.email;
-          
-          console.log('Looking up token with:', { phone, email });
-          
-          if (!phone && !email) {
-            console.log('No phone or email to look up push token');
-          } else {
-            const orParts = [];
-            if (phone) orParts.push(`phone.eq.${phone}`);
-            if (email) orParts.push(`email.eq.${email}`);
-            
-            const { data: userTokens, error: tokenError } = await supabase
-              .from('user_push_tokens')
-              .select('expo_push_token')
-              .or(orParts.join(','))
-              .limit(1);
-
-            if (tokenError) {
-              console.error('Error fetching push token:', tokenError);
-            } else if (userTokens && userTokens.length > 0 && userTokens[0].expo_push_token) {
-              const pushToken = userTokens[0].expo_push_token;
-              console.log('Found push token, sending notification...');
-            
-              const statusMessages = {
-                pending: '⏳ Your order is pending confirmation',
-                processing: '🌸 Your order is being prepared',
-                'to receive': '📦 Your order is ready for pickup/delivery',
-                delivered: '✅ Your order has been delivered',
-                cancelled: '❌ Your order has been cancelled'
-              };
-
-              const title = `Order ${updated.order_id} Update`;
-              const body = statusMessages[updated.status.toLowerCase()] || `Status: ${updated.status}`;
-
-              const pushResult = await sendPushNotification(pushToken, title, body, {
-                orderId: updated.order_id,
-                status: updated.status,
-                type: 'status_update'
-              });
-
-              if (!pushResult || pushResult.ok === false) {
-                console.error('Push send reported error:', pushResult && pushResult.response ? pushResult.response : pushResult);
-                // If Expo reports the FCM credentials are invalid, surface a clear log for operator
-                const details = pushResult && pushResult.response && pushResult.response.data && pushResult.response.data.details;
-                if (details && details.error === 'InvalidCredentials') {
-                  console.error('Expo reports invalid FCM credentials. Upload the Android service account key to Expo/EAS for this project.');
-                }
-                // If the device is no longer registered, delete the token from our DB to avoid repeated errors
-                if (details && details.error === 'DeviceNotRegistered') {
-                  try {
-                    await supabase.from('user_push_tokens').delete().eq('expo_push_token', pushToken);
-                    console.log('Deleted DeviceNotRegistered push token from DB:', pushToken);
-                  } catch (delErr) {
-                    console.warn('Failed to delete unregistered push token:', delErr && delErr.message ? delErr.message : delErr);
-                  }
-                }
-              } else {
-                console.log('Push notification sent successfully', pushResult.response);
-              }
-            } else {
-              console.log('No push token found for user');
-            }
-          }
-        } catch (pushErr) {
-          console.error('Failed to send push notification:', pushErr);
-        }
+        // Push notifications disabled — skipping mobile push sends
+        console.log('Push notifications disabled; skipping mobile push send for this update');
       } else {
         console.log('Skipping status notification:', {
           reason: !updated ? 'no updated record' :
@@ -1040,71 +1059,8 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
       console.warn('Failed to send messenger notification to customer (deliver):', mErr && mErr.message ? mErr.message : mErr);
     }
 
-    // Also attempt to send a push notification to the mobile app when delivered
-    try {
-      console.log('Deliver endpoint: checking for push token to notify customer...');
-      const phone = updated.phone || null;
-      const email = updated.email || null;
-      if (!phone && !email) {
-        console.log('Deliver endpoint: no phone/email available to lookup push token');
-      } else {
-        const orParts = [];
-        if (phone) orParts.push(`phone.eq.${phone}`);
-        if (email) orParts.push(`email.eq.${email}`);
-
-        const { data: userTokens, error: tokenError } = await supabase
-          .from('user_push_tokens')
-          .select('expo_push_token')
-          .or(orParts.join(','))
-          .limit(1);
-
-        if (tokenError) {
-          console.error('Deliver endpoint: error fetching push token:', tokenError);
-        } else if (userTokens && userTokens.length > 0 && userTokens[0].expo_push_token) {
-          const pushToken = userTokens[0].expo_push_token;
-          console.log('Deliver endpoint: found push token, sending notification...');
-
-          const statusMessages = {
-            pending: '⏳ Your order is pending confirmation',
-            processing: '🌸 Your order is being prepared',
-            'to receive': '📦 Your order is ready for pickup/delivery',
-            delivered: '✅ Your order has been delivered',
-            cancelled: '❌ Your order has been cancelled'
-          };
-
-          const title = `Order ${updated.order_id} Update`;
-          const body = statusMessages[String(updated.status || '').toLowerCase()] || `Status: ${updated.status}`;
-
-          const pushResult = await sendPushNotification(pushToken, title, body, {
-            orderId: updated.order_id,
-            status: updated.status,
-            type: 'status_update'
-          });
-
-          if (!pushResult || pushResult.ok === false) {
-            console.error('Deliver endpoint: push send reported error:', pushResult && pushResult.response ? pushResult.response : pushResult);
-            const details = pushResult && pushResult.response && pushResult.response.data && pushResult.response.data.details;
-            if (details && details.error === 'InvalidCredentials') {
-              console.error('Expo reports invalid FCM credentials. Upload the Android service account key to Expo/EAS for this project.');
-            }
-            if (details && details.error === 'DeviceNotRegistered') {
-              try {
-                await supabase.from('user_push_tokens').delete().eq('expo_push_token', pushToken);
-                console.log('Deliver endpoint: deleted DeviceNotRegistered push token from DB:', pushToken);
-              } catch (delErr) {
-                console.warn('Deliver endpoint: failed to delete unregistered push token:', delErr && delErr.message ? delErr.message : delErr);
-              }
-            }
-          } else {
-            console.log('Deliver endpoint: Push notification sent successfully', pushResult.response);
-          }
-        } else {
-          console.log('Deliver endpoint: no push token found for user');
-        }
-      }
-    } catch (pushErr) {
-      console.error('Deliver endpoint: failed to send push notification:', pushErr);
-    }
+    // Push notifications disabled — skipping mobile push sends for delivery notifications
+    console.log('Push notifications disabled; skipping mobile push send for delivery notification');
 
     res.json({ message: 'Order marked as Delivered', updated: updated });
   } catch (err) {

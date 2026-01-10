@@ -36,9 +36,9 @@ export default function CheckoutScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      // Get push notification token from storage
-      const pushToken = await AsyncStorage.getItem('expoPushToken');
-      
+      // Push notifications disabled — do not read token
+      const pushToken = null;
+
       const orderData = {
         ...formData,
         items: items.map((item) => ({
@@ -47,7 +47,7 @@ export default function CheckoutScreen({ navigation }: any) {
           price: item.price,
         })),
         total_amount: total,
-        expo_push_token: pushToken || undefined,
+        expo_push_token: undefined,
       };
 
       const order = await ApiService.createOrder(orderData);

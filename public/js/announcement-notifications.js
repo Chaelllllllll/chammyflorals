@@ -5,7 +5,7 @@
 
     async function checkForNewAnnouncements() {
         try {
-            const response = await fetch(`${API_URL}/api/announcements/active`);
+            const response = await fetch(`${API_URL}/api/announcements`);
             
             if (!response.ok) return;
 

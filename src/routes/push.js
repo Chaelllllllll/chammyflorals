@@ -20,62 +20,93 @@ webpush.setVapidDetails(
 router.post('/subscribe', async (req, res) => {
   try {
     const { subscription, userType } = req.body;
-    
-    if (!subscription) {
-      return res.status(400).json({ error: 'Subscription data required' });
-    }
+    console.log('Push /subscribe called - auth header present:', !!req.headers.authorization, 'cookie present:', !!req.headers.cookie, 'session.passport.user:', req.session && req.session.passport ? req.session.passport.user : null, 'req.user:', !!req.user);
+    if (!subscription) return res.status(400).json({ error: 'Subscription data required' });
 
-    // Get user ID from token
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    let userId, tableName;
-    
-    if (userType === 'admin') {
-      // For admin, decode JWT to get admin ID
-      const jwt = require('jsonwebtoken');
+    // Try to authenticate using existing auth middleware (admin sessions, env, DB sessions)
+    const authMiddleware = require('../middleware/auth');
+    await new Promise((resolve) => {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-        userId = decoded.id;
+        authMiddleware(req, res, () => resolve());
+      } catch (e) {
+        // middleware may throw; allow fallthrough
+        resolve();
+      }
+    });
+
+    // If middleware already sent a response (401), stop
+    if (res.headersSent) return;
+
+    let userId = null;
+    let tableName = userType === 'admin' ? 'admin_push_subscriptions' : 'customer_push_subscriptions';
+
+    if (userType === 'admin') {
+      // Admin subscriptions must be tied to an authenticated admin
+      if (req.admin && req.admin.id) {
+        userId = req.admin.id;
         tableName = 'admin_push_subscriptions';
-      } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
+      } else {
+        return res.status(401).json({ error: 'Admin authentication required to subscribe' });
       }
     } else {
-      // For customer, decode JWT to get customer ID
-      const jwt = require('jsonwebtoken');
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-        userId = decoded.id;
-        tableName = 'customer_push_subscriptions';
-      } catch (error) {
-        return res.status(401).json({ error: 'Invalid token' });
+      // Customer flow: try to identify customer via session token, but allow anonymous subscriptions
+      const token = req.headers.authorization?.split(' ')[1];
+      if (token) {
+        try {
+          const { data: customerRow, error } = await supabase.from('customers').select('id').eq('session_token', token).limit(1).single();
+          if (!error && customerRow && customerRow.id) {
+            userId = customerRow.id;
+            tableName = 'customer_push_subscriptions';
+          }
+        } catch (e) {
+          // ignore
+        }
       }
     }
 
-    // Store subscription in database
-    const { data, error } = await supabase
-      .from(tableName)
-      .upsert({
-        user_id: userId,
-        subscription: subscription,
-        user_type: userType,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      });
+    // Build payload. Allow null user_id (anonymous subscription) for customers.
+    const payload = {
+      user_id: userId,
+      subscription: subscription,
+      user_type: userType || 'customer'
+    };
 
-    if (error) {
-      console.error('Error saving subscription:', error);
-      return res.status(500).json({ error: 'Failed to save subscription' });
+    let dbData = null;
+    let dbError = null;
+
+    if (userId) {
+      // Upsert by user_id for idempotency
+      const upsertResult = await supabase.from(tableName).upsert(payload, { onConflict: 'user_id' });
+      dbData = upsertResult.data;
+      dbError = upsertResult.error;
+      if (dbError) {
+        const insertResult = await supabase.from(tableName).insert(payload);
+        dbData = insertResult.data;
+        dbError = insertResult.error;
+      }
+    } else {
+      // Anonymous customer subscription: insert and accept duplicates
+      const insertResult = await supabase.from(tableName).insert(payload);
+      dbData = insertResult.data;
+      dbError = insertResult.error;
     }
 
-    res.json({ success: true, message: 'Subscription saved' });
+    if (dbError) {
+      console.error('Error storing push subscription:', dbError);
+      return res.status(500).json({
+        error: 'Failed to store subscription',
+        table: tableName,
+        userId,
+        details: dbError.message || String(dbError),
+        code: dbError.code,
+        hint: dbError.hint || 'Verify the table exists and server is using a Supabase service role key or disable RLS for this table.'
+      });
+    }
+
+    res.json({ success: true, message: 'Subscription saved', userId, table: tableName, data: dbData || null });
   } catch (error) {
-    console.error('Error in /subscribe:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error in /subscribe:', error && error.message ? error.message : error);
+    res.status(500).json({ error: 'Internal server error', details: String(error) });
   }
 });
 

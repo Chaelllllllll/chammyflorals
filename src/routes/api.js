@@ -7,6 +7,7 @@ const { authenticateToken: authenticateCustomer } = require('./auth');
 const adminAuth = require('../middleware/auth');
 const mailer = require('../lib/mailer');
 const templates = require('../lib/email-templates');
+const push = require('../lib/push-notifications');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const router = express.Router();
@@ -19,29 +20,42 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chamflorals-secret-key-change-in-p
 
 // Flexible authentication middleware that accepts either customer or admin tokens
 const authenticateCustomerOrAdmin = async (req, res, next) => {
+  // Debug logging to diagnose auth issues (will print per-request auth context)
+  try {
+    console.log('authenticateCustomerOrAdmin - incoming', { method: req.method, path: req.path, hasAuthHeader: !!req.headers['authorization'], cookie: req.headers['cookie'] ? 'present' : 'none', sessionPassport: req.session && req.session.passport && req.session.passport.user ? req.session.passport.user : null });
+  } catch (e) {}
+
+  // Accept cookie/passport sessions for admins when present (allow admin cookie auth)
+  if (req.user && req.user.id) {
+    req.admin = { id: req.user.id, email: req.user.email };
+    req.userType = 'admin';
+    return next();
+  }
+  if (req.session && req.session.passport && req.session.passport.user) {
+    try {
+      const stored = req.session.passport.user;
+      if (stored && typeof stored === 'object' && stored.id) {
+        req.admin = { id: stored.id, email: stored.email };
+      } else {
+        req.admin = { id: stored };
+      }
+      req.userType = 'admin';
+      return next();
+    } catch (e) {
+      // fall through to header/token checks
+    }
+  }
+
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  // Try customer JWT authentication first
+  // Try admin session token authentication first (prefer admin when token could be admin session)
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded && decoded.id) {
-      req.user = decoded;
-      req.userType = 'customer';
-      return next();
-    }
-  } catch (err) {
-    // Not a customer JWT, try admin authentication
-  }
-
-  // Try admin session token authentication
-  try {
-    // Check in-memory session first
     const tokenStr = String(token || '').trim();
+    // Check in-memory session first
     const rec = getSession(tokenStr);
     if (rec && rec.expires && rec.expires > Date.now()) {
       req.admin = rec.admin || { id: rec.adminId };
@@ -66,7 +80,19 @@ const authenticateCustomerOrAdmin = async (req, res, next) => {
       return next();
     }
   } catch (err) {
-    // Admin auth also failed
+    // Admin auth attempt failed, fall back to customer JWT
+  }
+
+  // Try customer JWT authentication
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded && decoded.id) {
+      req.user = decoded;
+      req.userType = 'customer';
+      return next();
+    }
+  } catch (err) {
+    // Not a customer JWT
   }
 
   return res.status(403).json({ error: 'Invalid or expired token' });
@@ -95,6 +121,53 @@ router.get('/health', async (req, res) => {
       status: 'ERROR',
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// DEBUG: auth context endpoint (temporary) - returns which auth was detected for the request
+// Usage: fetch('/api/auth/debug', { credentials: 'include' })
+router.get('/auth/debug', authenticateCustomerOrAdmin, async (req, res) => {
+  try {
+    return res.json({ ok: true, userType: req.userType || null, user: req.user || null, admin: req.admin || null });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to inspect auth' });
+  }
+});
+
+// Verify an admin session token (used by client to validate stored adminToken)
+router.post('/admin/verify-token', async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ ok: false, error: 'token is required' });
+
+    const tokenStr = String(token || '').trim();
+
+    // Check in-memory session store first
+    try {
+      const rec = getSession(tokenStr);
+      if (rec && rec.expires && rec.expires > Date.now()) {
+        return res.json({ ok: true });
+      }
+    } catch (e) {}
+
+    // Check database session token in admins table
+    try {
+      const { data: sessionRow, error: sessErr } = await supabase
+        .from('admins')
+        .select('id,session_expires')
+        .eq('session_token', tokenStr)
+        .limit(1)
+        .single();
+
+      if (!sessErr && sessionRow && sessionRow.session_expires && new Date(sessionRow.session_expires).getTime() > Date.now()) {
+        return res.json({ ok: true });
+      }
+    } catch (e) {}
+
+    return res.status(401).json({ ok: false, error: 'invalid_or_expired' });
+  } catch (err) {
+    console.error('admin/verify-token error:', err);
+    return res.status(500).json({ ok: false, error: 'server_error' });
   }
 });
 
@@ -377,8 +450,8 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
     // Map legacy `customer_email` field into canonical `email` column to avoid DB schema mismatch
     if (req.body.customer_email) orderData.email = String(req.body.customer_email).trim();
     
-    // Save expo push token for mobile notifications
-    const expoPushToken = req.body.expo_push_token;
+    // Mobile push token handling removed (push notifications disabled project-wide)
+    const expoPushToken = null;
     
     if (Array.isArray(req.body.items) && req.body.items.length) {
       // sanitize items: { flower_type, quantity, optional color }
@@ -409,60 +482,9 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
 
     console.log('Order inserted, returned data:', data && data[0] ? { order_id: data[0].order_id, status: data[0].status } : 'no data');
 
-    // Save push token to user_push_tokens table for notifications
+    // Save push token to push_subscriptions table for notifications
     // Always upsert the token (even if email/phone not provided) so we can find orders by token
-    if (expoPushToken && data && data[0]) {
-      try {
-        const userPhone = orderData.customer_phone || orderData.phone || null;
-        const userEmail = orderData.customer_email || orderData.email || null;
-        console.log('Saving push token (upsert) for user or device...');
-        
-        // Check if token already exists
-        const { data: existing, error: checkError } = await supabase
-          .from('user_push_tokens')
-          .select('*')
-          .eq('expo_push_token', expoPushToken)
-          .limit(1);
-
-        if (checkError) {
-          console.error('Error checking existing token:', checkError);
-        } else if (existing && existing.length > 0) {
-          // Update existing record
-          const { error: updateError } = await supabase
-            .from('user_push_tokens')
-            .update({
-              phone: userPhone,
-              email: userEmail,
-              updated_at: new Date().toISOString()
-            })
-            .eq('expo_push_token', expoPushToken);
-
-          if (updateError) {
-            console.error('Failed to update push token:', updateError);
-          } else {
-            console.log('Push token updated successfully');
-          }
-        } else {
-          // Insert new record
-          const { error: insertError } = await supabase
-            .from('user_push_tokens')
-            .insert({
-              phone: userPhone,
-              email: userEmail,
-              expo_push_token: expoPushToken,
-              updated_at: new Date().toISOString()
-            });
-
-          if (insertError) {
-            console.error('Failed to insert push token:', insertError);
-          } else {
-            console.log('Push token inserted successfully');
-          }
-        }
-      } catch (tokenErr) {
-        console.error('Error saving push token:', tokenErr);
-      }
-    }
+    // (removed) previously saved expo push tokens here
 
     // If this is a manual order, update the status to Delivered immediately after insert
     console.log('Manual order check:', { manual_order: req.body.manual_order, isManualOrder, hasData: !!(data && data[0]) });
@@ -693,11 +715,11 @@ router.get('/orders/by-token/:token', async (req, res) => {
     const { token } = req.params;
     if (!token) return res.status(400).json({ error: 'Token required' });
 
-    // Find matching user_push_tokens row by expo token
+    // Find matching push_subscriptions row by endpoint token
     const { data: tokens, error: tokenErr } = await supabase
-      .from('user_push_tokens')
-      .select('phone,email')
-      .eq('expo_push_token', token)
+      .from('push_subscriptions')
+      .select('phone,email,endpoint,subscription')
+      .eq('endpoint', token)
       .limit(1);
 
     if (tokenErr) {
@@ -1492,65 +1514,7 @@ router.get('/chat/:orderId', async (req, res) => {
   }
 });
 
-// Push notification subscription endpoints
-router.post('/push/subscribe', async (req, res) => {
-  try {
-    const { subscription, userId, userType } = req.body;
-    
-    if (!subscription || !subscription.endpoint) {
-      return res.status(400).json({ error: 'Invalid subscription data' });
-    }
-
-    // Store subscription in database
-    const { data, error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        endpoint: subscription.endpoint,
-        keys: subscription.keys,
-        user_id: userId || null,
-        user_type: userType || 'customer',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'endpoint'
-      });
-
-    if (error) {
-      console.error('Error storing push subscription:', error);
-      return res.status(500).json({ error: 'Failed to store subscription' });
-    }
-
-    res.json({ success: true, message: 'Subscription saved' });
-  } catch (error) {
-    console.error('Push subscription error:', error);
-    res.status(500).json({ error: 'Failed to save subscription' });
-  }
-});
-
-router.post('/push/unsubscribe', async (req, res) => {
-  try {
-    const { endpoint } = req.body;
-    
-    if (!endpoint) {
-      return res.status(400).json({ error: 'Endpoint required' });
-    }
-
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .delete()
-      .eq('endpoint', endpoint);
-
-    if (error) {
-      console.error('Error removing subscription:', error);
-      return res.status(500).json({ error: 'Failed to remove subscription' });
-    }
-
-    res.json({ success: true, message: 'Subscription removed' });
-  } catch (error) {
-    console.error('Push unsubscribe error:', error);
-    res.status(500).json({ error: 'Failed to remove subscription' });
-  }
-});
+// Push subscription endpoints removed — push notifications disabled project-wide.
 
 // Customer Chat Endpoints (authenticated customers only)
 // Get all messages for authenticated customer
@@ -1693,9 +1657,29 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
     }
     
     console.log('Message sent successfully:', chatData);
-    
+    // Fire-and-forget: notify all admins via push
+    try {
+      const { data: adminTokens } = await supabase
+        .from('push_subscriptions')
+        .select('subscription,endpoint')
+        .eq('user_type', 'admin')
+        .not('subscription', 'is', null);
+
+      if (adminTokens && adminTokens.length) {
+        const messages = adminTokens
+          .map(t => {
+            const sub = t && t.subscription ? t.subscription : (t && t.endpoint ? { endpoint: t.endpoint } : null);
+            return sub ? ({ subscription: sub, payload: { title: 'New customer message', body: sanitizedMessage, data: { type: 'customer_message', customer_id: customerId } } }) : null;
+          })
+          .filter(Boolean);
+        if (messages.length) {
+          try { await push.sendBatchWebPush(messages); } catch (pe) { console.warn('Failed sending admin push notifications:', pe); }
+        }
+      }
+    } catch (pe) { console.warn('Admin push notify error:', pe); }
+
     res.json({ 
-      success: true,
+      success: true, 
       message: 'Message sent successfully',
       data: chatData[0]
     });
@@ -1920,7 +1904,29 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
       console.error('Error sending seller message:', chatError);
       return res.status(500).json({ error: 'Failed to send message' });
     }
-    
+    // Notify the customer via push (if they have a registered token)
+    try {
+      const { data: tokens } = await supabase
+        .from('push_subscriptions')
+        .select('subscription,endpoint')
+        .eq('user_id', customer_id)
+        .eq('user_type', 'customer')
+        .not('subscription', 'is', null)
+        .limit(50);
+
+      if (tokens && tokens.length) {
+        const messages = tokens
+          .map(t => {
+            const sub = t && t.subscription ? t.subscription : (t && t.endpoint ? { endpoint: t.endpoint } : null);
+            return sub ? ({ subscription: sub, payload: { title: 'Message from seller', body: sanitizedMessage, data: { type: 'seller_message', customer_id } } }) : null;
+          })
+          .filter(Boolean);
+        if (messages.length) {
+          try { await push.sendBatchWebPush(messages); } catch (pe) { console.warn('Failed sending customer push notifications:', pe); }
+        }
+      }
+    } catch (pe) { console.warn('Customer push notify error:', pe); }
+
     res.json({
       success: true,
       message: 'Message sent successfully',
@@ -1931,5 +1937,97 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
+
+  // Register or update an Expo push token for a user (customer or admin)
+  // Public endpoint to expose VAPID public key for web push subscriptions
+  router.get('/push/public-key', async (req, res) => {
+    try {
+      const key = process.env.VAPID_PUBLIC_KEY || '';
+      if (!key) return res.status(404).json({ error: 'VAPID public key not configured' });
+      res.json({ publicKey: key });
+    } catch (err) {
+      console.error('Failed to get VAPID public key:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  // Debug: indicate this module's push handlers are loaded
+  console.log('Push register/unregister handlers loaded (using push_subscriptions table)');
+
+  router.post('/push/register', authenticateCustomerOrAdmin, async (req, res) => {
+    try {
+      // Accept either a legacy `expo_push_token` (string) or a `subscription` object
+      const { expo_push_token, subscription, phone, email } = req.body;
+
+      let subscriptionObj = subscription || null;
+      if (!subscriptionObj && expo_push_token) subscriptionObj = String(expo_push_token).trim();
+      if (!subscriptionObj) return res.status(400).json({ error: 'subscription or expo_push_token is required' });
+
+      // Normalize subscription to an object that can be stored as jsonb
+      let subscriptionJson = null;
+      try {
+        if (typeof subscriptionObj === 'string') {
+          subscriptionJson = JSON.parse(subscriptionObj);
+        } else {
+          subscriptionJson = subscriptionObj;
+        }
+      } catch (e) {
+        subscriptionJson = { token: String(subscriptionObj) };
+      }
+
+      // Ensure we always have an endpoint text value for upsert key
+      const endpoint = (subscriptionJson && subscriptionJson.endpoint) ? subscriptionJson.endpoint : (subscriptionJson && subscriptionJson.token ? subscriptionJson.token : String(subscriptionObj));
+
+      const user_type = req.userType === 'admin' ? 'admin' : 'customer';
+      const user_id = req.userType === 'customer' ? (req.user && req.user.id ? req.user.id : null) : (req.admin && req.admin.id ? req.admin.id : null);
+
+      // Debug logging: capture auth context and incoming payload to help diagnose admin vs customer saves
+      try {
+        console.log('push/register - auth context:', { userType: req.userType, user: req.user ? { id: req.user.id, email: req.user.email } : null, admin: req.admin ? { id: req.admin.id, email: req.admin.email } : null });
+        console.log('push/register - incoming body keys:', Object.keys(req.body || {}));
+      } catch (le) {}
+
+      const payload = {
+        endpoint,
+        subscription: subscriptionJson,
+        user_type,
+        user_id: user_id ? String(user_id) : null,
+        phone: phone ? String(phone).trim() : null,
+        email: email ? String(email).trim() : null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase.from('push_subscriptions').upsert([payload], { onConflict: 'endpoint' }).select();
+      if (error) {
+        console.error('Failed to upsert push subscription:', error);
+        return res.status(500).json({ error: 'Failed to register push subscription' });
+      }
+
+      res.json({ ok: true, data: data && data[0] ? data[0] : null });
+    } catch (err) {
+      console.error('push/register error:', err);
+      res.status(500).json({ error: 'Failed to register push token' });
+    }
+  });
+
+  // Unregister a subscription (accepts { endpoint })
+  router.post('/push/unregister', authenticateCustomerOrAdmin, async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) return res.status(400).json({ error: 'endpoint is required' });
+
+      // Remove by exact endpoint match (we always store an `endpoint` text value)
+      const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+      if (error) {
+        console.error('Failed to remove push subscription:', error);
+        return res.status(500).json({ error: 'Failed to unregister push subscription' });
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('push/unregister error:', err);
+      res.status(500).json({ error: 'Failed to unregister push token' });
+    }
+  });
 
 module.exports = router;

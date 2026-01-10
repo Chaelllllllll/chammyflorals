@@ -16,13 +16,59 @@ function safeEqual(a, b) {
 module.exports = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log('Auth middleware - Authorization header present:', !!authHeader);
+  // If Passport has already populated `req.user` (cookie/session auth), accept it.
+  if (req.user && req.user.id) {
+    console.log('Auth middleware - Detected passport session user');
+    req.admin = { id: req.user.id, email: req.user.email };
+    return next();
+  }
+
+  // If express-session has a stored passport user id, accept it.
+  if (req.session && req.session.passport && req.session.passport.user) {
+    try {
+      const stored = req.session.passport.user;
+      console.log('Auth middleware - Detected session passport user:', typeof stored === 'string' ? 'id' : 'object');
+      // If stored value is an object with id, use that; otherwise use as id
+      if (stored && typeof stored === 'object' && stored.id) {
+        req.admin = { id: stored.id, email: stored.email };
+      } else {
+        req.admin = { id: stored };
+      }
+      return next();
+    } catch (e) {
+      console.warn('Auth middleware - passport session handling failed:', e && e.message ? e.message : e);
+    }
+  }
+
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
   const token = authHeader.replace('Bearer ', '');
   const tokenStr = String(token || '').trim();
   console.log('Auth middleware - Token length:', tokenStr.length);
 
-  // 1) Try in-memory session token lookup (fast, works even if DB persistence failed)
+  // 1) If an Authorization header is present and looks like a JWT, try to verify it first.
+  try {
+    const jwt = require('jsonwebtoken');
+    if (tokenStr && tokenStr.split('.').length === 3) {
+      try {
+        const decodedJwt = jwt.verify(tokenStr, process.env.JWT_SECRET || 'your-secret-key');
+        const adminId = decodedJwt.id || decodedJwt.adminId || decodedJwt.user_id || decodedJwt.userId;
+        const adminEmail = decodedJwt.email || decodedJwt.user_email || decodedJwt.email_address || null;
+        if (adminId) {
+          console.log('Auth middleware - JWT verified, admin authenticated');
+          req.admin = { id: adminId, email: adminEmail };
+          return next();
+        }
+      } catch (jwtErr) {
+        console.warn('Auth middleware - JWT verify failed:', jwtErr && jwtErr.message ? jwtErr.message : jwtErr);
+        // fall through to other token types
+      }
+    }
+  } catch (e) {
+    // jsonwebtoken not available or other error - fall through
+  }
+
+  // 2) Try in-memory session token lookup (fast, works even if DB persistence failed)
   try {
     if (tokenStr) {
       const rec = getSession(tokenStr);

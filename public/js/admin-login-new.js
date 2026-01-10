@@ -4,8 +4,9 @@
   if (token) {
     try {
       const response = await fetch('/api/admin/verify-token', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+            credentials: 'include',
+            headers: { Authorization: `Bearer ${token}` },
+          });
       if (response.ok) {
         window.location.href = '/admin/dashboard.html';
       } else {
@@ -38,6 +39,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   try {
     const response = await fetch('/api/admin/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, totp: totpCode }),
     });
@@ -146,6 +148,7 @@ async function enableTOTP() {
   try {
     const response = await fetch('/api/admin/login/enable-totp', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: pendingEmail, password: pendingPassword, totp: totpCode }),
     });

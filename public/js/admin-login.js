@@ -4,8 +4,9 @@
   if (token) {
     try {
       const response = await fetch('/api/admin/verify-token', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${token}` },
+        });
       if (response.ok) {
         window.location.href = '/admin/dashboard.html';
       } else {
@@ -36,6 +37,7 @@ document.getElementById('adminLoginForm').addEventListener('submit', async (e) =
   try {
   const response = await fetch('/api/admin/login', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -126,7 +128,7 @@ if (verifyBtn) {
     if (!code || !/^[0-9]{6}$/.test(code)) return showErrorModal('Please enter the 6-digit code.');
     try {
       const resp = await fetch('/api/admin/login/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: pendingEmail, code }),
       });
       const json = await resp.json();
@@ -151,7 +153,7 @@ if (resendBtn) {
     // prevent resending if countdown running
     if (resendBtn.disabled) return showErrorModal('Please wait before requesting a new code.');
     try {
-      const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, password: pendingPassword }) });
+      const r = await fetch('/api/admin/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, password: pendingPassword }) });
       const j = await r.json();
       const twoMsg = document.getElementById('twoFactorMessage');
       if (r.ok && j && j.twoFactorRequired) {
@@ -209,6 +211,7 @@ function startTwofaCountdown(seconds) {
   if (token) {
     try {
   const response = await fetch('/api/admin/verify-token', {
+        credentials: 'include',
         headers: { Authorization: `Bearer ${token}` },
       });
       let result;

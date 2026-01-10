@@ -1,0 +1,9 @@
+/* Styles for the notify prompt modal */
+#notify-prompt-overlay{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center}
+#notify-prompt-box{width:420px;max-width:92%;background:#fff;border-radius:12px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.2);text-align:left;transition:transform .22s ease,box-shadow .22s ease}
+#notify-prompt-box h4{font-size:20px;color:#3a2b33;margin-bottom:6px}
+#notify-prompt-box p{color:#6b6b6b;font-size:14px;margin-bottom:16px}
+.btn-cancel{background:transparent;border:1px solid rgba(58,43,51,0.08);color:#6b6b6b;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+.btn-cancel:hover{background:#fafafa;transform:translateY(-1px)}
+.btn-save{background:linear-gradient(135deg,#ff99bb 0%,#ff6f9b 100%);color:#fff;border:none;padding:10px 16px;border-radius:10px;font-weight:800;box-shadow:0 10px 30px rgba(255,111,155,0.18);cursor:pointer}
+.btn-save:hover{transform:translateY(-3px);box-shadow:0 14px 36px rgba(255,111,155,0.24)}

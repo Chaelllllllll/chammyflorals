@@ -10,14 +10,18 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing...');
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Caching files');
-        return cache.addAll(urlsToCache).catch(err => {
-          console.log('Cache addAll error:', err);
-        });
-      })
-      .then(() => self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      console.log('Service Worker: Caching files (individual add)');
+      for (const url of urlsToCache) {
+        try {
+          await cache.add(url);
+        } catch (err) {
+          console.warn('Service Worker: failed to cache', url, err && err.message ? err.message : err);
+        }
+      }
+      await self.skipWaiting();
+    })()
   );
 });
 

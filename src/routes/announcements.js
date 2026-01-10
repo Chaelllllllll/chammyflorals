@@ -3,8 +3,14 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const authenticateAdmin = require('../middleware/auth');
 const multer = require('multer');
-const { sendPushNotification } = require('../lib/push-notifications');
+// Push notifications removed; server-side push helper deleted.
 const upload = multer({ storage: multer.memoryStorage() });
+const push = require('../lib/push-notifications');
+const mailer = require('../lib/mailer');
+
+function escapeHtml(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // Helper function to broadcast messages to all customers
 async function broadcastToAllCustomers(message, productId = null) {
@@ -43,10 +49,50 @@ async function broadcastToAllCustomers(message, productId = null) {
       return;
     }
     
-    console.log(`Broadcast message sent to ${customers.length} customers`);
-    
-    // Note: Push notifications via Expo tokens would require expo_push_token column in customers table
-    // Currently skipping push notifications as the column doesn't exist
+        console.log(`Broadcast message sent to ${customers.length} customers`);
+
+        // Send push notifications (batch via push_subscriptions)
+        try {
+            const { data: tokens } = await supabase
+                .from('push_subscriptions')
+                .select('subscription,endpoint')
+                .not('subscription', 'is', null)
+                .eq('user_type', 'customer');
+
+            if (tokens && tokens.length) {
+                const msgs = tokens
+                    .map(t => {
+                        const sub = t && t.subscription ? t.subscription : (t && t.endpoint ? { endpoint: t.endpoint } : null);
+                        return sub ? ({ subscription: sub, payload: { title: 'New announcement', body: message, data: { type: 'announcement', product_id: productId } } }) : null;
+                    })
+                    .filter(Boolean);
+
+                // Send in chunks of 100
+                const chunk = (arr, size) => { const out=[]; for (let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; };
+                const batches = chunk(msgs, 100);
+                for (const b of batches) {
+                    try {
+                        const results = await push.sendBatchWebPush(b);
+                        console.log('Announcement push results:', results);
+                    } catch (pe) { console.warn('Failed sending announcement pushes:', pe); }
+                }
+            }
+        } catch (pe) { console.warn('Announcement push error:', pe); }
+
+        // Send announcement emails (best-effort, in small batches)
+        try {
+            const { data: emails } = await supabase.from('customers').select('email').not('email', 'is', null);
+            if (emails && emails.length) {
+                const emailChunk = (arr, size) => { const out=[]; for (let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; };
+                const eBatches = emailChunk(emails.map(e => e.email).filter(Boolean), 100);
+                const subject = `Chammy Florals - ${escapeHtml(message).slice(0,60)}`;
+                const htmlBody = `<div style="font-family:Arial,sans-serif;color:#333"><h2 style="color:#ff69b4">New Announcement</h2><div>${escapeHtml(message)}</div><p style="color:#666;font-size:0.9em">View this announcement in the app or on our website.</p></div>`;
+                for (const batch of eBatches) {
+                    // send concurrently per batch
+                    await Promise.all(batch.map(to => mailer.sendMail({ to, subject, html: htmlBody }).catch(e => console.warn('Failed send announcement email to', to, e))));
+                }
+            }
+        } catch (me) { console.warn('Announcement email error:', me); }
   } catch (error) {
     console.error('Error in broadcastToAllCustomers:', error);
   }
@@ -150,10 +196,11 @@ router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => 
         
         // Broadcast message to all customers about new announcement
         try {
-          await broadcastToAllCustomers(
-            JSON.stringify({ title: announcement.title, description: announcement.description, id: announcement.id }),
-            null
-          );
+                // Broadcast announcement title + description as a human-readable message
+                await broadcastToAllCustomers(
+                        `${announcement.title}\n\n${announcement.description}`,
+                        null
+                    );
           console.log('Broadcast message sent for new announcement');
         } catch (broadcastError) {
           console.error('Failed to broadcast announcement:', broadcastError);

@@ -39,6 +39,7 @@
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
     "web-push": "^3.6.7"
+    ,"node-pushnotifications": "^1.4.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

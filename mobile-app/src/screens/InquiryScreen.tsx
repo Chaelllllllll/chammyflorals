@@ -192,9 +192,9 @@ export default function InquiryScreen({ route, navigation }: any) {
         await AsyncStorage.setItem('userName', formData.user_name);
       }
       
-      // Get push token if available
-      const expoPushToken = await AsyncStorage.getItem('expoPushToken');
-      
+      // Push notifications disabled — do not read token
+      const expoPushToken = null;
+
       // Create order data - map form fields to canonical keys expected by the API
       const orderData = {
         user_name: formData.user_name,
@@ -204,7 +204,7 @@ export default function InquiryScreen({ route, navigation }: any) {
         rush: formData.rush || 'No',
         items: orderItems,
         addons: selectedAddons.join(', '),
-        expo_push_token: expoPushToken || null, // Include for push notifications
+        expo_push_token: undefined, // Push disabled
       };
 
       await ApiService.createInquiry(orderData);

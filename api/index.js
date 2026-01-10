@@ -73,13 +73,7 @@ try {
   console.error('✗ Failed to load announcements routes:', err.message);
 }
 
-let pushRoutes;
-try {
-  pushRoutes = require('../src/routes/push');
-  console.log('✓ Push notification routes loaded');
-} catch (err) {
-  console.error('✗ Failed to load push routes:', err.message);
-}
+// Push notification routes removed per cleanup: push functionality disabled
 
 console.log('Note: Google/Facebook OAuth removed from project');
 console.log('========================================');
@@ -119,7 +113,15 @@ app.use(
         ],
         scriptSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
-        connectSrc: ["'self'", 'https://*.supabase.co', 'https://cdn.jsdelivr.net'],
+        connectSrc: [
+          "'self'",
+          'https://*.supabase.co',
+          'https://cdn.jsdelivr.net',
+          // Web Push services (browser-managed network calls may rely on connect-src)
+          'https://fcm.googleapis.com',
+          'https://updates.push.services.mozilla.com',
+          'https://web.push.apple.com'
+        ],
         // Allow fonts.gstatic.com for font binary resources used by Google Fonts
   // Allow font resources from cdn.jsdelivr.net (bootstrap-icons), Cloudflare and Google Fonts
   fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
@@ -252,10 +254,7 @@ if (announcementsRoutes) {
   console.log('✓ Announcements routes registered at /api/announcements');
 }
 
-if (pushRoutes) {
-  app.use('/api/push', pushRoutes);
-  console.log('✓ Push notification routes registered at /api/push');
-}
+// Push routes intentionally not registered (functionality removed)
 
 if (apiRoutes) {
   app.use('/api', apiRoutes);

@@ -1,55 +1,14 @@
-// Notification Manager - Handles browser push notifications with Service Worker
+// Notification manager removed — push notifications and cookie consent UI disabled.
+// File retained as a no-op to avoid missing script errors in existing HTML.
 class NotificationManager {
-  constructor(userType = 'customer') {
-    this.userType = userType; // 'customer' or 'admin'
-    this.checkInterval = null;
-    this.modalShown = false;
-    this.swRegistration = null;
-    this.subscription = null;
-    this.init();
-  }
+  constructor() { /* intentionally empty */ }
+  async init() { return; }
+}
 
-  async init() {
-    // Check if notifications and service workers are supported
-    if (!('Notification' in window)) {
-      console.warn('This browser does not support notifications');
-      return;
-    }
-
-    if (!('serviceWorker' in navigator)) {
-      console.warn('This browser does not support service workers');
-      return;
-    }
-
-    // Register service worker
-    try {
-      this.swRegistration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-      console.log('Service Worker registered:', this.swRegistration);
-
-      // Wait for service worker to be ready
-      await navigator.serviceWorker.ready;
-      console.log('Service Worker ready');
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-      return;
-    }
-
-    // Check current permission status
-    const permission = Notification.permission;
-
-    if (permission === 'granted') {
-      console.log('Notification permission already granted');
-      await this.subscribeToPush();
-      this.startListening();
-    } else if (permission === 'default') {
-      // Start checking every 10 seconds
-      this.startPermissionCheck();
-    } else {
-      console.log('Notification permission denied');
-    }
-  }
+// Expose default instance for compatibility
+window.NotificationManager = NotificationManager;
+/* PUSH/Cookie/push code removed - legacy implementation commented out below */
+/*
 
   startPermissionCheck() {
     // Show modal immediately
@@ -206,6 +165,9 @@ class NotificationManager {
       if (!subscription) {
         console.log('📝 No existing subscription, creating new one...');
         console.log('🔔 Notification.permission =', Notification.permission);
+        console.log('🔒 isSecureContext =', window.isSecureContext);
+        console.log('🌐 navigator.onLine =', navigator.onLine);
+        console.log('🧭 SW controller present =', !!navigator.serviceWorker.controller);
         // Subscribe to push notifications with VAPID key
         const publicVapidKey = 'BBEyMia5Ji-_hoLh6wtfvIp0883dPi4C1JZ1DDNkThbBn5WzQHqqEBa0oNBPN-eVrMt-5ukycbAtTAzG0SFeT7A';
         
@@ -223,16 +185,21 @@ class NotificationManager {
             applicationServerKey: applicationServerKey
           });
           const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Timeout')), 5000);
+            setTimeout(() => reject(new Error('pushManager.subscribe timed out after 30s')), 30000);
           });
 
           subscription = await Promise.race([subscribePromise, timeoutPromise]);
           console.log('✅ Push subscription created successfully!');
           console.log('Subscription details:', subscription);
         } catch (subscribeError) {
+          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
           console.warn('⚠️ Could not create push subscription:', subscribeError.message);
-          console.info('💡 This is normal on localhost. In-browser notifications will still work!');
-          console.info('💡 Push notifications will work in production (HTTPS)');
+          if (isLocalhost) {
+            console.info('💡 Localhost push can be flaky; test on production HTTPS for best results.');
+          } else {
+            console.info('💡 In production, this often means the browser push service is blocked/unreachable (extensions, network, or browser settings).');
+            console.info('💡 Try: (1) Chrome/Edge normal window, (2) disable ad/tracker blockers for this site, (3) Application → Service Workers → Unregister + Clear site data, then reload.');
+          }
           // Don't throw - continue without push subscription
           return;
         }
@@ -269,42 +236,115 @@ class NotificationManager {
   }
 
   async sendSubscriptionToServer(subscription) {
-    try {
-      const token = this.userType === 'admin' 
-        ? localStorage.getItem('adminToken')
-        : localStorage.getItem('auth_token');
+    // Detect tokens and cookies
+    const token = this.userType === 'admin'
+      ? localStorage.getItem('adminToken')
+      : localStorage.getItem('auth_token');
 
-      if (!token) {
-        console.warn('No auth token found, cannot save subscription');
-        return;
+    const hasSessionCookie = typeof document !== 'undefined' && document.cookie && document.cookie.includes('connect.sid');
+    console.log('sendSubscriptionToServer: userType=', this.userType, 'tokenPresent=', !!token, 'sessionCookie=', !!hasSessionCookie);
+
+    const maxRetries = 3;
+    let attempt = 0;
+    let lastError = null;
+
+    while (attempt < maxRetries) {
+      try {
+        attempt += 1;
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        // Always include credentials so cookie-based sessions are sent
+        const response = await fetch('/api/push/subscribe', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({
+            subscription: subscription.toJSON(),
+            userType: this.userType
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Subscription saved to server:', result);
+          return;
+        }
+
+        // Read response body (try JSON then text)
+        let bodyText = '';
+        try {
+          const json = await response.json();
+          bodyText = JSON.stringify(json);
+        } catch (e) {
+          bodyText = await response.text();
+        }
+
+        // Handle 401 specifically: if admin required and we have no token/cookie, stop and inform the developer
+        if (response.status === 401) {
+          console.warn('Server returned 401 when saving subscription:', bodyText);
+          // If admin subscription but no token or session cookie, give a clear hint
+          if (this.userType === 'admin') {
+            // If there's a session cookie, attempt a session refresh endpoint to mint a new session_token
+            if (hasSessionCookie) {
+              try {
+                console.log('Attempting admin session refresh via cookie...');
+                const resp = await fetch('/api/admin/session/refresh', { method: 'POST', credentials: 'include' });
+                if (resp.ok) {
+                  const json = await resp.json();
+                  if (json && json.token) {
+                    console.log('Session refresh succeeded, storing adminToken and retrying subscription');
+                    localStorage.setItem('adminToken', json.token);
+                    // retry once by continuing the loop (don't increment attempt)
+                    attempt = Math.max(0, attempt - 1);
+                    continue;
+                  }
+                }
+                console.warn('Session refresh did not return a new token:', resp.status);
+              } catch (refreshErr) {
+                console.warn('Admin session refresh failed:', refreshErr && refreshErr.message ? refreshErr.message : refreshErr);
+              }
+            }
+
+            // If no cookie or refresh failed, give a clear hint
+            if (!token && !hasSessionCookie) {
+              console.error('Admin subscription blocked: no admin token found in localStorage and no session cookie present. Ensure admin is logged in (cookie) or set `adminToken` in localStorage before subscribing.');
+            }
+          }
+
+          lastError = new Error(bodyText || 'Unauthorized');
+          break; // don't retry further on 401
+        }
+
+        // Handle 429 with exponential backoff
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After');
+          let waitMs = 5000 * attempt; // base 5s
+          if (retryAfter) {
+            const parsed = parseInt(retryAfter, 10);
+            if (!isNaN(parsed)) waitMs = parsed * 1000;
+          }
+          console.warn(`Server returned 429 (attempt ${attempt}). Retrying after ${waitMs}ms.`, bodyText);
+          lastError = new Error(bodyText || 'Too many requests');
+          await new Promise(r => setTimeout(r, waitMs));
+          continue; // retry
+        }
+
+        // For other non-OK statuses, log and break (no retries)
+        console.error('❌ Failed to save subscription to server. Status:', response.status, bodyText);
+        lastError = new Error(bodyText || `HTTP ${response.status}`);
+        break;
+      } catch (err) {
+        console.error('Network/error sending subscription to server (attempt', attempt, '):', err);
+        lastError = err;
+        // small backoff before retrying
+        await new Promise(r => setTimeout(r, 2000 * attempt));
       }
+    }
 
-      const API_URL = window.location.hostname === 'localhost'
-        ? 'http://localhost:3000'
-        : 'https://chammyflorals.vercel.app';
-
-      const response = await fetch(`${API_URL}/api/push/subscribe`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          subscription: subscription.toJSON(),
-          userType: this.userType
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Subscription saved to server:', result);
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Failed to save subscription to server. Status:', response.status);
-        console.error('Error details:', errorText);
-      }
-    } catch (error) {
-      console.error('Error sending subscription to server:', error);
+    if (lastError) {
+      console.error('❌ Failed to save subscription after retries:', lastError);
     }
   }
 
@@ -395,21 +435,4 @@ class NotificationManager {
     }
   }
 }
-
-// Initialize notification manager when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initNotifications);
-} else {
-  initNotifications();
-}
-
-function initNotifications() {
-  // Detect user type based on current page
-  const isAdminPage = window.location.pathname.includes('/admin/');
-  const userType = isAdminPage ? 'admin' : 'customer';
-  
-  // Create global notification manager instance
-  if (!window.notificationManager) {
-    window.notificationManager = new NotificationManager(userType);
-  }
-}
+*/

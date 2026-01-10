@@ -1,87 +1,89 @@
-// Node.js 18+ has built-in fetch, no need for node-fetch
-// If running on older Node versions, uncomment: const fetch = require('node-fetch');
+/*
+  Server push helper using `node-pushnotifications` for Web Push.
+  This replaces previous web-push / Expo helpers and sends push using the
+  node-pushnotifications library which supports web push subscriptions.
 
-/**
- * Send push notification via Expo Push Service
- * @param {string} expoPushToken - The Expo push token
- * @param {string} title - Notification title
- * @param {string} body - Notification body
- * @param {object} data - Additional data to send with notification
- */
-async function sendPushNotification(expoPushToken, title, body, data = {}) {
-  if (!expoPushToken || !expoPushToken.startsWith('ExponentPushToken')) {
-    console.log('Invalid Expo push token:', expoPushToken);
-    return;
+  Environment variables expected:
+    VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CONTACT
+
+  Usage:
+    const push = require('../lib/push-notifications');
+    await push.sendBatchWebPush([{ subscription: <object>, payload: { title, body, ... } }]);
+*/
+
+const PushNotifications = require('node-pushnotifications');
+
+const vapidPublic = process.env.VAPID_PUBLIC_KEY || '';
+const vapidPrivate = process.env.VAPID_PRIVATE_KEY || '';
+const vapidContact = process.env.VAPID_CONTACT || 'mailto:admin@example.com';
+
+const settings = {
+  web: {
+    vapidDetails: {
+      subject: vapidContact,
+      publicKey: vapidPublic,
+      privateKey: vapidPrivate
+    },
+    contentEncoding: 'aes128gcm'
+  }
+};
+
+let pushService = null;
+try {
+  pushService = new PushNotifications(settings);
+} catch (e) {
+  console.warn('Failed to initialize node-pushnotifications:', e && e.message ? e.message : e);
+}
+
+async function sendWebPush(subscription, payload = {}) {
+  if (!pushService) return { ok: false, error: 'push_service_unavailable' };
+  if (!subscription) return { ok: false, error: 'invalid_subscription' };
+
+  // Normalize subscription: allow stored JSON strings, objects, or endpoint strings
+  let regItem = subscription;
+  if (typeof subscription === 'string') {
+    // Try to parse JSON string first
+    try {
+      regItem = JSON.parse(subscription);
+    } catch (e) {
+      // Not JSON — treat as endpoint-only string
+      regItem = { endpoint: subscription };
+    }
   }
 
-  const message = {
-    to: expoPushToken,
-    sound: 'default',
-    title,
-    body,
-    data,
-    priority: 'high',
-    channelId: 'default',
+  const reg = [regItem];
+
+  // Build data object according to node-pushnotifications format
+  const data = {
+    title: payload.title || payload.heading || 'ChamFlorals',
+    body: payload.body || payload.message || '',
+    custom: payload.data || {},
+    topic: payload.topic || undefined
   };
 
   try {
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
+    const results = await pushService.send(reg, data);
+    return { ok: true, results };
+  } catch (err) {
+    console.warn('node-pushnotifications send error:', err && err.message ? err.message : err);
+    return { ok: false, error: err };
+  }
+}
 
-    const responseData = await response.json();
-    console.log('Push notification response:', responseData);
-
-    // Normalize response for callers: return an object with ok flag and original response
-    // Expo may return structured errors (developer faults like InvalidCredentials)
-    if (responseData && responseData.data && responseData.data.status === 'error') {
-      console.warn('Expo push service returned an error:', responseData.data);
-      return { ok: false, response: responseData };
+async function sendBatchWebPush(items) {
+  if (!Array.isArray(items) || items.length === 0) return [];
+  const out = [];
+  for (const item of items) {
+    try {
+      const subscription = item.subscription || item.to || null;
+      const payload = item.payload || item.data || item.body || {};
+      const r = await sendWebPush(subscription, payload);
+      out.push(r);
+    } catch (e) {
+      out.push({ ok: false, error: e });
     }
-
-    return { ok: true, response: responseData };
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-    throw error;
   }
+  return out;
 }
 
-/**
- * Send batch push notifications
- * @param {Array} messages - Array of message objects
- */
-async function sendBatchPushNotifications(messages) {
-  if (!messages || messages.length === 0) {
-    return;
-  }
-
-  try {
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(messages),
-    });
-
-    const responseData = await response.json();
-    console.log('Batch push notifications sent:', responseData);
-    return responseData;
-  } catch (error) {
-    console.error('Error sending batch push notifications:', error);
-    throw error;
-  }
-}
-
-module.exports = {
-  sendPushNotification,
-  sendBatchPushNotifications,
-};
+module.exports = { sendWebPush, sendBatchWebPush };
