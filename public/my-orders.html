@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders - ChamFlorals</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+        }
+        .order-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            margin-bottom: 20px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .order-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .order-id {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        .order-date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .status-Pending { background: #fff3cd; color: #856404; }
+        .status-Processing { background: #cfe2ff; color: #084298; }
+        .status-Completed { background: #d1e7dd; color: #0a3622; }
+        .status-Delivered { background: #d1e7dd; color: #0a3622; }
+        .status-Cancelled { background: #f8d7da; color: #842029; }
+        .order-details {
+            margin-top: 15px;
+        }
+        .order-details-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .order-details-row:last-child {
+            border-bottom: none;
+        }
+        .order-label {
+            color: #666;
+            font-weight: 600;
+        }
+        .order-value {
+            color: #333;
+        }
+        .order-total {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        .order-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .empty-state i {
+            font-size: 80px;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .empty-state p {
+            color: #999;
+            margin-bottom: 30px;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        .loading-spinner .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="container">
+            <h1><i class="fas fa-shopping-bag me-3"></i>My Orders</h1>
+            <p class="mb-0">View and track your order history</p>
+        </div>
+    </div>
+
+    <div class="container mb-5">
+        <div class="row mb-3">
+            <div class="col">
+                <a href="index.html" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Home
+                </a>
+            </div>
+        </div>
+
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading your orders...</p>
+        </div>
+
+        <div id="ordersContainer" style="display: none;">
+            <!-- Orders will be populated here -->
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <i class="fas fa-box-open"></i>
+            <h3>No Orders Yet</h3>
+            <p>You haven't placed any orders yet. Start shopping to see your orders here!</p>
+            <a href="index.html" class="btn btn-primary btn-lg">
+                <i class="fas fa-shopping-bag me-2"></i>Start Shopping
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://chammyflorals.vercel.app';
+        async function loadOrders() {
+            const token = localStorage.getItem('auth_token');
+            
+            if (!token) {
+                // Not logged in - redirect to login
+                window.location.href = 'customer-login.html?return=' + encodeURIComponent(window.location.pathname);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/orders`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    // Token expired or invalid
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('customer');
+                    window.location.href = 'customer-login.html?return=' + encodeURIComponent(window.location.pathname);
+                    return;
+                }
+
+                const data = await response.json();
+
+                document.getElementById('loadingSpinner').style.display = 'none';
+
+                if (!data.orders || data.orders.length === 0) {
+                    document.getElementById('emptyState').style.display = 'block';
+                    return;
+                }
+
+                // Display orders
+                const container = document.getElementById('ordersContainer');
+                container.style.display = 'block';
+                
+                container.innerHTML = data.orders.map(order => `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <div class="order-id">Order #${order.order_id}</div>
+                                <div class="order-date">
+                                    <i class="far fa-calendar me-1"></i>
+                                    ${new Date(order.created_at).toLocaleDateString('en-US', { 
+                                        year: 'numeric', 
+                                        month: 'long', 
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </div>
+                            </div>
+                            <span class="status-badge status-${order.status || 'Pending'}">
+                                ${order.status || 'Pending'}
+                            </span>
+                        </div>
+                        
+                        <div class="order-details">
+                            ${order.items && Array.isArray(order.items) ? 
+                                order.items.map(item => `
+                                    <div class="order-details-row">
+                                        <span class="order-label">${item.flower_type}</span>
+                                        <span class="order-value">Qty: ${item.quantity}</span>
+                                    </div>
+                                `).join('') : 
+                                `<div class="order-details-row">
+                                    <span class="order-label">${order.flower_type}</span>
+                                    <span class="order-value">Qty: ${order.quantity}</span>
+                                </div>`
+                            }
+                            
+                            ${order.addons && order.addons.length > 0 ? `
+                                <div class="order-details-row">
+                                    <span class="order-label">Add-ons</span>
+                                    <span class="order-value">${order.addons.join(', ')}</span>
+                                </div>
+                            ` : ''}
+                            
+                            ${order.rush === 'yes' ? `
+                                <div class="order-details-row">
+                                    <span class="order-label">Rush Order</span>
+                                    <span class="order-value text-danger">
+                                        <i class="fas fa-bolt"></i> Yes
+                                    </span>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="order-details-row">
+                                <span class="order-label">Total Amount</span>
+                                <span class="order-total">₱${order.total_fee ? order.total_fee.toFixed(2) : '0.00'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="order-actions">
+                            ${order.status !== 'Delivered' && order.status !== 'Cancelled' ? `
+                                <button class="btn btn-primary btn-action" onclick="openChat('${order.order_id}')">
+                                    <i class="fas fa-comments me-1"></i>Chat with Seller
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-outline-secondary btn-action" onclick="reorder('${order.id}')">
+                                <i class="fas fa-redo me-1"></i>Order Again
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('ordersContainer').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load orders. Please try again later.
+                    </div>
+                `;
+                document.getElementById('ordersContainer').style.display = 'block';
+            }
+        }
+
+        function openChat(orderId) {
+            // Store order ID and redirect to home page where chat opens
+            localStorage.setItem('openChatForOrder', orderId);
+            window.location.href = 'index.html';
+        }
+
+        function reorder(orderId) {
+            // TODO: Implement reorder functionality
+            alert('Reorder feature coming soon!');
+        }
+
+        // Load orders on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadOrders();
+        });
+    </script>
+      <link rel="stylesheet" href="/css/notify-prompt.css">
+      <script src="/js/notify-prompt.js"></script>
+</body>
+</html>
