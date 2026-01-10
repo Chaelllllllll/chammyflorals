@@ -14,10 +14,8 @@
       const isLocal = typeof location !== 'undefined' && (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port === '3000');
       const base = isLocal ? 'http://localhost:3000' : '';
       const res = await fetch(base + '/api/push/public-key');
-      console.log('fetchPublicKey: status', res.status);
       if (!res.ok) return null;
       const j = await res.json().catch(() => null);
-      console.log('fetchPublicKey: body', j);
       return j && j.publicKey ? j.publicKey : null;
     } catch (e) {
       return null;
@@ -35,10 +33,6 @@
         url = (isLocal ? 'http://localhost:3000' : '') + url;
       }
       const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
-      try {
-        const bodyParsed = await res.clone().json().catch(() => null);
-        console.log('postJSON response:', { url, status: res.status, body: bodyParsed });
-      } catch (e) {}
       if (!res.ok) {
         try { const txt = await res.text(); console.warn('postJSON non-ok response:', res.status, txt); } catch (e) {}
       }
@@ -57,12 +51,8 @@
         email: customer.email || null,
         phone: customer.phone || null
       };
-      console.log('Sending subscription to server...', body);
       const res = await postJSON('/api/push/register', body);
-      try {
-        const j = await res.clone().json().catch(() => null);
-        console.log('push/register response parsed:', res.status, j);
-      } catch (e) { console.warn('error parsing push/register response', e); }
+      // intentionally quiet in production; successful registration handled by server
       return res.ok;
     } catch (e) {
       return false;
@@ -82,7 +72,6 @@
   async function registerServiceWorkerAndSubscribe() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
     try {
-      console.log('registerServiceWorkerAndSubscribe: ensuring service worker ready...');
       // Register the service worker first
       const reg = await navigator.serviceWorker.register('/sw.js');
 
@@ -90,7 +79,6 @@
       if (reg.waiting) {
         try {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          console.log('Posted SKIP_WAITING to waiting service worker');
 
           // Wait for the new worker to take control via controllerchange
           await new Promise((resolve) => {
@@ -129,7 +117,6 @@
       // Wait either for ready() or the activation message, whichever comes first
       await Promise.race([navigator.serviceWorker.ready, activationPromise]);
       const registration = await navigator.serviceWorker.getRegistration();
-      console.log('Service worker ready/activated; registration:', registration);
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
         const publicKey = await fetchPublicKey();
@@ -149,7 +136,7 @@
             applicationServerKey: urlBase64ToUint8Array(publicKey)
           });
         }
-        console.log('Subscription created:', subscription && (subscription.endpoint || (subscription.toJSON && subscription.toJSON().endpoint)));
+        
       }
       // Try to send subscription to server with retries. If server doesn't record it,
       // attempt to unsubscribe/resubscribe a few times before showing instructions.
@@ -296,7 +283,7 @@
             if (!localStorage.getItem('push_subscribed')) {
               await registerServiceWorkerAndSubscribe();
             } else {
-              console.log('push_subscribed already set, skipping subscribe helper');
+              
             }
           } catch (e) {
             console.warn('Enable flow: final subscribe helper failed', e);
@@ -323,7 +310,6 @@
     // Pre-register service worker early so it's active before permission prompt.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('Service Worker pre-registered to avoid permission/subscribe race.');
       }).catch(err => {
         console.warn('Service Worker pre-register failed:', err);
       });
@@ -334,12 +320,10 @@
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           try {
             if (window.__chammy_waiting_for_controller) {
-              console.log('controllerchange fired but subscribe flow is waiting; skipping reload');
               return;
             }
             if (!window.__sw_reloaded) {
               window.__sw_reloaded = true;
-              console.log('Service worker controller changed — reloading page to ensure active worker');
               window.location.reload();
             }
           } catch (e) { console.warn('controllerchange handler error', e); }
@@ -369,7 +353,6 @@
           checks++;
           if (Notification.permission === 'granted') {
             clearInterval(watcher);
-            console.log('Permission changed to granted — initiating subscribe flow');
             try { await registerServiceWorkerAndSubscribe(); } catch (e) { console.warn('permission-watcher subscribe error', e); }
           } else if (checks >= maxChecks) {
             clearInterval(watcher);

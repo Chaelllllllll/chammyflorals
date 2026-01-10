@@ -1910,13 +1910,35 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
     }
     // Notify the customer via push (if they have a registered token)
     try {
-      const { data: tokens } = await supabase
-        .from('push_subscriptions')
-        .select('subscription,endpoint')
-        .eq('user_id', customer_id)
-        .eq('user_type', 'customer')
-        .not('subscription', 'is', null)
-        .limit(50);
+      // Attempt to match subscriptions by user_id first. If none found (e.g., anonymous subscription),
+      // also try to match by the customer's email (anonymous subscribers may have provided an email).
+      let custEmail = null;
+      try {
+        const { data: c, error: cErr } = await supabase.from('customers').select('email').eq('id', customer_id).limit(1).single();
+        if (!cErr && c && c.email) custEmail = String(c.email).trim();
+      } catch (e) {}
+
+      let query = supabase.from('push_subscriptions').select('subscription,endpoint').eq('user_type', 'customer').not('subscription', 'is', null).limit(50);
+
+      // Prefer direct user_id match
+      if (customer_id) query = query.eq('user_id', customer_id);
+
+      let { data: tokens } = await query;
+
+      // If no tokens found by user_id, and we have a customer email, try matching by email
+      if ((!tokens || tokens.length === 0) && custEmail) {
+        try {
+          const q2 = await supabase.from('push_subscriptions')
+            .select('subscription,endpoint')
+            .eq('user_type', 'customer')
+            .eq('email', custEmail)
+            .not('subscription', 'is', null)
+            .limit(50);
+          tokens = q2.data || [];
+        } catch (e) {
+          tokens = [];
+        }
+      }
 
       if (tokens && tokens.length) {
         const messages = tokens
@@ -2012,10 +2034,7 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
         return res.status(500).json({ error: 'Failed to register push subscription' });
       }
 
-      // Debug: log successful upsert result so local dev servers show what's stored
-      try {
-        console.log('push/register saved:', { table: 'push_subscriptions', payload, data });
-      } catch (e) {}
+      // upsert complete
 
       res.json({ ok: true, data: data && data[0] ? data[0] : null });
     } catch (err) {

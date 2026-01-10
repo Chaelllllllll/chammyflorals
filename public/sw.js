@@ -31,18 +31,15 @@ function promiseTimeout(p, ms, fallback) {
 }
 
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
   event.waitUntil(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
-      console.log('Service Worker: Caching files (individual add)');
       for (const url of urlsToCache) {
         try {
           // Use fetchWithTimeout + cache.put so a single slow/failed request doesn't hang install
           const resp = await fetchWithTimeout(url, { cache: 'no-store' }, 3000);
           if (resp && resp.ok) {
             await cache.put(url, resp.clone());
-            console.log('Cached:', url);
           } else {
             console.warn('Service Worker: fetch for caching returned non-ok', url, resp && resp.status);
           }
@@ -50,60 +47,41 @@ self.addEventListener('install', (event) => {
           console.warn('Service Worker: failed to fetch/cache', url, err && err.message ? err.message : err);
         }
       }
-      // Ensure the new worker activates promptly. Await skipWaiting with a
-      // short timeout fallback so install doesn't hang if skipWaiting stalls.
-      try {
-        await promiseTimeout(self.skipWaiting(), 2000, null);
-      } catch (e) {
-        console.warn('skipWaiting failed or timed out', e);
-      }
+      // Attempt to activate new worker without blocking install
+      try { self.skipWaiting(); } catch (e) {}
     })()
   );
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
   event.waitUntil((async () => {
-    console.log('Activate: begin');
     try {
-      console.log('Activate: listing caches');
       const cacheNames = await caches.keys();
-      console.log('Activate: found caches', cacheNames);
       await Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Clearing old cache', cacheName);
             return caches.delete(cacheName);
           }
           return Promise.resolve();
         })
       );
-      console.log('Activate: cache cleanup complete');
     } catch (e) {
       console.warn('Error clearing caches during activate', e && e.message ? e.message : e);
     }
-
     try {
-      console.log('Activate: calling clients.claim()');
       await clients.claim();
-      console.log('Activate: clients.claim() resolved');
       // Notify controlled clients that activation is complete so they can proceed
       try {
-        console.log('Activate: matching clients to notify');
         const allClients = await clients.matchAll({ includeUncontrolled: true });
-        console.log('Activate: matched clients count', allClients && allClients.length);
         for (const c of allClients) {
-          try { c.postMessage({ type: 'ACTIVATED' }); } catch (e) { console.warn('postMessage to client failed', e); }
+          try { c.postMessage({ type: 'ACTIVATED' }); } catch (e) {}
         }
-        console.log('Activate: posted ACTIVATED to clients');
       } catch (e) {
         console.warn('failed to post activation message to clients', e && e.message ? e.message : e);
       }
     } catch (e) {
       console.warn('clients.claim failed', e && e.message ? e.message : e);
     }
-
-    console.log('Activate: end');
   })());
 });
 
@@ -112,7 +90,6 @@ self.addEventListener('message', (event) => {
   try {
     const d = event.data || {};
     if (d && d.type === 'SKIP_WAITING') {
-      console.log('Service Worker received SKIP_WAITING message');
       self.skipWaiting();
     }
   } catch (e) {}
@@ -146,7 +123,6 @@ self.addEventListener('fetch', (event) => {
 
 // Handle push notifications
 self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
   
   let data = {
     title: 'Chammy Florals',
@@ -186,7 +162,7 @@ self.addEventListener('push', (event) => {
 
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
-  console.log('Notification clicked:', event);
+  
   event.notification.close();
 
   if (event.action === 'close') {
@@ -214,7 +190,7 @@ self.addEventListener('notificationclick', (event) => {
 
 // Background sync for offline message sending
 self.addEventListener('sync', (event) => {
-  console.log('Background sync:', event);
+  
   if (event.tag === 'sync-messages') {
     event.waitUntil(syncMessages());
   }
@@ -222,5 +198,5 @@ self.addEventListener('sync', (event) => {
 
 async function syncMessages() {
   // Sync any pending messages when back online
-  console.log('Syncing messages...');
+  
 }

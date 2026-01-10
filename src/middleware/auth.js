@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const path = require('path');
 const supabase = require('../config/supabase');
 const { getSession } = require('../lib/sessionStore');
 
@@ -13,12 +14,23 @@ function safeEqual(a, b) {
   }
 }
 
+function sendUnauthorized(req, res, message) {
+  const msg = message || 'Unauthorized';
+  if ((req.path && req.path.startsWith('/api')) || (req.headers && req.headers.accept && req.headers.accept.indexOf('application/json') !== -1)) {
+    return res.status(401).json({ error: msg });
+  }
+  try {
+    const p = path.resolve(__dirname, '..', '..', 'public', '401.html');
+    return res.status(401).sendFile(p);
+  } catch (e) {
+    return res.status(401).json({ error: msg });
+  }
+}
+
 module.exports = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  console.log('Auth middleware - Authorization header present:', !!authHeader);
   // If Passport has already populated `req.user` (cookie/session auth), accept it.
   if (req.user && req.user.id) {
-    console.log('Auth middleware - Detected passport session user');
     req.admin = { id: req.user.id, email: req.user.email };
     return next();
   }
@@ -27,8 +39,6 @@ module.exports = async (req, res, next) => {
   if (req.session && req.session.passport && req.session.passport.user) {
     try {
       const stored = req.session.passport.user;
-      console.log('Auth middleware - Detected session passport user:', typeof stored === 'string' ? 'id' : 'object');
-      // If stored value is an object with id, use that; otherwise use as id
       if (stored && typeof stored === 'object' && stored.id) {
         req.admin = { id: stored.id, email: stored.email };
       } else {
@@ -36,11 +46,11 @@ module.exports = async (req, res, next) => {
       }
       return next();
     } catch (e) {
-      console.warn('Auth middleware - passport session handling failed:', e && e.message ? e.message : e);
+      // fallthrough
     }
   }
 
-  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+  if (!authHeader) return sendUnauthorized(req, res, 'No token provided');
 
   const token = authHeader.replace('Bearer ', '');
   const tokenStr = String(token || '').trim();
@@ -79,7 +89,7 @@ module.exports = async (req, res, next) => {
       }
     }
   } catch (e) {
-    console.warn('Auth middleware in-memory session check failed (fallthrough):', e && e.message ? e.message : e);
+    // fallthrough
   }
 
   // 2) Try session token lookup in DB (short-lived, random token)
@@ -93,55 +103,45 @@ module.exports = async (req, res, next) => {
       }
     }
   } catch (e) {
-    console.warn('Auth middleware session-token DB check failed (fallthrough):', e && e.message ? e.message : e);
+    // fallthrough
   }
 
   // 2) Fallback: legacy base64 email:password token parsing
   let decoded = '';
-  console.log('Auth middleware - Trying base64 decode');
   try { decoded = Buffer.from(String(tokenStr), 'base64').toString(); } catch (e) { 
-    console.error('Auth middleware - Base64 decode failed:', e.message);
-    return res.status(401).json({ error: 'Invalid token' }); 
+    return sendUnauthorized(req, res, 'Invalid token'); 
   }
   const [email, password] = decoded.split(':');
-  console.log('Auth middleware - Decoded email:', email ? 'present' : 'missing');
   if (!email || !password) {
-    console.error('Auth middleware - Email or password missing from token');
-    return res.status(401).json({ error: 'Invalid token' });
+    return sendUnauthorized(req, res, 'Invalid token');
   }
 
   // Normalize email for comparisons
   const normEmail = String(email).trim().toLowerCase();
   const normEnvEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  console.log('Auth middleware - Checking env credentials');
   // First try legacy env-based check for compatibility
   if (safeEqual(normEmail, normEnvEmail) && safeEqual(password, process.env.ADMIN_PASSWORD)) {
-    console.log('Auth middleware - Env auth successful');
     req.admin = { email: normEmail, id: 'env-admin' };
     return next();
   }
 
   // Otherwise try to validate against admins table password_hash
-  console.log('Auth middleware - Checking DB credentials');
+  // Check DB credentials
   try {
     const { data: adminRow, error } = await supabase.from('admins').select('password_hash,email').eq('email', normEmail).limit(1).single();
     if (error || !adminRow || !adminRow.password_hash) {
-      console.error('Auth middleware - DB lookup failed:', error?.message || 'No admin row found');
-      return res.status(401).json({ error: 'Invalid token' });
+      return sendUnauthorized(req, res, 'Invalid token');
     }
     const parts = String(adminRow.password_hash).split('$');
     if (parts.length !== 2) {
-      console.error('Auth middleware - Invalid password hash format');
-      return res.status(401).json({ error: 'Invalid token' });
+      return sendUnauthorized(req, res, 'Invalid token');
     }
     const salt = parts[0];
     const stored = parts[1];
     const derived = crypto.scryptSync(String(password), String(salt), 64).toString('hex');
     if (!safeEqual(derived, stored)) {
-      console.error('Auth middleware - Password verification failed');
-      return res.status(401).json({ error: 'Invalid token' });
+      return sendUnauthorized(req, res, 'Invalid token');
     }
-    console.log('Auth middleware - DB auth successful');
     req.admin = { id: adminRow.id, email: adminRow.email };
     return next();
   } catch (err) {

@@ -292,13 +292,26 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler - Must be after all routes
+const path = require('path');
 app.use((req, res) => {
   console.log('404 Not Found:', req.method, req.url);
-  res.status(404).json({ 
-    error: 'Not Found',
-    path: req.url,
-    message: 'The requested resource does not exist'
-  });
+  // If this is an API request, return JSON
+  if (req.path && req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not Found', path: req.url, message: 'The requested resource does not exist' });
+  }
+
+  // Honour Accept header for HTML clients
+  if (req.headers && req.headers.accept && req.headers.accept.indexOf('text/html') !== -1) {
+    try {
+      const p = path.resolve(__dirname, '..', 'public', '404.html');
+      return res.status(404).sendFile(p);
+    } catch (e) {
+      return res.status(404).send('404 Not Found');
+    }
+  }
+
+  // Default to JSON
+  return res.status(404).json({ error: 'Not Found', path: req.url, message: 'The requested resource does not exist' });
 });
 
 // 🚀 Instead of app.listen, export the app for Vercel to handle
