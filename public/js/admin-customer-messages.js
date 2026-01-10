@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         hour: 'numeric',
         minute: '2-digit'
       });
-      const senderName = isSeller ? 'You (Seller)' : msg.customers?.name || 'Customer';
+      const senderName = isSeller ? 'Chammy Florals' : msg.customers?.name || 'Customer';
       const avatarIcon = isSeller ? '<i class="fa fa-store"></i>' : '<i class="fa fa-user"></i>';
 
       // Product card (customer inquiry)
