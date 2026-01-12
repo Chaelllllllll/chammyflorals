@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://chammyflorals.vercel.app/</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/index.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/customer-login.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/customer-signup.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/dashboard.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/reviews.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/terms-and-conditions.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/verify-email.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/reset-password.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/order-success.html</loc>
+  </url>
+  <url>
+    <loc>https://chammyflorals.vercel.app/auth-success.html</loc>
+  </url>
+</urlset>
