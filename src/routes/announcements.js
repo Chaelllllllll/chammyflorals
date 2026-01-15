@@ -284,14 +284,55 @@ router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) =
 router.delete('/:id', authenticateAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        
+        // fetch announcement so we can remove any stored image
+        const { data: found, error: fetchErr } = await supabase
+            .from('announcements')
+            .select('id,image_url')
+            .eq('id', id)
+            .single();
+        if (fetchErr || !found) return res.status(404).json({ error: 'Announcement not found' });
+
+        // attempt to remove storage object if image_url present
+        if (found.image_url) {
+            try {
+                // parse bucket and file name from Supabase public URL
+                let bucket = 'announcements';
+                let fileName = null;
+                try {
+                    const u = new URL(found.image_url);
+                    const idx = u.pathname.indexOf('/storage/v1/object/public/');
+                    if (idx >= 0) {
+                        const after = u.pathname.slice(idx + '/storage/v1/object/public/'.length);
+                        const parts = after.split('/');
+                        if (parts && parts.length) {
+                            bucket = parts[0] || bucket;
+                            fileName = parts.slice(1).join('/');
+                        }
+                    } else {
+                        // fallback: take last path segment
+                        const segs = u.pathname.split('/').filter(Boolean);
+                        fileName = segs[segs.length-1];
+                    }
+                } catch (pe) { console.warn('Failed parsing image_url for announcement:', pe); }
+
+                if (fileName) {
+                    try {
+                        const { error: remErr } = await supabase.storage.from(bucket).remove([fileName]);
+                        if (remErr) console.warn('Failed removing announcement image from storage:', remErr);
+                        else console.log('Removed announcement image from storage:', bucket, fileName);
+                    } catch (re) { console.warn('Exception removing announcement image from storage:', re); }
+                }
+            } catch (e) { console.warn('Announcement image removal error:', e); }
+        }
+
+        // delete DB row
         const { error } = await supabase
             .from('announcements')
             .delete()
             .eq('id', id);
-        
+
         if (error) throw error;
-        
+
         res.json({ message: 'Announcement deleted successfully' });
     } catch (error) {
         console.error('Error deleting announcement:', error);

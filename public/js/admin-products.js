@@ -14,6 +14,7 @@ async function loadProducts() {
   const products = await fetchJSON('/api/admin/products');
     const tbody = document.getElementById('productsTbody');
     window._adminProducts = products || [];
+    console.log('Admin: loaded products count=', (window._adminProducts||[]).length, 'sample images=', (window._adminProducts[0] && window._adminProducts[0].images) || null);
     // populate category lists from products + stored categories, then render
     populateCategoryOptions(window._adminProducts);
   applyProductFilters();
@@ -361,6 +362,13 @@ function applyProductFilters() {
       <td class="text-start">${escapeHtml(p.name)}<div class="small text-muted">${escapeHtml(p.description || '')}</div></td>
       <td>${escapeHtml(p.category || '')}</td>
       <td>${renderColorsSmall(p)}</td>
+      <td style="width:90px;">
+        <div class="d-flex gap-2 justify-content-center">
+          <button class="btn btn-sm btn-outline-secondary gallery-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Gallery">
+            <i class="fa fa-images"></i>
+          </button>
+        </div>
+      </td>
       <td>
         <div class="d-flex gap-2 justify-content-center">
           <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Edit">
@@ -375,6 +383,12 @@ function applyProductFilters() {
   `).join('');
   document.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', onEdit));
   document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e)=> showDeleteModal(e.currentTarget.dataset.id)));
+  // wire gallery buttons
+  document.querySelectorAll('.gallery-btn').forEach(b => b.addEventListener('click', (e) => {
+    const id = e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id;
+    if (!id) return;
+    openGalleryModal(id);
+  }));
 }
 
 // hook up search / filters
@@ -411,6 +425,166 @@ function renderPricingSmall(p) {
   return '<span class="text-muted">No pricing</span>';
 }
 
+// --- Gallery Manager (per-product) ---
+window._galleryManager_currentId = null;
+window._galleryManager_images = [];
+window._galleryManager_paths = [];
+window._galleryManager_newFiles = [];
+
+function renderGalleryManagerList() {
+  const list = document.getElementById('galleryManagerList');
+  if (!list) return;
+  list.innerHTML = '';
+  (window._galleryManager_images || []).forEach((url, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'position-relative';
+    wrap.style.width = '140px';
+    wrap.style.height = '100px';
+    wrap.style.flex = '0 0 auto';
+    wrap.innerHTML = `
+      <img src="${escapeHtml(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #eee; cursor:pointer;">
+      <button type="button" class="btn btn-sm btn-danger position-absolute" title="Remove" style="top:6px;right:6px;padding:4px 6px;">✕</button>
+    `;
+    const imgEl = wrap.querySelector('img');
+    imgEl.addEventListener('click', () => {
+      // mark this as primary by moving to front
+      try { window._galleryManager_images.splice(0,0, window._galleryManager_images.splice(idx,1)[0]);
+        if (window._galleryManager_paths && window._galleryManager_paths.length) {
+          window._galleryManager_paths.splice(0,0, window._galleryManager_paths.splice(idx,1)[0]);
+        }
+        renderGalleryManagerList();
+      } catch (e) {}
+    });
+    wrap.querySelector('button').addEventListener('click', async () => {
+      // remove image (and corresponding path) - perform server-side delete if possible
+      try {
+        const prodId = window._galleryManager_currentId;
+        const imgUrl = window._galleryManager_images[idx];
+        const imgPath = (window._galleryManager_paths && window._galleryManager_paths.length) ? window._galleryManager_paths[idx] : null;
+        let serverDeleted = false;
+        if (prodId && (imgPath || imgUrl)) {
+          try {
+            await fetchJSON(`/api/admin/products/${prodId}/gallery`, { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ path: imgPath, url: imgUrl }) });
+            serverDeleted = true;
+            showToast('Image removed from storage', 'success');
+          } catch (err) {
+            console.error('Server-side gallery delete failed', err);
+            showToast('Failed to remove from storage', 'danger');
+          }
+        } else {
+          // no product id or path/url provided, treat as local-only and allow removal
+          serverDeleted = true;
+        }
+
+        // Only update local UI if server deletion succeeded (or we had no server target)
+        if (serverDeleted) {
+          window._galleryManager_images.splice(idx,1);
+          if (window._galleryManager_paths && window._galleryManager_paths.length) window._galleryManager_paths.splice(idx,1);
+        }
+      } catch (e) { console.error('Failed to remove image locally', e); showToast('Failed to remove image', 'danger'); }
+      renderGalleryManagerList();
+    });
+    list.appendChild(wrap);
+  });
+  // show previews for new files (not yet uploaded)
+  (window._galleryManager_newFiles || []).forEach((f, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'position-relative';
+    wrap.style.width = '140px';
+    wrap.style.height = '100px';
+    wrap.style.flex = '0 0 auto';
+    const url = URL.createObjectURL(f);
+    wrap.innerHTML = `
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #eee;">
+      <button type="button" class="btn btn-sm btn-danger position-absolute" title="Remove" style="top:6px;right:6px;padding:4px 6px;">✕</button>
+    `;
+    wrap.querySelector('button').addEventListener('click', () => {
+      window._galleryManager_newFiles.splice(idx,1);
+      renderGalleryManagerList();
+    });
+    list.appendChild(wrap);
+  });
+}
+
+function openGalleryModal(id) {
+  const p = (window._adminProducts || []).find(x => String(x.id) === String(id));
+  if (!p) return showToast('Product not found', 'danger');
+  console.log('Opening gallery modal for product id=', id, 'product.images=', p.images, 'product.images_paths=', p.images_paths);
+  window._galleryManager_currentId = id;
+  // If images are not present on the client product object, fetch fresh single-product data (cache-busted)
+  if (!p.images || !Array.isArray(p.images) || p.images.length === 0) {
+    (async () => {
+      try {
+        const res = await fetch(`/api/products/${encodeURIComponent(id)}?_=${Date.now()}`);
+        if (res && res.ok) {
+          const prod = await res.json();
+          window._galleryManager_images = Array.isArray(prod.images) ? prod.images.slice() : (prod.image_url ? [prod.image_url] : []);
+          window._galleryManager_paths = Array.isArray(prod.images_paths) ? prod.images_paths.slice() : [];
+        } else {
+          window._galleryManager_images = p.image_url ? [p.image_url] : [];
+          window._galleryManager_paths = [];
+        }
+      } catch (err) {
+        console.warn('Failed fetching single product for gallery fallback:', err);
+        window._galleryManager_images = p.image_url ? [p.image_url] : [];
+        window._galleryManager_paths = [];
+      }
+      window._galleryManager_newFiles = [];
+      renderGalleryManagerList();
+      new bootstrap.Modal(document.getElementById('galleryManagerModal')).show();
+    })();
+    return;
+  }
+  window._galleryManager_images = Array.isArray(p.images) ? p.images.slice() : (p.image_url ? [p.image_url] : []);
+  window._galleryManager_paths = Array.isArray(p.images_paths) ? p.images_paths.slice() : [];
+  window._galleryManager_newFiles = [];
+  renderGalleryManagerList();
+  // reset inputs
+  try { document.getElementById('galleryManagerFiles').value = ''; document.getElementById('galleryManagerUrl').value = ''; } catch (e) {}
+  new bootstrap.Modal(document.getElementById('galleryManagerModal')).show();
+}
+
+document.getElementById('galleryManagerFiles')?.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  window._galleryManager_newFiles = window._galleryManager_newFiles.concat(files);
+  renderGalleryManagerList();
+});
+
+document.getElementById('galleryManagerAddUrl')?.addEventListener('click', () => {
+  const v = (document.getElementById('galleryManagerUrl')?.value || '').trim();
+  if (!v) return;
+  window._galleryManager_images = window._galleryManager_images || [];
+  window._galleryManager_images.push(v);
+  document.getElementById('galleryManagerUrl').value = '';
+  renderGalleryManagerList();
+});
+
+document.getElementById('galleryManagerSaveBtn')?.addEventListener('click', async () => {
+  const id = window._galleryManager_currentId;
+  if (!id) return showToast('No product selected', 'danger');
+  try {
+    const images = Array.isArray(window._galleryManager_images) ? window._galleryManager_images.slice() : [];
+    const images_paths = Array.isArray(window._galleryManager_paths) ? window._galleryManager_paths.slice() : [];
+    // upload new files first
+    if (window._galleryManager_newFiles && window._galleryManager_newFiles.length) {
+      for (const f of window._galleryManager_newFiles) {
+        try {
+          const fd = new FormData(); fd.append('file', f);
+          const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
+          if (upl && upl.url) images.push(upl.url);
+          if (upl && upl.path) images_paths.push(upl.bucket ? `${upl.bucket}:${upl.path}` : upl.path);
+        } catch (err) { console.error('Gallery file upload failed', err); }
+      }
+    }
+    const payload = { images, images_paths };
+    await fetchJSON(`/api/admin/products/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    bootstrap.Modal.getInstance(document.getElementById('galleryManagerModal')).hide();
+    showToast('Gallery saved', 'success');
+    await loadProducts();
+  } catch (err) { console.error('Failed saving gallery', err); showError(err.error || err.message || 'Failed to save gallery'); }
+});
+
 function renderColorsSmall(p) {
   if (p.colors && Array.isArray(p.colors) && p.colors.length) {
     const colors = p.colors.slice(0,3).map(c => {
@@ -434,6 +608,14 @@ async function onEdit(e) {
     document.getElementById('productName').value = p.name;
   // productPrice input removed; no single price field to fill. Primary price will be derived from pricing rows.
     document.getElementById('productImageUrl').value = p.image_url || '';
+    // load gallery images (support legacy `images` or `gallery` array)
+    try {
+      window._galleryExisting = Array.isArray(p.images) ? p.images.slice() : (Array.isArray(p.gallery) ? p.gallery.slice() : []);
+      // ensure the primary image_url is included if gallery empty
+      if ((!window._galleryExisting || !window._galleryExisting.length) && p.image_url) window._galleryExisting = [p.image_url];
+    } catch (err) { window._galleryExisting = p.image_url ? [p.image_url] : []; }
+    window._galleryFiles = [];
+    renderGalleryPreview();
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
     // fill pricing and addons editors
@@ -478,6 +660,10 @@ document.getElementById('addProductBtn').addEventListener('click', () => {
   // clear pricing and addons editors
   try { fillPricingInForm([], [], []); } catch (e) { /* ignore */ }
   new bootstrap.Modal(document.getElementById('productModal')).show();
+  // clear gallery state for new product
+  window._galleryExisting = [];
+  window._galleryFiles = [];
+  renderGalleryPreview();
 });
 
 document.getElementById('logoutButton').addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
@@ -504,16 +690,40 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     if (pricing && pricing.length) payload.pricing = pricing;
     if (addons && addons.length) payload.addons = addons;
   if (colors && colors.length) payload.colors = colors;
-    if (file) {
-      // upload file via multipart endpoint to storage to avoid sending base64 in JSON
+    // handle gallery images: include existing gallery URLs + upload any new gallery files
+    const images = Array.isArray(window._galleryExisting) ? window._galleryExisting.slice() : [];
+    const images_paths = [];
+    // if admin provided a single imageUrl and it's not already present, include it
+    if (imageUrl && !images.includes(imageUrl)) images.unshift(imageUrl);
+
+    // upload gallery files if any and collect their public urls and storage paths
+    if (window._galleryFiles && window._galleryFiles.length) {
+      for (const gf of window._galleryFiles) {
+        try {
+          const fdg = new FormData();
+          fdg.append('file', gf);
+          const uplg = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fdg });
+          if (uplg && uplg.url) images.push(uplg.url);
+          if (uplg && uplg.path) images_paths.push(uplg.bucket ? `${uplg.bucket}:${uplg.path}` : uplg.path);
+        } catch (err) { console.error('Gallery upload failed for a file', err); }
+      }
+    }
+
+    // set primary image if single file selected for main image
+      if (file) {
       const fd = new FormData();
       fd.append('file', file);
-  const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
+      const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
       payload.image_url = upl.url;
-      payload.image_path = upl.path;
+      payload.image_path = upl.bucket ? `${upl.bucket}:${upl.path}` : upl.path;
+      // ensure primary image is at front of gallery list
+      try { if (payload.image_url && !images.includes(payload.image_url)) images.unshift(payload.image_url); } catch (e) {}
     } else if (imageUrl) {
       payload.image_url = imageUrl;
     }
+
+    if (images && images.length) payload.images = images;
+    if (images_paths && images_paths.length) payload.images_paths = images_paths;
 
     if (id) {
   await fetchJSON(`/api/admin/products/${id}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
@@ -525,6 +735,72 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     await loadProducts();
     showToast('Product saved', 'success');
   } catch (err) { showError(err.error || err.message || 'Failed to save product'); }
+});
+
+// --- Gallery client-side helpers ---
+window._galleryExisting = [];
+window._galleryFiles = [];
+function renderGalleryPreview() {
+  const container = document.getElementById('galleryPreview');
+  if (!container) return;
+  container.innerHTML = '';
+  // existing URLs
+  (window._galleryExisting || []).forEach((url, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'position-relative';
+    wrap.style.width = '120px';
+    wrap.style.height = '90px';
+    wrap.style.flex = '0 0 auto';
+    wrap.innerHTML = `
+      <img src="${escapeHtml(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #eee;" onerror="this.style.opacity=0.6;this.style.filter='grayscale(60%)';">
+      <button type="button" class="btn btn-sm btn-danger position-absolute" title="Remove" style="top:6px;right:6px;padding:4px 6px;">✕</button>
+    `;
+    wrap.querySelector('button').addEventListener('click', () => {
+      window._galleryExisting.splice(idx,1);
+      renderGalleryPreview();
+    });
+    container.appendChild(wrap);
+  });
+  // new files
+  (window._galleryFiles || []).forEach((f, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'position-relative';
+    wrap.style.width = '120px';
+    wrap.style.height = '90px';
+    wrap.style.flex = '0 0 auto';
+    const url = URL.createObjectURL(f);
+    wrap.innerHTML = `
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid #eee;">
+      <button type="button" class="btn btn-sm btn-danger position-absolute" title="Remove" style="top:6px;right:6px;padding:4px 6px;">✕</button>
+    `;
+    wrap.querySelector('button').addEventListener('click', () => {
+      window._galleryFiles.splice(idx,1);
+      renderGalleryPreview();
+    });
+    container.appendChild(wrap);
+  });
+}
+
+// wire gallery inputs
+document.getElementById('productGalleryFiles')?.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  window._galleryFiles = window._galleryFiles.concat(files);
+  renderGalleryPreview();
+});
+document.getElementById('addGalleryUrlBtn')?.addEventListener('click', () => {
+  const v = (document.getElementById('productGalleryUrl')?.value || '').trim();
+  if (!v) return;
+  window._galleryExisting = window._galleryExisting || [];
+  if (!window._galleryExisting.includes(v)) window._galleryExisting.push(v);
+  document.getElementById('productGalleryUrl').value = '';
+  renderGalleryPreview();
+});
+document.getElementById('clearGalleryBtn')?.addEventListener('click', () => {
+  window._galleryExisting = [];
+  window._galleryFiles = [];
+  try { document.getElementById('productGalleryFiles').value = ''; } catch (e) {}
+  renderGalleryPreview();
 });
 
 function toBase64(file) {

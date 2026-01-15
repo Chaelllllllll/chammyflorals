@@ -218,6 +218,33 @@ document.addEventListener('DOMContentLoaded', () => {
     titleEl.textContent = product.name || 'Product';
 
     // build pricing tables if present
+    // build gallery (if images array present) and then pricing/html
+    let galleryHtml = '';
+    try {
+      const imgs = Array.isArray(product.images) ? product.images : (product.gallery && Array.isArray(product.gallery) ? product.gallery : []);
+      const mainImg = product.image_url || '';
+      const allImgs = imgs && imgs.length ? imgs.slice() : (mainImg ? [mainImg] : []);
+      if (allImgs && allImgs.length) {
+        const carouselId = `productGalleryCarousel-${String(product.id).replace(/[^a-zA-Z0-9]/g,'')}`;
+        const indicators = allImgs.map((u,i)=> `<button type="button" data-bs-target="#${carouselId}" data-bs-slide-to="${i}" ${i===0? 'class="active" aria-current="true"':''} aria-label="Slide ${i+1}"></button>`).join('');
+        const items = allImgs.map((u,i)=> `
+          <div class="carousel-item ${i===0? 'active':''}">
+            <img src="${escapeHtml(u)}" class="d-block w-100" style="height:320px;object-fit:cover;border-radius:8px;" onerror="this.style.opacity=0.6;this.style.filter='grayscale(60%)';">
+          </div>
+        `).join('');
+        galleryHtml = `
+          <div class="mb-4">
+            <div id="${carouselId}" class="carousel slide" data-bs-ride="false">
+              <div class="carousel-inner">${items}</div>
+              <div class="carousel-indicators mt-2">${indicators}</div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#${carouselId}" data-bs-slide="prev"><span class="carousel-control-prev-icon" aria-hidden="true"></span><span class="visually-hidden">Previous</span></button>
+              <button class="carousel-control-next" type="button" data-bs-target="#${carouselId}" data-bs-slide="next"><span class="carousel-control-next-icon" aria-hidden="true"></span><span class="visually-hidden">Next</span></button>
+            </div>
+          </div>
+        `;
+      }
+    } catch (err) { galleryHtml = ''; }
+
     let html = '';
     if (product.pricing && Array.isArray(product.pricing) && product.pricing.length) {
       html += `
@@ -330,7 +357,42 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    bodyEl.innerHTML = html;
+    // Insert gallery first (if present) then the rest of the content
+    bodyEl.innerHTML = (galleryHtml || '') + html;
+
+    // Wire click on any gallery image to open a full-view modal
+    try {
+      const imgs = modalEl.querySelectorAll('.carousel-item img');
+      imgs.forEach(img => {
+        img.style.cursor = 'zoom-in';
+        img.addEventListener('click', (e) => {
+          const src = e.currentTarget && e.currentTarget.src ? e.currentTarget.src : null;
+          if (!src) return;
+          // create full-image modal
+          const fullId = `productImageFullModal-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+          const full = document.createElement('div');
+          full.className = 'modal fade';
+          full.id = fullId;
+          full.tabIndex = -1;
+          full.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+              <div class="modal-content bg-transparent border-0">
+                <div class="modal-body p-0 text-center" style="background:transparent">
+                  <img src="${escapeHtml(src)}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;" alt="">
+                </div>
+                <div class="modal-footer border-0 justify-content-center bg-transparent">
+                  <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(full);
+          const inst = new bootstrap.Modal(full, { backdrop: 'static', keyboard: false });
+          inst.show();
+          full.addEventListener('hidden.bs.modal', () => { try { full.remove(); } catch (e) {} }, { once: true });
+        });
+      });
+    } catch (e) { /* ignore if modal not present or bootstrap missing */ }
 
     // add a footer with an Order button and Ask Seller button
     let footer = modalEl.querySelector('.modal-footer');

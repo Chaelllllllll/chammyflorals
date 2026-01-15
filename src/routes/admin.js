@@ -15,6 +15,7 @@ const router = express.Router();
 const fs = require('fs');
 const messenger = require('../lib/messenger');
 const { setSession } = require('../lib/sessionStore');
+const { clearCache } = require('../middleware/cache');
 const path = require('path');
 const crypto = require('crypto');
 const speakeasy = require('speakeasy');
@@ -155,7 +156,7 @@ async function uploadBase64ToStorage(dataUrl) {
     throw uploadError;
   }
   const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-  return { publicUrl: data.publicUrl, path };
+  return { publicUrl: data.publicUrl, path, bucket: STORAGE_BUCKET };
 }
 
 // Rate limiting disabled for admin routes
@@ -784,7 +785,7 @@ router.get('/products', auth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,image_path,category,pricing,addons,colors,created_at')
+      .select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data || []);
@@ -1289,6 +1290,77 @@ router.delete('/reviews/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'ID is required' });
+
+    // fetch review to determine if there's an image to remove
+    const { data: found, error: fetchErr } = await supabase.from('reviews').select('id,order_id,name,image_url').eq('id', id).single();
+    if (fetchErr || !found) return res.status(404).json({ error: 'Review not found' });
+
+    // if image_url present, try to remove the storage object
+    if (found.image_url) {
+      console.log('Attempting to remove review image for review id=', id, 'order_id=', found.order_id);
+      try {
+        const tried = [];
+        const bucketEnv = process.env.SUPABASE_REVIEWS_BUCKET || 'reviews';
+        // parse url to extract bucket and path if possible
+        let parsedBucket = null;
+        let parsedPath = null;
+        let lastSegment = null;
+        try {
+          const u = new URL(found.image_url);
+          const idx = u.pathname.indexOf('/storage/v1/object/public/');
+          if (idx >= 0) {
+            const after = u.pathname.slice(idx + '/storage/v1/object/public/'.length);
+            const parts = after.split('/').filter(Boolean);
+            if (parts.length) {
+              parsedBucket = parts[0];
+              if (parts.length > 1) parsedPath = parts.slice(1).join('/');
+            }
+          }
+          const segs = u.pathname.split('/').filter(Boolean);
+          if (segs.length) lastSegment = segs[segs.length-1];
+        } catch (pe) { console.warn('Failed parsing review image_url:', pe); }
+
+        // candidate buckets to try (parsed, env)
+        const bucketCandidates = [];
+        if (parsedBucket) bucketCandidates.push(parsedBucket);
+        if (!bucketCandidates.includes(bucketEnv)) bucketCandidates.push(bucketEnv);
+
+        // candidate paths to try
+        const pathCandidates = [];
+        if (parsedPath) pathCandidates.push(parsedPath);
+        // if image stored under order_id/<filename>
+        if (found.order_id && lastSegment) pathCandidates.push(`${found.order_id}/${lastSegment}`);
+        if (lastSegment) pathCandidates.push(lastSegment);
+
+        console.log('Review image removal - bucketCandidates=', bucketCandidates, 'pathCandidates=', pathCandidates);
+
+        for (let bi = 0; bi < bucketCandidates.length; bi++) {
+          const b = bucketCandidates[bi];
+          for (let pi = 0; pi < pathCandidates.length; pi++) {
+            const p = pathCandidates[pi];
+            if (!b || !p) continue;
+            const key = `${b}:${p}`;
+            if (tried.includes(key)) continue;
+            tried.push(key);
+            try {
+              console.log('Trying to remove', p, 'from bucket', b);
+              const { error: remErr } = await supabase.storage.from(b).remove([p]);
+              if (!remErr) {
+                console.log('Successfully removed review image from storage:', b, p);
+                bi = bucketCandidates.length; // break outer
+                break;
+              } else {
+                console.warn('Removal attempt returned error for', b, p, remErr);
+              }
+            } catch (re) {
+              console.warn('Exception while removing', b, p, re && re.message ? re.message : re);
+            }
+          }
+        }
+        console.log('Finished storage removal attempts');
+      } catch (e) { console.warn('Error during review image removal attempts:', e && e.message ? e.message : e); }
+    }
+
     const { data, error } = await supabase.from('reviews').delete().eq('id', id).select('id,order_id,name');
     if (error) throw error;
     res.json({ message: 'Review deleted', review: data && data[0] ? data[0] : null });
@@ -1305,9 +1377,9 @@ router.delete('/reviews/:id', auth, async (req, res) => {
 // Create product
 router.post('/products', auth, async (req, res) => {
   try {
-    const { name, image_url, image_path, category, pricing, addons, colors } = req.body;
+    const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null };
+    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null, images: images || null, images_paths: images_paths || null };
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1326,7 +1398,7 @@ router.post('/products', auth, async (req, res) => {
   console.log('Admin: creating product with payload keys:', Object.keys(record));
   console.log('Admin: creating product record (preview):', JSON.stringify(record).slice(0,1000));
     try {
-  const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,created_at');
+    const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at');
       if (error) throw error;
       console.log('Admin: insert result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       
@@ -1361,7 +1433,10 @@ router.post('/products', auth, async (req, res) => {
           // Don't fail the product creation if notifications fail
         }
       }
-      
+
+      // Clear public product cache so storefront shows updated product immediately
+      try { clearCache('/api/products'); clearCache(`/api/products/${data[0].id}`); } catch (e) { console.warn('Failed to clear product cache:', e); }
+
       return res.json(data[0]);
     } catch (err) {
       console.error('Insert error, attempting minimal fallback:', err);
@@ -1386,6 +1461,7 @@ router.post('/products', auth, async (req, res) => {
 router.post('/products/upload', auth, upload.single('file'), async (req, res) => {
   try {
     console.log('Upload endpoint called. content-type:', req.headers['content-type']);
+    console.log('Using storage bucket:', STORAGE_BUCKET);
     const file = req.file;
     if (!file) {
       console.warn('No multipart file found in request. Checking for base64 payload in body...');
@@ -1423,7 +1499,8 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
       return res.status(500).json({ error: uploadError.message || 'Failed to upload file' });
     }
     const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    res.json({ url: data.publicUrl, path });
+    console.log('Upload successful. publicUrl:', data && data.publicUrl, 'path:', path);
+    res.json({ url: data.publicUrl, path, bucket: STORAGE_BUCKET });
   } catch (error) {
     console.error('Upload endpoint error:', error);
     res.status(500).json({ error: 'Failed to upload file' });
@@ -1434,7 +1511,7 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
 router.patch('/products/:id', auth, async (req, res) => {
   try {
   const { id } = req.params;
-  const { name, image_url, image_path, category, pricing, addons, colors } = req.body;
+  const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     
@@ -1444,6 +1521,8 @@ router.patch('/products/:id', auth, async (req, res) => {
     if (pricing !== undefined) updates.pricing = pricing;
     if (addons !== undefined) updates.addons = addons;
   if (colors !== undefined) updates.colors = colors;
+    if (images !== undefined) updates.images = images;
+    if (images_paths !== undefined) updates.images_paths = images_paths;
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1461,9 +1540,11 @@ router.patch('/products/:id', auth, async (req, res) => {
     try {
       console.log('Admin: updating product id=', id, 'updates keys:', Object.keys(updates));
       console.log('Admin: updates preview:', JSON.stringify(updates).slice(0,1000));
-      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,created_at');
+      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at');
       if (error) throw error;
       console.log('Admin: update result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
+      // Clear public product cache so storefront shows updated product immediately
+      try { clearCache('/api/products'); clearCache(`/api/products/${id}`); } catch (e) { console.warn('Failed to clear product cache:', e); }
       return res.json(data[0]);
     } catch (err) {
       console.error('Update error, attempting minimal fallback:', err);
@@ -1485,24 +1566,27 @@ router.patch('/products/:id', auth, async (req, res) => {
 
 // Delete product
 router.delete('/products/:id', auth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    // attempt to fetch the product to get image_path so we can delete the object from storage
-    const { data: found, error: fetchErr } = await supabase.from('products').select('*').eq('id', id).single();
+    try {
+      const { id } = req.params;
+      // attempt to fetch the product to get image_path and images_paths so we can delete the object(s) from storage
+      const { data: found, error: fetchErr } = await supabase.from('products').select('*').eq('id', id).single();
     if (fetchErr && fetchErr.code !== 'PGRST101') {
       console.error('Error fetching product before delete:', fetchErr);
     }
-    if (found && found.image_path) {
-      try {
-        await supabase.storage.from(STORAGE_BUCKET).remove([found.image_path]);
-      } catch (remErr) {
-        console.error('Failed to remove storage object:', remErr);
+    if (found) {
+      if (found.image_path) {
+        try { await supabase.storage.from(STORAGE_BUCKET).remove([found.image_path]); } catch (remErr) { console.error('Failed to remove storage object:', remErr); }
+      }
+      if (found.images_paths && Array.isArray(found.images_paths) && found.images_paths.length) {
+        try { await supabase.storage.from(STORAGE_BUCKET).remove(found.images_paths.filter(Boolean)); } catch (remErr) { console.error('Failed to remove gallery storage objects:', remErr); }
       }
     }
 
     try {
-      const { data, error } = await supabase.from('products').delete().eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,created_at');
+      const { data, error } = await supabase.from('products').delete().eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,images,images_paths,created_at');
       if (error) throw error;
+      // Clear public product cache so storefront no longer shows deleted product
+      try { clearCache('/api/products'); clearCache(`/api/products/${id}`); } catch (e) { console.warn('Failed to clear product cache:', e); }
       return res.json({ message: 'Product deleted', product: data[0] });
     } catch (err) {
       console.error('Delete error, attempting minimal fallback:', err);
@@ -1522,4 +1606,189 @@ router.delete('/products/:id', auth, async (req, res) => {
   }
 });
 
+// Delete a single gallery image for a product (remove from storage and update product row)
+router.delete('/products/:id/gallery', auth, async (req, res) => {
+  try {
+    console.log('Gallery delete called:', req.method, req.originalUrl, 'body keys:', Object.keys(req.body || {}));
+    const { id } = req.params;
+    const { path, url } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'Product id is required' });
+    if (!path && !url) return res.status(400).json({ error: 'path or url is required' });
+
+    // fetch current product
+    const { data: found, error: fetchErr } = await supabase.from('products').select('id,images,images_paths').eq('id', id).single();
+    if (fetchErr || !found) return res.status(404).json({ error: 'Product not found' });
+
+    console.log('Gallery delete - product found images count=', (found.images||[]).length, 'paths count=', (found.images_paths||[]).length);
+    console.log('Gallery delete - incoming path,url:', { path, url });
+
+    // attempt to remove storage object if path provided
+    if (path) {
+      // If path was saved with a bucket prefix like "bucket:products/abc.png", split it
+      let targetBucket = null;
+      let realPath = path;
+      if (typeof path === 'string' && path.includes(':')) {
+        const splitIdx = path.indexOf(':');
+        const maybeBucket = path.slice(0, splitIdx);
+        const maybePath = path.slice(splitIdx + 1);
+        if (maybeBucket && maybePath) {
+          targetBucket = maybeBucket;
+          realPath = maybePath;
+        }
+      }
+
+      // Helper to parse bucket name from a Supabase public URL
+      const parseBucketFromUrl = (u) => {
+        try {
+          const parsed = new URL(u);
+          const idx = parsed.pathname.indexOf('/storage/v1/object/public/');
+          if (idx >= 0) {
+            const after = parsed.pathname.slice(idx + '/storage/v1/object/public/'.length);
+            const parts = after.split('/');
+            if (parts && parts.length) return parts[0];
+          }
+        } catch (e) {}
+        return null;
+      };
+
+      const bucketsToTry = [];
+      if (targetBucket) bucketsToTry.push(targetBucket);
+      if (url) {
+        const b = parseBucketFromUrl(url);
+        if (b && !bucketsToTry.includes(b)) bucketsToTry.push(b);
+      }
+      if (!bucketsToTry.includes(STORAGE_BUCKET)) bucketsToTry.push(STORAGE_BUCKET);
+
+      for (const b of bucketsToTry) {
+        try {
+          const { error: remErr } = await supabase.storage.from(b).remove([realPath]);
+          if (!remErr) {
+            console.log('Removed storage object', realPath, 'from bucket', b);
+            break;
+          } else {
+            console.warn('Failed to remove storage object from bucket', b, remErr.message || remErr);
+          }
+        } catch (e) {
+          console.warn('Storage remove exception for bucket', b, e && e.message ? e.message : e);
+        }
+      }
+    }
+
+    // compute new arrays without the removed items
+    const imagesArr = Array.isArray(found.images) ? found.images.slice() : [];
+    const pathsArr = Array.isArray(found.images_paths) ? found.images_paths.slice() : [];
+
+    // determine canonical realPath for matching (strip bucket: prefix if present)
+    const canonicalRealPath = (p) => {
+      if (!p) return p;
+      if (typeof p !== 'string') return p;
+      if (p.includes(':')) return p.split(':').slice(1).join(':');
+      return p;
+    };
+    const targetRealPath = canonicalRealPath(path);
+
+    // Remove from images: match exact url, or any image url that contains the real path
+    let newImages = imagesArr.filter(i => {
+      if (!i) return false;
+      if (url && i === url) return false;
+      if (targetRealPath && String(i).includes(targetRealPath)) return false;
+      // also try decoded path
+      try { if (targetRealPath && decodeURIComponent(String(i)).includes(targetRealPath)) return false; } catch (e) {}
+      return true;
+    });
+
+    // Remove from paths: match exact stored string, or match by real path suffix
+    let newPaths = pathsArr.filter(p => {
+      if (!p) return false;
+      if (p === path) return false;
+      const pReal = canonicalRealPath(p);
+      if (targetRealPath && pReal === targetRealPath) return false;
+      if (targetRealPath && pReal && pReal.endsWith(targetRealPath)) return false;
+      return true;
+    });
+
+    console.log('Gallery delete - newImages count=', newImages.length, 'newPaths count=', newPaths.length);
+
+    // persist the updated arrays
+    const updates = {};
+    updates.images = newImages;
+    updates.images_paths = newPaths;
+
+    const { data: updated, error: updateErr } = await supabase.from('products').update(updates).eq('id', id).select('id,name,images,images_paths');
+    if (updateErr) {
+      console.error('Failed to update product after gallery delete:', updateErr);
+      return res.status(500).json({ error: 'Failed to update product' });
+    }
+
+    // clear cache for public products
+    try { clearCache('/api/products'); clearCache(`/api/products/${id}`); } catch (e) { console.warn('Failed to clear cache after gallery delete', e); }
+
+    return res.json({ ok: true, product: (updated && updated[0]) || null });
+  } catch (err) {
+    console.error('Error deleting gallery image:', err);
+    res.status(500).json({ error: 'Failed to delete gallery image' });
+  }
+});
+
 module.exports = router;
+
+// Admin-only endpoint to trigger reviews storage cleanup (optional dry-run)
+// POST /api/admin/reviews/cleanup { dryRun: true }
+// Note: this is exported after router to avoid interfering with route order in server.js
+router.post('/reviews/cleanup', auth, async (req, res) => {
+  try {
+    const dryRun = req.body && (req.body.dryRun === true || String(req.body.dryRun) === 'true');
+    const BUCKET = process.env.SUPABASE_REVIEWS_BUCKET || 'reviews';
+
+    // fetch order ids
+    const { data: rows, error: rowsErr } = await supabase.from('reviews').select('order_id');
+    if (rowsErr) throw rowsErr;
+    const orderIds = new Set((rows || []).map(r => String(r.order_id)).filter(Boolean));
+
+    // list files
+    const allFiles = [];
+    let limit = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supabase.storage.from(BUCKET).list('', { limit, offset });
+      if (error) throw error;
+      if (!data || !data.length) break;
+      data.forEach(d => { if (d && d.name) allFiles.push(d.name); });
+      if (data.length < limit) break;
+      offset += limit;
+    }
+
+    // group by top-level folder
+    const folders = new Map();
+    allFiles.forEach(n => {
+      const parts = String(n).split('/').filter(Boolean);
+      const folder = parts.length ? parts[0] : '';
+      if (!folders.has(folder)) folders.set(folder, []);
+      folders.get(folder).push(n);
+    });
+
+    const orphanFolders = [];
+    for (const [folder, files] of folders.entries()) {
+      if (!folder) continue;
+      if (!orderIds.has(folder)) orphanFolders.push({ folder, files });
+    }
+
+    if (dryRun) return res.json({ orphanFoldersCount: orphanFolders.length, orphanFolders });
+
+    const removed = [];
+    for (const ofolder of orphanFolders) {
+      const batchSize = 100;
+      for (let i=0;i<ofolder.files.length;i+=batchSize) {
+        const batch = ofolder.files.slice(i, i+batchSize);
+        const { error } = await supabase.storage.from(BUCKET).remove(batch);
+        if (error) console.error('Failed removing batch for folder', ofolder.folder, error);
+        else removed.push(...batch);
+      }
+    }
+
+    return res.json({ removedCount: removed.length, removed });
+  } catch (err) {
+    console.error('Failed running reviews cleanup:', err);
+    return res.status(500).json({ error: 'Cleanup failed', details: err.message || err });
+  }
+});

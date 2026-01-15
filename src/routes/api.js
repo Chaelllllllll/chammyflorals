@@ -1053,7 +1053,7 @@ router.get('/products', cacheMiddleware(600), async (req, res) => {
     console.log('Fetching products from Supabase...');
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons,colors')
+      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths')
       .order('id', { ascending: true });
     
     if (error) {
@@ -1078,7 +1078,7 @@ router.get('/products/:id', cacheMiddleware(600), async (req, res) => {
     
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons,colors')
+      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths')
       .eq('id', id)
       .single();
     

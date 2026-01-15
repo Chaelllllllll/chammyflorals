@@ -99,6 +99,8 @@ app.use(express.static('public'));
 // Register routes
 app.use('/api/auth', authRoutes); // Customer authentication routes
 app.use('/api/announcements', announcementsRoutes); // Announcements routes
+// Expose admin routes under /api/admin before the general /api router
+app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);
 app.use('/admin', adminRoutes);
 
