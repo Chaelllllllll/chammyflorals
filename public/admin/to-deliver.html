@@ -65,6 +65,24 @@
     .modal-content {
       border-radius: 12px;
     }
+    /* Order details styling (polished) */
+    .order-detail-label { color: #6c6c6c; font-size: 0.9rem; }
+    .order-detail-value { font-size: 1rem; }
+    .order-items-list { border-top: 1px solid rgba(255,111,155,0.06); margin-top: 0.5rem; padding-top: 0.75rem; }
+    .order-item-row { border-bottom: 1px solid rgba(255,111,155,0.04); padding: 0.65rem 0; display: flex; align-items: center; gap: 0.75rem; }
+    .product-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background:#fff; border:1px solid rgba(196,31,92,0.06); display:block; }
+    .product-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#d08aa3; background:linear-gradient(180deg,#fffafc,#fff6f9); border:1px dashed rgba(196,31,92,0.06); }
+    .item-meta { font-size: 0.9rem; color: #6c6c6c; }
+    .details-key { color: #8a8a8a; font-size: 0.85rem; }
+    .details-section { padding: 0.9rem; background: linear-gradient(180deg,#fffafc, #fff6f9); border-radius: 12px; }
+    .summary-panel { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 18px rgba(196,31,92,0.04); }
+    .modal-header.gradient-pink { background: linear-gradient(135deg, #ff6b9d 0%, #ff99bb 100%); color: white; padding: 1rem 1.25rem; }
+    .modal-title { color: white; }
+    .order-details-modal .modal-body { background: transparent; }
+    .order-details-modal .modal-content { overflow: visible; }
+    .order-details-modal .modal-dialog { max-width: 980px; }
+    .order-detail-section-title { font-size: 0.95rem; color: #6c6c6c; margin-bottom: 0.5rem; }
+    .btn-print { border-radius: 8px; }
   </style>
 </head>
 <body class="admin-page">
@@ -158,7 +176,7 @@
             <h2 class="card-title mb-0">
               <i class="fas fa-truck text-pink me-2"></i>Orders Ready for Delivery
             </h2>
-            <div class="small text-muted">Orders with "To Receive" status ready to be delivered.</div>
+            <div class="small text-muted">Orders ready to be delivered.</div>
           </div>
           <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
             <button class="btn btn-pink btn-sm" data-bs-toggle="modal" data-bs-target="#manualOrderModal">
@@ -248,7 +266,6 @@
               <div class="row g-3">
                 <div class="col-md-4">
                   <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-hashtag text-danger"></i>
                     <div>
                       <small class="text-muted d-block">Order ID</small>
                       <strong id="deliveryOrderId" class="text-danger">-</strong>
@@ -257,7 +274,6 @@
                 </div>
                 <div class="col-md-4">
                   <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-user" style="color: #ff6b9d;"></i>
                     <div>
                       <small class="text-muted d-block">Customer</small>
                       <strong id="deliveryCustomerName">-</strong>
@@ -266,7 +282,6 @@
                 </div>
                 <div class="col-md-4">
                   <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-money-bill-wave text-success"></i>
                     <div>
                       <small class="text-muted d-block">Total Amount</small>
                       <strong id="deliveryTotalAmount" class="text-success fs-5">₱0.00</strong>
@@ -281,7 +296,7 @@
           <form id="deliveryConfirmForm">
             <div class="mb-4">
               <label for="deliveryReceiverName" class="form-label fw-semibold">
-                <i class="fas fa-user-check" style="color: #ff6b9d;" class="me-2"></i>Received By
+                <i class="fas" style="color: #ff6b9d;" class="me-2"></i>Received By
                 <span class="text-danger">*</span>
               </label>
               <input 
@@ -291,12 +306,11 @@
                 placeholder="Enter full name of receiver"
                 required
               >
-              <div class="form-text"><i class="fas fa-info-circle me-1"></i>Full name of the person who received the order</div>
             </div>
 
             <div class="mb-4">
               <label for="deliveryAmountPaid" class="form-label fw-semibold">
-                <i class="fas fa-money-bill-wave text-success me-2"></i>Amount Received
+                <i class="fas text-success me-2"></i>Amount Received
                 <span class="text-danger">*</span>
               </label>
               <div class="input-group input-group-lg">
@@ -310,12 +324,11 @@
                   required
                 >
               </div>
-              <div class="form-text" id="amountValidationText"><i class="fas fa-info-circle me-1"></i>Amount must equal or exceed the total order amount</div>
             </div>
 
             <div class="mb-4">
               <label for="deliveryDeliveredBy" class="form-label fw-semibold">
-                <i class="fas fa-user-tie text-info me-2"></i>Delivered By
+                <i class="fas text-info me-2"></i>Delivered By
                 <span class="text-danger">*</span>
               </label>
               <input 
@@ -325,13 +338,11 @@
                 placeholder="Enter name of person who delivered"
                 required
               >
-              <div class="form-text"><i class="fas fa-info-circle me-1"></i>Name of the delivery person or staff member</div>
             </div>
 
             <div class="mb-4">
               <label for="deliveryNotes" class="form-label fw-semibold">
-                <i class="fas fa-comment-alt text-secondary me-2"></i>Delivery Notes
-                <span class="badge bg-secondary ms-1">Optional</span>
+                <i class="fas text-secondary me-2"></i>Delivery Notes
               </label>
               <textarea 
                 class="form-control" 
@@ -341,14 +352,16 @@
               ></textarea>
             </div>
 
-            <div class="card border-warning bg-light mb-4 p-3">
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="deliveryConfirmCheck" required>
-                <label class="form-check-label fw-semibold" for="deliveryConfirmCheck">
-                  <i class="fas fa-check-circle text-success me-1"></i>
-                  I confirm that this order has been successfully delivered to the customer
-                </label>
-              </div>
+            <div class="mb-4">
+              <label for="deliveryPaymentMethod" class="form-label fw-semibold">
+                <i class="fas text-pink me-2"></i>Payment Method
+                <span class="text-danger">*</span>
+              </label>
+              <select id="deliveryPaymentMethod" class="form-select form-select-lg">
+                <option value="">Select payment method</option>
+                <option value="Cash on Delivery">Cash on Delivery</option>
+                <option value="Gcash">Gcash</option>
+              </select>
             </div>
 
             <div class="d-grid gap-2">

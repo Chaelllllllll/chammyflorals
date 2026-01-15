@@ -43,7 +43,12 @@ function renderTable(orders) {
       <td>${o.name || '—'}</td>
       <td>${o.created_at ? dtf(o.created_at) : '—'}</td>
       <td class="text-end">${formatPHP(o.total_fee)}</td>
-      <td class="actions"><button class="btn btn-sm btn-outline-danger reports-delete" data-order-id="${o.order_id || ''}">Delete</button></td>
+      <td class="actions">
+        <div class="d-flex gap-2 justify-content-end">
+          <button class="btn btn-sm btn-outline-pink reports-view" data-order-id="${o.order_id || ''}" title="View / Edit"><i class="fas fa-eye me-1"></i>View</button>
+          <button class="btn btn-sm btn-outline-danger reports-delete" data-order-id="${o.order_id || ''}">Delete</button>
+        </div>
+      </td>
     </tr>
   `).join('');
 
@@ -54,6 +59,53 @@ function renderTable(orders) {
       confirmBtn.dataset.orderId = id;
       const confirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
       confirmModal.show();
+    });
+  });
+
+  // Attach view/edit handlers (fetch latest order when opened)
+  document.querySelectorAll('.reports-view').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const id = e.currentTarget.dataset.orderId;
+      if (!id) return;
+      // show modal first with loading state
+      const modalEl = document.getElementById('reportOrderModal');
+      const modal = new bootstrap.Modal(modalEl);
+      // clear form and show loading text
+      document.getElementById('reportOrderId').value = id;
+      document.getElementById('reportName').value = '';
+      document.getElementById('reportEmail').value = '';
+      document.getElementById('reportFlowerType').value = '';
+      document.getElementById('reportQuantity').value = '';
+      document.getElementById('reportRush').value = 'No';
+      document.getElementById('reportAddons').value = '';
+      document.getElementById('reportMessage').value = '';
+      document.getElementById('reportTotalFee').value = '';
+      document.getElementById('reportPaymentMethod').value = '';
+      document.getElementById('reportStatus').value = 'Pending';
+      modal.show();
+
+      try {
+        const token = localStorage.getItem('adminToken');
+        const resp = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!resp.ok) throw new Error('Failed to fetch order');
+        const order = await resp.json();
+        // populate form with fetched order
+        document.getElementById('reportOrderId').value = order.order_id || id;
+        document.getElementById('reportName').value = order.name || '';
+        document.getElementById('reportEmail').value = order.email || '';
+        document.getElementById('reportFlowerType').value = Array.isArray(order.flower_type) ? order.flower_type.join(', ') : (order.flower_type || '');
+        document.getElementById('reportQuantity').value = order.quantity || '';
+        document.getElementById('reportRush').value = order.rush || 'No';
+        try { document.getElementById('reportAddons').value = order.addons ? (typeof order.addons === 'string' ? order.addons : JSON.stringify(order.addons)) : ''; } catch(e){ document.getElementById('reportAddons').value = ''; }
+        document.getElementById('reportMessage').value = order.message || '';
+        document.getElementById('reportTotalFee').value = order.total_fee || '';
+        document.getElementById('reportPaymentMethod').value = order.payment_method || '';
+        document.getElementById('reportStatus').value = order.status || 'Pending';
+      } catch (err) {
+        alert('Failed to load order: ' + (err.message || err));
+        const mdl = bootstrap.Modal.getInstance(modalEl);
+        if (mdl) mdl.hide();
+      }
     });
   });
 }
@@ -145,4 +197,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   }
+
+  // Modal open/populate and save logic
+  window.openReportModal = function(order) {
+    document.getElementById('reportOrderId').value = order.order_id || '';
+    document.getElementById('reportName').value = order.name || '';
+    document.getElementById('reportEmail').value = order.email || '';
+    document.getElementById('reportFlowerType').value = Array.isArray(order.flower_type) ? order.flower_type.join(', ') : (order.flower_type || '');
+    document.getElementById('reportQuantity').value = order.quantity || '';
+    document.getElementById('reportRush').value = order.rush || 'No';
+    // addons may be JSON
+    try { document.getElementById('reportAddons').value = order.addons ? (typeof order.addons === 'string' ? order.addons : JSON.stringify(order.addons)) : ''; } catch(e){ document.getElementById('reportAddons').value = ''; }
+    document.getElementById('reportMessage').value = order.message || '';
+    document.getElementById('reportTotalFee').value = order.total_fee || '';
+    document.getElementById('reportPaymentMethod').value = order.payment_method || '';
+    document.getElementById('reportStatus').value = order.status || 'Pending';
+    const modal = new bootstrap.Modal(document.getElementById('reportOrderModal'));
+    modal.show();
+  };
+
+  // No edit/save functionality — modal is display-only
 });

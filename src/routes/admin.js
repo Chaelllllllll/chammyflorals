@@ -1005,13 +1005,18 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
 router.post('/orders/:orderId/deliver', auth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { received, receiverName, deliveredBy, notes } = req.body || {};
+    const { received, receiverName, deliveredBy, notes, payment_method } = req.body || {};
+    console.log('Deliver endpoint called for order:', orderId, 'payload:', { received, receiverName, deliveredBy, notes, payment_method });
     // Fetch existing order
     const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (fetchErr || !existing) return res.status(404).json({ error: 'Order not found' });
 
-    // Update status only (do not persist receiverName or payment_received)
-    const { data: updatedRows, error: updateErr } = await supabase.from('orders').update({ status: 'Delivered' }).eq('order_id', orderId).select();
+    // Update status and persist payment_method when provided
+    const updatePayload = { status: 'Delivered' };
+    if (typeof payment_method !== 'undefined' && payment_method !== null) updatePayload.payment_method = String(payment_method);
+
+    const { data: updatedRows, error: updateErr } = await supabase.from('orders').update(updatePayload).eq('order_id', orderId).select();
+    console.log('Supabase update result for deliver:', { updatedRows, updateErr });
     if (updateErr) throw updateErr;
     const updated = (updatedRows && updatedRows[0]) || existing;
 
@@ -1021,6 +1026,7 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
     if (receiverName) emailOrder.receiver_name = String(receiverName);
     if (deliveredBy) emailOrder.delivered_by = String(deliveredBy);
     if (notes) emailOrder.delivery_notes = String(notes);
+    if (typeof payment_method !== 'undefined' && payment_method !== null) emailOrder.payment_method = String(payment_method);
 
     // Send delivered email including transient payment/receiver info (best-effort)
     try {
@@ -1044,6 +1050,7 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
         if (receiverName) notifyPayload.receiver_name = String(receiverName);
         if (deliveredBy) notifyPayload.delivered_by = String(deliveredBy);
         if (notes) notifyPayload.delivery_notes = String(notes);
+        if (typeof payment_method !== 'undefined' && payment_method !== null) notifyPayload.payment_method = String(payment_method);
         console.log('Sending delivery notification with payload:', {
           orderId: notifyPayload.order_id,
           receiverName: notifyPayload.receiver_name,

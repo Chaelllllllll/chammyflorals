@@ -69,9 +69,14 @@ function renderDeliveryTable() {
         <td>${escapeHtml(order.name || '-')}</td>
         <td class="text-success fw-bold">₱${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="text-center">
-          <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" title="Mark as Delivered">
-            <i class="fas fa-truck me-1"></i>Deliver
-          </button>
+          <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-sm btn-outline-pink view-details-btn" data-order-id="${escapeHtml(order.order_id)}" title="View Details">
+              <i class="fas fa-eye me-1"></i>View
+            </button>
+            <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" title="Mark as Delivered">
+              <i class="fas fa-truck me-1"></i>Deliver
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -82,6 +87,14 @@ function renderDeliveryTable() {
     btn.addEventListener('click', function() {
       const orderId = this.getAttribute('data-order-id');
       showDeliveryConfirmation(orderId);
+    });
+  });
+
+  // Attach event listeners to view-details buttons
+  document.querySelectorAll('.view-details-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const orderId = this.getAttribute('data-order-id');
+      viewOrderDetails(orderId);
     });
   });
 }
@@ -111,7 +124,7 @@ function setupSearch() {
 
       const tbody = document.getElementById('deliveryTable');
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No matching orders found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No matching orders found</td></tr>';
         return;
       }
 
@@ -133,76 +146,179 @@ async function viewOrderDetails(orderId) {
   }
 
   const content = document.getElementById('orderDetailsContent');
-  
-  // Parse items
-  let itemsHtml = '<div class="mb-3"><strong>Items:</strong><ul class="mt-2">';
-  if (order.items && Array.isArray(order.items)) {
-    itemsHtml += order.items.map(item => 
-      `<li>${escapeHtml(item.flower_type || item.name || 'Item')} x${item.quantity || 1}</li>`
-    ).join('');
-  } else if (order.flower_type) {
-    const types = Array.isArray(order.flower_type) ? order.flower_type : [order.flower_type];
-    const quantities = Array.isArray(order.quantity) ? order.quantity : [order.quantity || 1];
-    itemsHtml += types.map((type, i) => 
-      `<li>${escapeHtml(type)} x${quantities[i] || 1}</li>`
-    ).join('');
-  }
-  itemsHtml += '</ul></div>';
+  // Build a professional details layout
+  const statusBadge = `<span class="badge ${order.status && String(order.status).toLowerCase() === 'to receive' ? 'bg-success' : 'bg-secondary'}">${escapeHtml(order.status || 'To Receive')}</span>`;
 
-  // Parse addons
+  // Items
+  let itemsHtml = '';
+  // Helpers to normalize item data
+  function getItemName(it) {
+    if (!it) return 'Item';
+    if (typeof it === 'string') return it;
+    if (typeof it.name === 'string') return it.name;
+    if (typeof it.flower_type === 'string') return it.flower_type;
+    if (typeof it.product === 'string') return it.product;
+    if (it.name && typeof it.name === 'object') {
+      return it.name.name || it.name.title || JSON.stringify(it.name).slice(0, 100);
+    }
+    return JSON.stringify(it).slice(0, 100);
+  }
+
+  function getItemQty(it) {
+    if (!it) return 1;
+    return Number(it.quantity || it.qty || it.count || 1) || 1;
+  }
+
+  function getItemPrice(it) {
+    if (!it) return 0;
+    return Number(it.price || it.unit_price || it.cost || 0) || 0;
+  }
+
+  function getItemImage(it) {
+    if (!it) return '';
+    const img = it.image || it.img || it.photo || it.thumbnail || it.thumb || '';
+    if (!img) return '';
+    if (typeof img === 'string') return img;
+    if (typeof img === 'object') return img.url || img.src || '';
+    return '';
+  }
+
+  // Normalize generic field values to readable strings (handles objects and arrays)
+  function normalizeField(val) {
+    if (val == null) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+    if (Array.isArray(val)) {
+      return val.map(v => normalizeField(v)).filter(Boolean).join(', ');
+    }
+    if (typeof val === 'object') {
+      // Try common keys
+      if (val.name && typeof val.name === 'string') return val.name;
+      if (val.title && typeof val.title === 'string') return val.title;
+      if (val.label && typeof val.label === 'string') return val.label;
+      if (val.value && (typeof val.value === 'string' || typeof val.value === 'number')) return String(val.value);
+      // Fallback to JSON
+      try { return JSON.stringify(val); } catch (e) { return String(val); }
+    }
+    return String(val);
+  }
+
+  const items = Array.isArray(order.items) && order.items.length ? order.items : (order.flower_type ? (Array.isArray(order.flower_type) ? order.flower_type.map((t,i)=>({ flower_type: t, quantity: (Array.isArray(order.quantity)?order.quantity[i]:order.quantity) })) : [{ flower_type: order.flower_type, quantity: order.quantity || 1 }]) : []);
+
+  if (items.length) {
+    itemsHtml = '<div class="order-items-list">';
+    items.forEach(it => {
+      const rawName = getItemName(it);
+      const name = escapeHtml(rawName);
+      const qty = getItemQty(it);
+      const colorRaw = (it && (it.color || it.variant || it.variant_color)) ? (it.color || it.variant || it.variant_color) : '';
+      const color = colorRaw ? escapeHtml(normalizeField(colorRaw)) : '';
+      const price = getItemPrice(it);
+      const subtotal = price * qty;
+      const img = getItemImage(it);
+
+      itemsHtml += `
+        <div class="order-item-row">
+          ${img ? `<img src="${escapeHtml(img)}" alt="${name}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+          <div style="flex:1">
+            <div class="fw-semibold">${name}</div>
+            <div class="item-meta">${color ? color + ' • ' : ''}Qty: ${qty}${price ? ' • ₱' + price.toFixed(2) : ''}</div>
+          </div>
+          <div class="text-end fw-bold">${price ? '₱' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div>
+        </div>
+      `;
+    });
+    itemsHtml += '</div>';
+  } else {
+    itemsHtml = '<div class="text-muted">No items information available</div>';
+  }
+
+  // Add-ons
   let addonsHtml = '';
-  if (order.addons && order.addons.length > 0) {
-    addonsHtml = '<div class="mb-3"><strong>Add-ons:</strong><ul class="mt-2">';
+  if (order.addons && ((Array.isArray(order.addons) && order.addons.length) || typeof order.addons === 'string')) {
     const addons = Array.isArray(order.addons) ? order.addons : [order.addons];
-    addonsHtml += addons.map(addon => `<li>${escapeHtml(addon)}</li>`).join('');
-    addonsHtml += '</ul></div>';
+    addonsHtml = `<div class="mb-2"><div class="details-key">Add-ons</div><div class="small text-muted">${addons.map(a=>escapeHtml(a)).join(', ')}</div></div>`;
   }
 
   content.innerHTML = `
     <div class="row g-3">
-      <div class="col-md-6">
-        <strong>Order ID:</strong><br>
-        <span class="text-pink">${escapeHtml(order.order_id || '-')}</span>
+      <div class="col-md-8">
+        <div class="mb-2 d-flex align-items-center justify-content-between">
+          <div>
+            <div class="details-key">Order ID</div>
+            <div class="fw-bold text-pink fs-5">${escapeHtml(order.order_id || '-')}</div>
+          </div>
+          <div class="text-end">
+            <div class="details-key">Status</div>
+            <div>${statusBadge}</div>
+          </div>
+        </div>
+
+        <div class="details-section mb-3">
+          <div>
+            <div class="details-key">Customer</div>
+            <div class="fw-semibold">${escapeHtml(order.name || '-')}</div>
+            <div class="small text-muted">${escapeHtml(order.email || '-')}</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="details-key mb-2">Items</div>
+          ${itemsHtml}
+        </div>
+
+        ${addonsHtml}
       </div>
-      <div class="col-md-6">
-        <strong>Status:</strong><br>
-        <span class="badge bg-success">To Receive</span>
-      </div>
-      <div class="col-md-6">
-        <strong>Customer Name:</strong><br>
-        ${escapeHtml(order.name || '-')}
-      </div>
-      <div class="col-md-6">
-        <strong>Email:</strong><br>
-        ${escapeHtml(order.email || '-')}
-      </div>
-      <div class="col-md-6">
-        <strong>Facebook:</strong><br>
-        ${order.fb_link ? `<a href="${escapeHtml(order.fb_link)}" target="_blank">View Profile</a>` : '-'}
-      </div>
-      <div class="col-md-6">
-        <strong>Phone:</strong><br>
-        ${escapeHtml(order.phone || '-')}
-      </div>
-      <div class="col-12">
-        ${itemsHtml}
-      </div>
-      ${addonsHtml ? `<div class="col-12">${addonsHtml}</div>` : ''}
-      <div class="col-md-6">
-        <strong>Rush Order:</strong><br>
-        ${order.rush === 'Yes' ? '<span class="badge bg-warning text-dark">Yes</span>' : '<span class="badge bg-secondary">No</span>'}
-      </div>
-      <div class="col-md-6">
-        <strong>Total Fee:</strong><br>
-        <span class="text-success fw-bold">₱${Number(order.total_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-      </div>
-      ${order.message ? `<div class="col-12"><strong>Message:</strong><br><p class="mb-0">${escapeHtml(order.message)}</p></div>` : ''}
-      <div class="col-12">
-        <strong>Order Date:</strong><br>
-        ${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
+
+      <div class="col-md-4">
+        <div class="details-section summary-panel mb-3">
+          <div class="details-key">Summary</div>
+          <div class="d-flex justify-content-between mt-2">
+            <div class="small text-muted">Subtotal</div>
+            <div class="fw-semibold">₱${Number(order.subtotal || order.total_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <div class="d-flex justify-content-between mt-1">
+            <div class="small text-muted">Delivery Fee</div>
+            <div class="fw-semibold">₱${Number(order.delivery_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="details-key">Total</div>
+            <div class="fs-5 text-success fw-bold">₱${Number(order.total_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+
+          <div class="mt-3">
+            <div class="details-key">Rush Order</div>
+            <div>${order.rush === 'Yes' ? '<span class="badge bg-warning text-dark">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</div>
+          </div>
+
+          ${order.message ? `<div class="mt-3"><div class="details-key">Message</div><div class="small text-muted">${escapeHtml(order.message)}</div></div>` : ''}
+
+          <div class="mt-3">
+            <div class="details-key">Order Date</div>
+            <div class="small text-muted">${order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</div>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button class="btn btn-outline-pink btn-sm" id="printOrderBtn"><i class="fas fa-print me-2"></i>Print</button>
+          <button class="btn btn-pink btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-2"></i>Close</button>
+        </div>
       </div>
     </div>
   `;
+
+  // Print button
+  const printBtn = document.getElementById('printOrderBtn');
+  if (printBtn) {
+    printBtn.addEventListener('click', () => {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`<html><head><title>Order ${escapeHtml(order.order_id || '')}</title>` + document.querySelector('link[rel="stylesheet"]').outerHTML + `</head><body>` + content.innerHTML + `</body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 500);
+    });
+  }
 
   const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   modal.show();
@@ -254,6 +370,7 @@ function showDeliveryConfirmation(orderId) {
     const amountPaid = parseFloat(document.getElementById('deliveryAmountPaid').value);
     const deliveredBy = document.getElementById('deliveryDeliveredBy').value.trim();
     const notes = document.getElementById('deliveryNotes').value.trim();
+    const paymentMethod = (document.getElementById('deliveryPaymentMethod') && document.getElementById('deliveryPaymentMethod').value) ? document.getElementById('deliveryPaymentMethod').value : '';
     
     if (!receiverName) {
       showErrorModal('Please enter the receiver name');
@@ -267,6 +384,11 @@ function showDeliveryConfirmation(orderId) {
     
     if (!deliveredBy) {
       showErrorModal('Please enter the name of the person who delivered');
+      return;
+    }
+
+    if (!paymentMethod) {
+      showErrorModal('Please select a payment method');
       return;
     }
     
@@ -293,7 +415,8 @@ function showDeliveryConfirmation(orderId) {
           received: amountPaid,
           receiverName: receiverName,
           deliveredBy: deliveredBy,
-          notes: notes || undefined
+          notes: notes || undefined,
+          payment_method: paymentMethod
         }),
       });
       

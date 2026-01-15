@@ -103,10 +103,9 @@
         <a href="/admin/products.html" class="sidebar-nav-link">
           <i class="fas fa-box-open"></i>
           <span>Products</span>
-      <link rel="stylesheet" href="/css/notify-prompt.css">
-      
-    </body>
-    </html>
+            </a>
+      </li>
+
       <li class="sidebar-nav-item">
         <a href="/admin/reviews.html" class="sidebar-nav-link">
           <i class="fas fa-star"></i>
@@ -228,6 +227,80 @@
   <script src="/js/sidebar.js"></script>
     <script src="/js/admin-reports.js"></script>
     <script src="/js/push-subscribe.js"></script>
+  <!-- Order Details / Edit Modal -->
+  <div class="modal fade" id="reportOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <h5 class="modal-title text-white">Order Details & Edit</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="reportOrderForm">
+            <input type="hidden" id="reportOrderId">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Customer Name</label>
+                <input id="reportName" class="form-control" required disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input id="reportEmail" class="form-control" type="email" required disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Flower Type</label>
+                <input id="reportFlowerType" class="form-control" disabled>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Quantity</label>
+                <input id="reportQuantity" class="form-control" type="number" min="1" disabled>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Rush</label>
+                <select id="reportRush" class="form-select" disabled>
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Add-ons (comma separated)</label>
+                <input id="reportAddons" class="form-control" disabled>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Message</label>
+                <textarea id="reportMessage" class="form-control" rows="2" disabled></textarea>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Total Fee (₱)</label>
+                <input id="reportTotalFee" class="form-control" type="number" step="0.01" disabled>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Payment Method</label>
+                <select id="reportPaymentMethod" class="form-select" disabled>
+                  <option value="">(none)</option>
+                  <option value="Cash on Delivery">Cash on Delivery</option>
+                  <option value="Gcash">Gcash</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Status</label>
+                <select id="reportStatus" class="form-select" disabled>
+                  <option value="Pending">Pending</option>
+                  <option value="Processing">Processing</option>
+                  <option value="To Receive">To Receive</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div class="mt-3 d-flex gap-2 justify-content-end">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- Delete Confirmation Modal (shared with dashboard) -->
   <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
     <div class="modal-dialog">

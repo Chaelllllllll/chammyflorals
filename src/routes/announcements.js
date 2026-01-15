@@ -140,7 +140,7 @@ router.get('/admin', authenticateAdmin, async (req, res) => {
 // POST /api/announcements - Create announcement (admin only)
 router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => {
     try {
-        const { title, description, type, is_active } = req.body;
+        const { title, description, type, is_active, link_text, link_url } = req.body;
         
         if (!title || !description) {
             return res.status(400).json({ error: 'Title and description are required' });
@@ -184,6 +184,8 @@ router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => 
                 description,
                 image_url,
                 type: type || 'general',
+                link_text: link_text || null,
+                link_url: link_url || null,
                 start_date: new Date().toISOString(),
                 end_date: null,
                 is_active: is_active === 'true' || is_active === true,
@@ -218,7 +220,7 @@ router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => 
 router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, type, is_active, start_date, end_date } = req.body;
+        const { title, description, type, is_active, start_date, end_date, link_text, link_url } = req.body;
         
         const updateData = {
             updated_at: new Date().toISOString()
@@ -227,6 +229,8 @@ router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) =
         if (title) updateData.title = title;
         if (description) updateData.description = description;
         if (type) updateData.type = type;
+        if (link_text !== undefined) updateData.link_text = link_text || null;
+        if (link_url !== undefined) updateData.link_url = link_url || null;
         if (is_active !== undefined) updateData.is_active = is_active === 'true' || is_active === true;
         if (start_date) updateData.start_date = start_date;
         if (end_date !== undefined) updateData.end_date = end_date || null;
