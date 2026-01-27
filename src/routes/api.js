@@ -1256,7 +1256,7 @@ router.get('/status/current', async (req, res) => {
           description: `Unable to connect to database: ${dbError.message}`,
           severity: 'critical',
           status: 'ongoing',
-          affected_systems: ['database', 'website', 'mobile_app'],
+          affected_systems: ['database', 'website'],
           created_at: now.toISOString()
         });
       } else if (databaseResponseTime > 2000) {
@@ -1282,53 +1282,9 @@ router.get('/status/current', async (req, res) => {
       });
     }
 
-    // Check mobile app status (API health and recent activity)
-    let mobileAppStatus = 'operational';
-    try {
-      const apiStart = Date.now();
-      const { data: recentOrders, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      const apiResponseTime = Date.now() - apiStart;
-      
-      if (ordersError) {
-        mobileAppStatus = 'degraded';
-        incidents.push({
-          title: 'Mobile App API Issues',
-          description: 'Mobile app may have difficulty loading data.',
-          severity: 'major',
-          status: 'ongoing',
-          affected_systems: ['mobile_app'],
-          created_at: now.toISOString()
-        });
-      } else if (apiResponseTime > 3000) {
-        mobileAppStatus = 'degraded';
-        incidents.push({
-          title: 'Mobile App Slow Response',
-          description: `API response time is degraded (${apiResponseTime}ms). App may be slow.`,
-          severity: 'minor',
-          status: 'ongoing',
-          affected_systems: ['mobile_app'],
-          created_at: now.toISOString()
-        });
-      }
-    } catch (err) {
-      mobileAppStatus = 'degraded';
-      incidents.push({
-        title: 'Mobile App Service Degraded',
-        description: 'Mobile app experiencing connectivity issues.',
-        severity: 'major',
-        status: 'ongoing',
-        affected_systems: ['mobile_app'],
-        created_at: now.toISOString()
-      });
-    }
-
     // Determine overall status
     let overallStatus = 'operational';
-    const statuses = [websiteStatus, databaseStatus, mobileAppStatus];
+    const statuses = [websiteStatus, databaseStatus];
     
     if (statuses.includes('outage')) {
       overallStatus = 'outage';
@@ -1347,7 +1303,6 @@ router.get('/status/current', async (req, res) => {
       status: {
         overall_status: overallStatus,
         website_status: websiteStatus,
-        mobile_app_status: mobileAppStatus,
         database_status: databaseStatus,
         message: overallStatus === 'operational' 
           ? 'All systems are running smoothly' 

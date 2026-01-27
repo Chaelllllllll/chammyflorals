@@ -33,7 +33,6 @@ router.get('/current', async (req, res) => {
       status: status || {
         overall_status: 'operational',
         website_status: 'operational',
-        mobile_app_status: 'operational',
         payment_status: 'operational',
         database_status: 'operational',
         updated_at: new Date().toISOString()
@@ -112,7 +111,6 @@ router.post('/update', verifyAdmin, async (req, res) => {
     const {
       overall_status,
       website_status,
-      mobile_app_status,
       payment_status,
       database_status,
       message
@@ -123,7 +121,6 @@ router.post('/update', verifyAdmin, async (req, res) => {
       .insert({
         overall_status,
         website_status,
-        mobile_app_status,
         payment_status,
         database_status,
         message,
