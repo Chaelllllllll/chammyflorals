@@ -552,7 +552,6 @@
             </div>
           </div>
 
-          <!-- Submit Button -->
           <div class="d-grid gap-2">
             <button type="submit" class="btn btn-pink btn-lg py-3" id="placeOrderBtn">
               <i class="fa fa-shopping-bag me-2"></i>Place Order Now
@@ -574,8 +573,6 @@
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
   <script src="/js/auth.js"></script>
-  
-  <!-- Announcement Carousel Styles -->
   <style>
     #announcementsCarousel {
       background: linear-gradient(180deg, #fffafc, #fff1f6);
@@ -808,14 +805,12 @@
     }
   </style>
   <script>
-    // Store announcements globally for modal access
     let allAnnouncements = [];
-    
-    // Show announcement details in modal
+
     function showAnnouncementDetails(announcementId) {
       const announcement = allAnnouncements.find(a => a.id === announcementId);
       if (!announcement) return;
-      
+
       const modalContent = document.getElementById('announcementModalContent');
       modalContent.innerHTML = `
         ${announcement.image_url ? `
@@ -830,15 +825,13 @@
         <h3 class="announcement-detail-title">${announcement.title}</h3>
         <p class="announcement-detail-description">${announcement.description}</p>
       `;
-      
+
       const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
       modal.show();
     }
-    
-    // Global carousel instance
+
     let carouselInstance = null;
-    
-    // Load announcements carousel
+
     async function loadAnnouncements() {
       try {
         const API_URL = window.location.hostname === 'localhost' 
@@ -846,24 +839,21 @@
           : 'https://chammyflorals.vercel.app';
         const response = await fetch(`${API_URL}/api/announcements`);
         const data = await response.json();
-        
+
         if (data.announcements && data.announcements.length > 0) {
           allAnnouncements = data.announcements;
           const carousel = document.getElementById('announcementsCarousel');
           const carouselContent = document.getElementById('carouselContent');
           const carouselIndicators = document.getElementById('carouselIndicators');
-          
-          // Completely destroy any existing carousel instance
+
           if (carouselInstance) {
             carouselInstance.dispose();
             carouselInstance = null;
           }
-          
-          // Clear existing content
+
           carouselContent.innerHTML = '';
           carouselIndicators.innerHTML = '';
-          
-          // Generate carousel items
+
           carouselContent.innerHTML = data.announcements.map((ann, index) => `
             <div class="carousel-item ${index === 0 ? 'active' : ''}">
               <div class="carousel-caption">
@@ -875,24 +865,22 @@
               </div>
             </div>
           `).join('');
-          
-          // Generate indicators (standard Bootstrap attributes)
+
           carouselIndicators.innerHTML = data.announcements.map((ann, index) => `
             <button type="button" data-bs-target="#announcementsCarousel" data-bs-slide-to="${index}" 
                     ${index === 0 ? 'class="active" aria-current="true"' : ''}
                     aria-label="Slide ${index + 1}"></button>
           `).join('');
-          
+
           carousel.style.display = 'block';
-          
-          // Initialize carousel after a short delay to allow DOM paint
+
           setTimeout(() => {
             carouselInstance = new bootstrap.Carousel(carousel, {
               interval: 5000,
               wrap: true,
               keyboard: false,
               touch: true,
-              pause: 'hover', // Pause on hover is standard UX
+              pause: 'hover',
               ride: 'carousel'
             });
             carouselInstance.cycle();
@@ -902,8 +890,7 @@
         console.error('Error loading announcements:', error);
       }
     }
-    
-    // Load announcements on page load
+
     document.addEventListener('DOMContentLoaded', loadAnnouncements);
   </script>
   <link rel="stylesheet" href="/css/notify-prompt.css">
