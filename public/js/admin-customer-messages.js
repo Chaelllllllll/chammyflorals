@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('adminToken');
   
   if (!token) {
-    alert('Please log in first');
+    alertError('Please log in first');
     window.location.href = '/admin/login.html';
     return;
   }
@@ -49,12 +49,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Validate file
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (!allowedTypes.includes(file.type)) {
-          alert('Please select a valid image file');
+          alertWarning('Please select a valid image file');
           imageInput.value = '';
           return;
         }
         if (file.size > 5 * 1024 * 1024) {
-          alert('Image must be less than 5MB');
+          alertWarning('Image must be less than 5MB');
           imageInput.value = '';
           return;
         }
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadMessages(currentCustomerId);
       } catch (error) {
         console.error('Error sending message:', error);
-        alert('Failed to send message');
+        alertError('Failed to send message');
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;

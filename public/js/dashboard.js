@@ -121,8 +121,13 @@ function updateStats(orders) {
     // Stats grid removed from UI, but keep function for compatibility
 }
 
-// Display all orders
-function displayAllOrders(orders) {
+// Lazy loading variables
+let displayedOrdersCount = 0;
+const ORDERS_PER_PAGE = 10;
+let isLoadingMore = false;
+
+// Display all orders with lazy loading
+function displayAllOrders(orders, append = false) {
     const allOrdersList = document.getElementById('allOrdersList');
     
     if (!orders || orders.length === 0) {
@@ -135,7 +140,18 @@ function displayAllOrders(orders) {
         return;
     }
     
-    allOrdersList.innerHTML = orders.map(order => {
+    // Reset counter if not appending
+    if (!append) {
+        displayedOrdersCount = 0;
+        allOrdersList.innerHTML = '';
+    }
+    
+    // Get next batch of orders
+    const startIdx = displayedOrdersCount;
+    const endIdx = Math.min(startIdx + ORDERS_PER_PAGE, orders.length);
+    const ordersToDisplay = orders.slice(startIdx, endIdx);
+    
+    const orderHTML = ordersToDisplay.map(order => {
         const statusClass = getStatusClass(order.status);
         const statusText = order.status.charAt(0).toUpperCase() + order.status.slice(1).replace('_', ' ');
         const date = new Date(order.created_at).toLocaleDateString('en-US', { 
@@ -158,10 +174,44 @@ function displayAllOrders(orders) {
         `;
     }).join('');
     
+    if (append) {
+        allOrdersList.insertAdjacentHTML('beforeend', orderHTML);
+    } else {
+        allOrdersList.innerHTML = orderHTML;
+    }
+    
+    displayedOrdersCount = endIdx;
+    
+    // Add or remove "Load More" button
+    const existingLoadMore = document.getElementById('loadMoreOrders');
+    if (existingLoadMore) {
+        existingLoadMore.remove();
+    }
+    
+    if (displayedOrdersCount < orders.length) {
+        const loadMoreBtn = document.createElement('div');
+        loadMoreBtn.id = 'loadMoreOrders';
+        loadMoreBtn.className = 'text-center my-4';
+        loadMoreBtn.innerHTML = `
+            <button class="btn btn-pink btn-lg px-5" style="border-radius: 50px; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);">
+                <i class="fa fa-chevron-down me-2"></i>Load More Orders (${orders.length - displayedOrdersCount} remaining)
+            </button>
+        `;
+        allOrdersList.parentElement.appendChild(loadMoreBtn);
+        
+        loadMoreBtn.querySelector('button').addEventListener('click', () => {
+            if (!isLoadingMore) {
+                isLoadingMore = true;
+                displayAllOrders(allOrders, true);
+                isLoadingMore = false;
+            }
+        });
+    }
+    
     // Add click event listeners to all order items
     document.querySelectorAll('.order-item').forEach(item => {
         item.addEventListener('click', function() {
-            const orderId = this.getAttribute('data-order-id'); // Don't use parseInt - ID is a UUID string
+            const orderId = this.getAttribute('data-order-id');
             window.showOrderDetails(orderId);
         });
     });
@@ -169,19 +219,22 @@ function displayAllOrders(orders) {
 
 // Get status class
 function getStatusClass(status) {
+    const normalizedStatus = (status || '').toLowerCase().trim();
     const statusMap = {
         'pending': 'status-pending',
         'processing': 'status-processing',
         'out for delivery': 'status-processing',
         'delivered': 'status-delivered',
-        'cancelled': 'status-pending'
+        'cancelled': 'status-pending',
+        'ready': 'status-delivered'
     };
-    return statusMap[status] || 'status-pending';
+    return statusMap[normalizedStatus] || 'status-pending';
 }
 
 // Show order details modal
 window.showOrderDetails = async function(orderId) {
-    const order = allOrders.find(o => o.id === orderId);
+    // Find order by order_id or id
+    const order = allOrders.find(o => o.order_id === orderId || o.id === orderId);
     
     if (!order) {
         return;
@@ -195,14 +248,15 @@ window.showOrderDetails = async function(orderId) {
         return;
     }
     
-    // Check if review already exists for this order
+    // Check if review already exists for this order (works for both regular and custom orders)
     let hasReview = false;
-    if (order.order_id) {
+    const currentOrderId = order.order_id || order.id;
+    if (currentOrderId) {
         try {
             const reviewResponse = await fetch(`${API_URL}/api/reviews`);
             if (reviewResponse.ok) {
                 const reviews = await reviewResponse.json();
-                hasReview = reviews.some(r => r.order_id === order.order_id);
+                hasReview = reviews.some(r => r.order_id === currentOrderId);
             }
         } catch (error) {
             console.error('Error checking reviews:', error);
@@ -251,32 +305,65 @@ window.showOrderDetails = async function(orderId) {
         
         <div class="order-detail-section">
             <h4><i class="fa fa-box"></i>Items</h4>
-            <div class="order-detail-item">
-                <span class="order-detail-label">Flower Type</span>
-                <span class="order-detail-value">${order.flower_type || 'Custom'}</span>
-            </div>
-            <div class="order-detail-item">
-                <span class="order-detail-label">Quantity</span>
-                <span class="order-detail-value">${order.quantity || 1} pc(s)</span>
-            </div>
-            ${order.addons && Array.isArray(order.addons) && order.addons.length > 0 ? `
-            <div class="order-detail-item">
-                <span class="order-detail-label">Add-ons</span>
-                <span class="order-detail-value">${order.addons.join(', ')}</span>
-            </div>
-            ` : ''}
-            ${order.message && order.message !== 'Not provided' ? `
-            <div class="order-detail-item">
-                <span class="order-detail-label">Message</span>
-                <span class="order-detail-value" style="font-style: italic;">"${order.message}"</span>
-            </div>
-            ` : ''}
-            ${order.rush ? `
-            <div class="order-detail-item">
-                <span class="order-detail-label">Rush Order</span>
-                <span class="order-detail-value"><span class="badge bg-danger"><i class="fa fa-bolt me-1"></i>Rush</span></span>
-            </div>
-            ` : ''}
+            ${order.order_type === 'custom' ? `
+                ${order.stems && Array.isArray(order.stems) && order.stems.length > 0 ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Stems</span>
+                    <span class="order-detail-value">${order.stems.map(s => `${s.name} (₱${s.price})`).join(', ')}</span>
+                </div>
+                ` : ''}
+                ${order.fillers && Array.isArray(order.fillers) && order.fillers.length > 0 ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Fillers</span>
+                    <span class="order-detail-value">${order.fillers.map(f => `${f.name} (₱${f.price})`).join(', ')}</span>
+                </div>
+                ` : ''}
+                ${order.wrapping && Array.isArray(order.wrapping) && order.wrapping.length > 0 ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Wrapping</span>
+                    <span class="order-detail-value">${order.wrapping.map(w => `${w.name} (₱${w.price})`).join(', ')}</span>
+                </div>
+                ` : ''}
+                ${order.addons && Array.isArray(order.addons) && order.addons.length > 0 ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Add-ons</span>
+                    <span class="order-detail-value">${order.addons.map(a => `${a.name} (₱${a.price})`).join(', ')}</span>
+                </div>
+                ` : ''}
+                ${order.special_instructions ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Special Instructions</span>
+                    <span class="order-detail-value" style="font-style: italic;">"${order.special_instructions}"</span>
+                </div>
+                ` : ''}
+            ` : `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Flower Type</span>
+                    <span class="order-detail-value">${order.flower_type || 'Custom'}</span>
+                </div>
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Quantity</span>
+                    <span class="order-detail-value">${order.quantity || 1} pc(s)</span>
+                </div>
+                ${order.addons && Array.isArray(order.addons) && order.addons.length > 0 ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Add-ons</span>
+                    <span class="order-detail-value">${order.addons.join(', ')}</span>
+                </div>
+                ` : ''}
+                ${order.message && order.message !== 'Not provided' ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Message</span>
+                    <span class="order-detail-value" style="font-style: italic;">"${order.message}"</span>
+                </div>
+                ` : ''}
+                ${order.rush ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Rush Order</span>
+                    <span class="order-detail-value"><span class="badge bg-danger"><i class="fa fa-bolt me-1"></i>Rush</span></span>
+                </div>
+                ` : ''}
+            `}
         </div>
         
         <div class="order-detail-section">
@@ -420,7 +507,10 @@ window.showReviewForm = function(orderId) {
     // Add event listeners
     setTimeout(() => {
         document.getElementById('submitReviewBtn')?.addEventListener('click', () => window.submitReview(orderId));
-        document.getElementById('backToOrderBtn')?.addEventListener('click', () => window.showOrderDetails(orderId));
+        document.getElementById('backToOrderBtn')?.addEventListener('click', () => {
+            const order = allOrders.find(o => o.id === orderId || o.order_id === orderId);
+            if (order) window.showOrderDetails(order.id);
+        });
         
         // Star rating functionality
         const stars = document.querySelectorAll('.star-rating i');
@@ -452,12 +542,12 @@ window.submitReview = async function(orderId) {
     const imageInput = document.getElementById('reviewImage');
     
     if (rating === 0) {
-        alert('Please select a rating');
+        alertWarning('Please select a rating');
         return;
     }
     
     if (!reviewText) {
-        alert('Please write a review');
+        alertWarning('Please write a review');
         return;
     }
     
@@ -478,18 +568,18 @@ window.submitReview = async function(orderId) {
         });
         
         if (response.ok) {
-            alert('Thank you for your review!');
+            alertSuccess('Thank you for your review!');
             closeOrderModal();
             // Reload orders to refresh the UI
             await loadOrders();
         } else {
             const errorData = await response.json().catch(() => ({}));
             const errorMsg = errorData.error || errorData.message || 'Failed to submit review';
-            alert(errorMsg);
+            alertError(errorMsg);
         }
     } catch (error) {
         console.error('Review submission error:', error);
-        alert('Error submitting review: ' + (error.message || 'Unknown error'));
+        alertError('Error submitting review: ' + (error.message || 'Unknown error'));
     }
 }
 

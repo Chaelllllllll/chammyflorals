@@ -246,6 +246,7 @@
 
 <body>
   
+  
 <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
   <div class="container">
     <a class="navbar-brand" href=".">Chammy Florals</a>
@@ -267,10 +268,28 @@
   </div>
 </nav>
 
-  <div id="announcementsCarousel" class="carousel slide mb-4" style="display: none;">
-    <div class="carousel-inner" id="carouselContent">
-    </div>
-    <div class="carousel-indicators" id="carouselIndicators">
+  <div id="announcementsSection" class="announcements-section" style="display: none;">
+    <div class="container">
+      <div id="announcementsCarousel" class="carousel slide announcements-carousel" data-bs-ride="carousel">
+        <div class="carousel-inner" id="carouselContent">
+        </div>
+        
+        <button class="carousel-control-prev" type="button" data-bs-target="#announcementsCarousel" data-bs-slide="prev">
+          <span class="carousel-control-icon" aria-hidden="true">
+            <i class="fas fa-chevron-left"></i>
+          </span>
+          <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#announcementsCarousel" data-bs-slide="next">
+          <span class="carousel-control-icon" aria-hidden="true">
+            <i class="fas fa-chevron-right"></i>
+          </span>
+          <span class="visually-hidden">Next</span>
+        </button>
+
+        <div class="carousel-indicators" id="carouselIndicators">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -602,7 +621,6 @@
   </div>
 </div>
 
-<!-- Customize Order Modal -->
 <div class="modal fade" id="customizeOrderModal" tabindex="-1" aria-labelledby="customizeOrderModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -805,111 +823,216 @@
   </div>
 </div>
 
+  <script src="/js/alert.js"></script>
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
   <script src="/js/auth.js"></script>
   <style>
-    #announcementsCarousel {
-      background: linear-gradient(180deg, #fffafc, #fff1f6);
-      box-shadow: 0 8px 30px rgba(255,111,155,0.2);
-      border-radius: 16px;
-      overflow: hidden;
-      margin-bottom: 40px;
-      border: 1px solid rgba(255,111,155,0.1);
+    /* Announcements Section */
+    .announcements-section {
+      padding: 60px 0;
+      background: linear-gradient(180deg, #fff5f9 0%, #ffffff 100%);
     }
     
-    #announcementsCarousel .carousel-item {
-      min-height: 320px;
-      max-height: 320px;
+    /* Carousel Styling */
+    .announcements-carousel {
+      background: linear-gradient(135deg, #ff99c8 0%, #ff6fa3 100%);
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(255, 105, 180, 0.25);
       position: relative;
-      background: linear-gradient(135deg, #ff6f9b 0%, #ff5082 50%, #ff4172 100%);
-      
-      padding: 60px 40px;
-      transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+      margin-bottom: 40px;
     }
-
-    #announcementsCarousel .carousel-item.active,
-    #announcementsCarousel .carousel-item-next,
-    #announcementsCarousel .carousel-item-prev {
-      display: flex;
+    
+    .announcements-carousel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="2" fill="white" opacity="0.1"/></svg>');
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .announcements-carousel .carousel-inner {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .announcements-carousel .carousel-item {
+      min-height: 380px;
+      padding: 80px 60px;
+      display: none;
       align-items: center;
       justify-content: center;
+      position: relative;
+      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    #announcementsCarousel .carousel-caption {
+    .announcements-carousel .carousel-item.active,
+    .announcements-carousel .carousel-item-next,
+    .announcements-carousel .carousel-item-prev {
+      display: flex;
+    }
+    
+    .announcements-carousel .carousel-item.active {
+      opacity: 1;
+    }
+    
+    .announcements-carousel .carousel-caption {
       position: static;
       padding: 0;
       color: white;
       text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
     }
     
-    #announcementsCarousel .carousel-caption h3 {
+    .announcements-carousel .carousel-caption h3 {
       color: white;
-      font-weight: 700;
-      text-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      font-weight: 800;
+      font-size: 3rem;
       margin-bottom: 20px;
-      font-size: 2.5rem;
-      letter-spacing: -0.5px;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      letter-spacing: -1px;
       line-height: 1.2;
+      animation: slideDown 0.8s ease-out;
     }
     
-    #announcementsCarousel .carousel-caption p {
-      color: rgba(255,255,255,0.95);
-      text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .announcements-carousel .carousel-caption p {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 1.2rem;
+      line-height: 1.8;
       margin-bottom: 30px;
-      font-size: 1.15rem;
-      line-height: 1.6;
-      max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
       font-weight: 400;
+      animation: slideUp 0.8s ease-out 0.2s both;
     }
     
-    #announcementsCarousel .btn-light {
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .announcements-carousel .btn-light {
       background: white;
+      color: #ff6fa3;
       border: none;
-      font-weight: 600;
-      color: #ff6f9b;
-      padding: 14px 35px;
-      transition: all 0.3s ease;
+      padding: 16px 40px;
       border-radius: 50px;
-      font-size: 1rem;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      font-weight: 700;
+      font-size: 1.05rem;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      animation: slideUp 0.8s ease-out 0.4s both;
     }
     
-    #announcementsCarousel .btn-light:hover {
-      transform: translateY(-3px) scale(1.05);
-      box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    .announcements-carousel .btn-light:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
       background: #fff;
       color: #ff5082;
     }
     
-    #announcementsCarousel .carousel-indicators {
-      bottom: 20px;
-      margin-bottom: 0;
+    .announcements-carousel .btn-light:active {
+      transform: translateY(-2px) scale(1.02);
     }
     
-    #announcementsCarousel .carousel-indicators [data-bs-target] {
+    /* Navigation Arrows */
+    .announcements-carousel .carousel-control-prev,
+    .announcements-carousel .carousel-control-next {
+      width: 60px;
+      height: 60px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      opacity: 0;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .announcements-carousel:hover .carousel-control-prev,
+    .announcements-carousel:hover .carousel-control-next {
+      opacity: 1;
+    }
+    
+    .announcements-carousel .carousel-control-prev {
+      left: 20px;
+    }
+    
+    .announcements-carousel .carousel-control-next {
+      right: 20px;
+    }
+    
+    .announcements-carousel .carousel-control-prev:hover,
+    .announcements-carousel .carousel-control-next:hover {
+      background: white;
+      transform: translateY(-50%) scale(1.1);
+    }
+    
+    .announcements-carousel .carousel-control-icon {
+      width: auto;
+      height: auto;
+    }
+    
+    .announcements-carousel .carousel-control-icon i {
+      color: #ff6fa3;
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    
+    /* Indicators */
+    .announcements-carousel .carousel-indicators {
+      bottom: 30px;
+      margin: 0;
+      gap: 8px;
+    }
+    
+    .announcements-carousel .carousel-indicators button {
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      margin: 0 6px;
-      background-color: rgba(255,255,255,0.5);
-      border: 2px solid rgba(255,255,255,0.8);
-      transition: all 0.3s ease;
+      border: 2px solid rgba(255, 255, 255, 0.6);
+      background: transparent;
+      margin: 0 4px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       cursor: pointer;
+      padding: 0;
     }
     
-    #announcementsCarousel .carousel-indicators .active {
-      background-color: white;
+    .announcements-carousel .carousel-indicators button:hover {
+      border-color: white;
       transform: scale(1.2);
     }
     
-    .announcement-placeholder {
-      display: none;
+    .announcements-carousel .carousel-indicators button.active {
+      background: white;
+      width: 40px;
+      border-radius: 6px;
+      border-color: white;
     }
     
       
@@ -967,35 +1090,62 @@
       color: #333;
     }
     
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-      #announcementsCarousel .carousel-item {
-        min-height: 280px;
-        max-height: 280px;
-        padding: 40px 20px 60px 20px;
-      }
-      #announcementsCarousel .carousel-caption h3 {
-        font-size: 1.75rem;
-        margin-bottom: 15px;
-      }
-      #announcementsCarousel .carousel-caption p {
-        font-size: 1rem;
-        margin-bottom: 20px;
-      }
-      #announcementsCarousel .btn-light {
-        padding: 12px 28px;
-        font-size: 0.9rem;
-      }
-      #announcementModal .announcement-detail-title {
-        font-size: 1.5rem;
+      .announcements-section {
+        padding: 40px 0;
       }
       
-      #announcementsCarousel .carousel-indicators {
-        bottom: 15px;
+      .announcements-carousel .carousel-item {
+        min-height: 340px;
+        padding: 50px 30px;
+      }
+      
+      .announcements-carousel .carousel-item::before,
+      .announcements-carousel .carousel-item::after {
+        font-size: 80px;
+      }
+      
+      .announcements-carousel .carousel-caption h3 {
+        font-size: 2rem;
+        margin-bottom: 15px;
+      }
+      
+      .announcements-carousel .carousel-caption p {
+        font-size: 1rem;
+        margin-bottom: 25px;
+      }
+      
+      .announcements-carousel .btn-light {
+        padding: 14px 32px;
+        font-size: 0.95rem;
+      }
+      
+      .announcements-carousel .carousel-control-prev,
+      .announcements-carousel .carousel-control-next {
+        width: 50px;
+        height: 50px;
+      }
+      
+      .announcements-carousel .carousel-control-prev {
+        left: 10px;
+      }
+      
+      .announcements-carousel .carousel-control-next {
+        right: 10px;
+      }
+      
+      .announcements-carousel .carousel-indicators {
+        bottom: 20px;
+      }
+      
+      #announcementModal .announcement-detail-title {
+        font-size: 1.5rem;
       }
     }
 
     @media (max-width: 480px) {
-      #announcementsCarousel .carousel-item {
+      .announcements-carousel .carousel-item {
         padding-bottom: 50px;
       }
       #announcementsCarousel .carousel-indicators {
@@ -1078,7 +1228,7 @@
 
         if (data.announcements && data.announcements.length > 0) {
           allAnnouncements = data.announcements;
-          const carousel = document.getElementById('announcementsCarousel');
+          const section = document.getElementById('announcementsSection');
           const carouselContent = document.getElementById('carouselContent');
           const carouselIndicators = document.getElementById('carouselIndicators');
 
@@ -1090,12 +1240,13 @@
           carouselContent.innerHTML = '';
           carouselIndicators.innerHTML = '';
 
+          // Populate carousel
           carouselContent.innerHTML = data.announcements.map((ann, index) => `
             <div class="carousel-item ${index === 0 ? 'active' : ''}">
               <div class="carousel-caption">
                 <h3>${ann.title}</h3>
                 <p>${ann.description.length > 150 ? ann.description.substring(0, 150) + '...' : ann.description}</p>
-                <button onclick="showAnnouncementDetails('${ann.id}')" class="btn btn-light btn-sm">
+                <button onclick="showAnnouncementDetails('${ann.id}')" class="btn btn-light">
                   Learn More <i class="fa fa-arrow-right ms-2"></i>
                 </button>
               </div>
@@ -1108,13 +1259,14 @@
                     aria-label="Slide ${index + 1}"></button>
           `).join('');
 
-          carousel.style.display = 'block';
+          section.style.display = 'block';
 
           setTimeout(() => {
-            carouselInstance = new bootstrap.Carousel(carousel, {
-              interval: 5000,
+            const carouselEl = document.getElementById('announcementsCarousel');
+            carouselInstance = new bootstrap.Carousel(carouselEl, {
+              interval: 6000,
               wrap: true,
-              keyboard: false,
+              keyboard: true,
               touch: true,
               pause: 'hover',
               ride: 'carousel'

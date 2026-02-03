@@ -775,5 +775,125 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
+  // Image preview tooltip functionality
+  function attachImagePreviewListeners() {
+    let tooltip = null;
+    let longPressTimer = null;
+
+    function showTooltip(imgSrc, event) {
+      // Remove existing tooltip
+      if (tooltip) {
+        tooltip.remove();
+      }
+
+      // Create tooltip
+      tooltip = document.createElement('div');
+      tooltip.className = 'image-preview-tooltip';
+      tooltip.innerHTML = `<img src="${imgSrc}" alt="Preview" style="max-width: 300px; max-height: 300px; border-radius: 8px; display: block;">`;
+      document.body.appendChild(tooltip);
+
+      // Position tooltip
+      const x = event.clientX || (event.touches && event.touches[0].clientX);
+      const y = event.clientY || (event.touches && event.touches[0].clientY);
+      
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      let left = x + 15;
+      let top = y + 15;
+
+      // Adjust if tooltip goes off screen
+      if (left + tooltipRect.width > viewportWidth) {
+        left = x - tooltipRect.width - 15;
+      }
+      if (top + tooltipRect.height > viewportHeight) {
+        top = y - tooltipRect.height - 15;
+      }
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function hideTooltip() {
+      if (tooltip) {
+        tooltip.remove();
+        tooltip = null;
+      }
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    // Attach hover listeners for desktop
+    document.addEventListener('mouseover', (e) => {
+      const card = e.target.closest('.category-card, .product-card');
+      if (card) {
+        const img = card.querySelector('img');
+        if (img && img.src) {
+          showTooltip(img.src, e);
+        }
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      const card = e.target.closest('.category-card, .product-card');
+      if (card) {
+        hideTooltip();
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (tooltip) {
+        const x = e.clientX;
+        const y = e.clientY;
+        
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let left = x + 15;
+        let top = y + 15;
+
+        if (left + tooltipRect.width > viewportWidth) {
+          left = x - tooltipRect.width - 15;
+        }
+        if (top + tooltipRect.height > viewportHeight) {
+          top = y - tooltipRect.height - 15;
+        }
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+      }
+    });
+
+    // Attach long-press listeners for mobile
+    document.addEventListener('touchstart', (e) => {
+      const card = e.target.closest('.category-card, .product-card');
+      if (card) {
+        const img = card.querySelector('img');
+        if (img && img.src) {
+          longPressTimer = setTimeout(() => {
+            showTooltip(img.src, e);
+          }, 500); // 500ms long press
+        }
+      }
+    });
+
+    document.addEventListener('touchend', hideTooltip);
+    document.addEventListener('touchcancel', hideTooltip);
+    document.addEventListener('touchmove', (e) => {
+      // Cancel long press if user moves finger
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    });
+  }
+
+  // Initialize image preview listeners
+  attachImagePreviewListeners();
+
   loadProducts();
 });

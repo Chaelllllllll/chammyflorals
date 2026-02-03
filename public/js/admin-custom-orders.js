@@ -85,15 +85,17 @@
           <td><span class="badge ${statusClass}">${order.status || 'Pending'}</span></td>
           <td><small>${date}</small></td>
           <td>
-            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.viewDetails('${order.order_id}')" title="View Details">
-              <i class="fa fa-eye text-pink"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.editOrder('${order.order_id}')" title="Edit Order">
-              <i class="fa fa-edit text-pink"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.deleteOrder('${order.order_id}')" title="Delete Order">
-              <i class="fa fa-trash text-pink"></i>
-            </button>
+            <div class="action-buttons">
+              <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.viewDetails('${order.order_id}')" title="View Details">
+                <i class="fa fa-eye text-pink"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.editOrder('${order.order_id}')" title="Edit Order">
+                <i class="fa fa-edit text-pink"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.deleteOrder('${order.order_id}')" title="Delete Order">
+                <i class="fa fa-trash text-pink"></i>
+              </button>
+            </div>
           </td>
         </tr>
       `;
@@ -770,7 +772,7 @@
   function addItemRow(type) {
     const items = availableItems[type] || [];
     if (items.length === 0) {
-      alert('No available items to add');
+      alertWarning('No available items to add');
       return;
     }
 
@@ -813,7 +815,7 @@
       const select = document.getElementById('itemSelect');
       const option = select.selectedOptions[0];
       if (!option || !option.value) {
-        alert('Please select an item');
+        alertWarning('Please select an item');
         return;
       }
 
@@ -831,8 +833,9 @@
         // Add to existing table
         const tbody = container.querySelector('tbody');
         if (tbody) {
+          const existingRows = tbody.querySelectorAll('tr').length;
           const newRow = `
-            <tr class="item-row" data-item-type="${type}">
+            <tr class="item-row" data-item-type="${type}" data-item-index="${existingRows}">
               <td><small>${item.name}</small></td>
               <td>
                 <div class="input-group input-group-sm" style="width: 120px; margin: 0 auto;">
@@ -873,7 +876,7 @@
   function addWrapping() {
     const items = availableItems.wrapping || [];
     if (items.length === 0) {
-      alert('No available wrapping options');
+      alertWarning('No available wrapping options');
       return;
     }
 
@@ -911,7 +914,7 @@
       const select = document.getElementById('wrappingSelect');
       const option = select.selectedOptions[0];
       if (!option || !option.value) {
-        alert('Please select wrapping');
+        alertWarning('Please select wrapping');
         return;
       }
 
@@ -936,7 +939,7 @@
   function addAddon() {
     const items = availableItems.addons || [];
     if (items.length === 0) {
-      alert('No available add-ons');
+      alertWarning('No available add-ons');
       return;
     }
 
@@ -974,7 +977,7 @@
       const select = document.getElementById('addonSelect');
       const option = select.selectedOptions[0];
       if (!option || !option.value) {
-        alert('Please select an add-on');
+        alertWarning('Please select an add-on');
         return;
       }
 
@@ -1029,11 +1032,16 @@
   async function saveEdit() {
     const orderId = document.getElementById('editOrderId').value;
     
+    console.log('Starting saveEdit for order:', orderId);
+    
     // Collect stems data
     const stems = [];
-    document.querySelectorAll('#stemsContainer [data-item-type="stems"]').forEach(row => {
-      const qtyInput = row.querySelector('.item-quantity');
-      if (qtyInput) {
+    const stemsContainer = document.getElementById('stemsContainer');
+    console.log('Stems container:', stemsContainer);
+    if (stemsContainer) {
+      const stemInputs = stemsContainer.querySelectorAll('tr[data-item-type="stems"] .item-quantity');
+      console.log('Found stem inputs:', stemInputs.length);
+      stemInputs.forEach(qtyInput => {
         const quantity = parseInt(qtyInput.value) || 0;
         if (quantity > 0) {
           stems.push({
@@ -1042,14 +1050,18 @@
             quantity: quantity
           });
         }
-      }
-    });
+      });
+    }
+    console.log('Collected stems:', stems);
 
     // Collect fillers data
     const fillers = [];
-    document.querySelectorAll('#fillersContainer [data-item-type="fillers"]').forEach(row => {
-      const qtyInput = row.querySelector('.item-quantity');
-      if (qtyInput) {
+    const fillersContainer = document.getElementById('fillersContainer');
+    console.log('Fillers container:', fillersContainer);
+    if (fillersContainer) {
+      const fillerInputs = fillersContainer.querySelectorAll('tr[data-item-type="fillers"] .item-quantity');
+      console.log('Found filler inputs:', fillerInputs.length);
+      fillerInputs.forEach(qtyInput => {
         const quantity = parseInt(qtyInput.value) || 0;
         if (quantity > 0) {
           fillers.push({
@@ -1058,27 +1070,41 @@
             quantity: quantity
           });
         }
-      }
-    });
+      });
+    }
+    console.log('Collected fillers:', fillers);
 
     // Collect wrapping data
     let wrapping = null;
-    const wrappingRow = document.querySelector('#wrappingContainer [data-item-type="wrapping"]');
-    if (wrappingRow) {
-      wrapping = {
-        name: wrappingRow.dataset.wrappingName,
-        price: parseFloat(wrappingRow.dataset.wrappingPrice)
-      };
+    const wrappingContainer = document.getElementById('wrappingContainer');
+    console.log('Wrapping container:', wrappingContainer);
+    if (wrappingContainer) {
+      const wrappingRow = wrappingContainer.querySelector('tr[data-item-type="wrapping"]');
+      console.log('Wrapping row:', wrappingRow);
+      if (wrappingRow) {
+        wrapping = {
+          name: wrappingRow.dataset.wrappingName,
+          price: parseFloat(wrappingRow.dataset.wrappingPrice)
+        };
+      }
     }
+    console.log('Collected wrapping:', wrapping);
 
     // Collect addons data
     const addons = [];
-    document.querySelectorAll('#addonsContainer [data-item-type="addons"]').forEach(row => {
-      addons.push({
-        name: row.dataset.addonName,
-        price: parseFloat(row.dataset.addonPrice)
+    const addonsContainer = document.getElementById('addonsContainer');
+    console.log('Addons container:', addonsContainer);
+    if (addonsContainer) {
+      const addonRows = addonsContainer.querySelectorAll('tr[data-item-type="addons"]');
+      console.log('Found addon rows:', addonRows.length);
+      addonRows.forEach(row => {
+        addons.push({
+          name: row.dataset.addonName,
+          price: parseFloat(row.dataset.addonPrice)
+        });
       });
-    });
+    }
+    console.log('Collected addons:', addons);
 
     const updatedData = {
       name: document.getElementById('editName').value,
@@ -1093,6 +1119,8 @@
       addons: addons
     };
 
+    console.log('Final data to send:', updatedData);
+
     if (!orderId || !updatedData.name || !updatedData.email) {
       showError('Please fill in all required fields');
       return;
@@ -1100,6 +1128,7 @@
 
     try {
       const token = localStorage.getItem('adminToken');
+      console.log('Sending PUT request to:', `${API_URL}/api/admin/orders/custom/${orderId}`);
       const response = await fetch(`${API_URL}/api/admin/orders/custom/${orderId}`, {
         method: 'PUT',
         headers: {
@@ -1110,16 +1139,22 @@
         body: JSON.stringify(updatedData)
       });
 
+      const result = await response.json();
+      console.log('Server response:', result);
+
       if (!response.ok) {
-        throw new Error('Failed to update order');
+        throw new Error(result.error || 'Failed to update order');
       }
 
-      bootstrap.Modal.getInstance(document.getElementById('editOrderModal')).hide();
+      const editModal = bootstrap.Modal.getInstance(document.getElementById('editOrderModal'));
+      if (editModal) {
+        editModal.hide();
+      }
       showSuccess('Order updated successfully');
-      loadCustomOrders();
+      await loadCustomOrders();
     } catch (error) {
       console.error('Error updating order:', error);
-      showError('Failed to update order');
+      showError('Failed to update order: ' + error.message);
     }
   }
 
@@ -1178,12 +1213,12 @@
 
   // Show success message
   function showSuccess(message) {
-    alert(message); // Replace with better toast notification
+    alertSuccess(message);
   }
 
   // Show error message
   function showError(message) {
-    alert(message); // Replace with better toast notification
+    alertError(message);
   }
 
   // Initialize

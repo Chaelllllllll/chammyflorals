@@ -430,6 +430,7 @@
     </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="/js/alert.js"></script>
 
         <!-- Global modal for alerts/confirms (used by admin UI instead of alert/confirm) -->
         <div class="modal fade" id="globalModal" tabindex="-1" aria-hidden="true">
@@ -455,7 +456,7 @@
 
                 window.showAlertModal = function(message, title){
                     return new Promise((resolve)=>{
-                        if (!modalEl || !bsModal) { alert(message); return resolve(); }
+                        if (!modalEl || !bsModal) { alertInfo(message); return resolve(); }
                         document.getElementById('globalModalTitle').textContent = title || 'Notice';
                         document.getElementById('globalModalBody').innerHTML = message;
                         document.getElementById('globalModalCancel').style.display = 'none';

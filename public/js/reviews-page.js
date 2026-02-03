@@ -4,6 +4,11 @@
 // Cached reviews for client-side filtering
 window.pageReviews = null;
 
+// Lazy loading variables
+let displayedReviewsCount = 0;
+const REVIEWS_PER_PAGE = 12;
+let isLoadingMoreReviews = false;
+
 function sanitizeInput(str, maxLen = 1000) {
   if (!str) return '';
   // Remove tags
@@ -13,7 +18,7 @@ function sanitizeInput(str, maxLen = 1000) {
   return s;
 }
 
-async function renderPageReviews() {
+async function renderPageReviews(append = false) {
   const container = document.getElementById('reviewsContainer');
   if (!container) return;
   try {
@@ -39,6 +44,7 @@ async function renderPageReviews() {
 
     // sort newest first
     const sorted = reviews.slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+    
     // update hero summary (count & average)
     try {
       const countEl = document.getElementById('reviewsCount');
@@ -48,8 +54,19 @@ async function renderPageReviews() {
       if (countEl) countEl.textContent = `${total}`;
       if (avgEl) avgEl.textContent = `${Number(avg.toFixed(1))}`;
     } catch (e) {}
+    
+    // Reset counter if not appending
+    if (!append) {
+      displayedReviewsCount = 0;
+      container.innerHTML = '';
+    }
+    
+    // Get next batch of reviews
+    const startIdx = displayedReviewsCount;
+    const endIdx = Math.min(startIdx + REVIEWS_PER_PAGE, sorted.length);
+    const reviewsToDisplay = sorted.slice(startIdx, endIdx);
 
-    container.innerHTML = sorted.map(r => `
+    const reviewsHTML = reviewsToDisplay.map(r => `
       <div class="col-12 mb-3">
         <div class="review-card">
           ${r.image_url ? `
@@ -77,7 +94,40 @@ async function renderPageReviews() {
         </div>
       </div>
     `).join('');
-
+    
+    if (append) {
+      container.insertAdjacentHTML('beforeend', reviewsHTML);
+    } else {
+      container.innerHTML = reviewsHTML;
+    }
+    
+    displayedReviewsCount = endIdx;
+    
+    // Add or remove "Load More" button
+    const existingLoadMore = document.getElementById('loadMoreReviews');
+    if (existingLoadMore) {
+      existingLoadMore.remove();
+    }
+    
+    if (displayedReviewsCount < sorted.length) {
+      const loadMoreBtn = document.createElement('div');
+      loadMoreBtn.id = 'loadMoreReviews';
+      loadMoreBtn.className = 'col-12 text-center my-4';
+      loadMoreBtn.innerHTML = `
+        <button class="btn btn-pink btn-lg px-5" style="border-radius: 50px; font-weight: 600; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.3);">
+          <i class="fa fa-chevron-down me-2"></i>Load More Reviews (${sorted.length - displayedReviewsCount} remaining)
+        </button>
+      `;
+      container.parentElement.appendChild(loadMoreBtn);
+      
+      loadMoreBtn.querySelector('button').addEventListener('click', async () => {
+        if (!isLoadingMoreReviews) {
+          isLoadingMoreReviews = true;
+          await renderPageReviews(true);
+          isLoadingMoreReviews = false;
+        }
+      });
+    }
     // Add click event listeners to all review images
     setTimeout(() => {
       const imageWrappers = container.querySelectorAll('.review-image-wrapper');
@@ -126,7 +176,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Wire star filter
   const filterEl = document.getElementById('pageReviewsFilterStars');
-  if (filterEl) filterEl.addEventListener('change', () => renderPageReviews());
+  if (filterEl) filterEl.addEventListener('change', async () => {
+    displayedReviewsCount = 0; // Reset pagination when filter changes
+    await renderPageReviews();
+  });
 
   // Wire navbar submit button to scroll to form
   const navSubmitBtn = document.getElementById('navSubmitReviewBtn');
@@ -176,12 +229,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         await postReviewToServer({ orderId, stars, message });
       }
       // on success: clear form, re-render
-  form.reset();
-  // Invalidate cache so the new review shows
-  window.pageReviews = null;
+      form.reset();
+      // Invalidate cache and reset pagination so the new review shows immediately
+      window.pageReviews = null;
+      displayedReviewsCount = 0;
       form.classList.remove('was-validated');
       await renderPageReviews();
       showPageError('Review submitted successfully.');
+      // Scroll to top of reviews to see the new review
+      const reviewsContainer = document.getElementById('reviewsContainer');
+      if (reviewsContainer) {
+        reviewsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
       setTimeout(()=> showPageError(''), 3000);
     } catch (err) {
       console.error('Page submit error', err);

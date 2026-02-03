@@ -1881,7 +1881,7 @@ function showNotifToast(count, items) {
     });
     
     if (!items.length) {
-      alert('Please add at least one item to the order');
+      alertWarning('Please add at least one item to the order');
       return;
     }
     
@@ -2411,11 +2411,11 @@ async function sendAdminChatMessage(orderId) {
         input.value = '';
         await loadFloatingChatMessages();
       } else {
-        alert(result.error || 'Failed to send message');
+        alertError(result.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alertError('Failed to send message. Please try again.');
     } finally {
       // remove pending bubble if present
       const pending = document.querySelector(`[data-pending="${pendingId}"]`);
@@ -2520,11 +2520,11 @@ async function sendAdminChatMessage(orderId) {
           input.value = '';
           await loadChatConversation();
         } else {
-          alert(result.error || 'Failed to send message');
+          alertError(result.error || 'Failed to send message');
         }
       } catch (error) {
         console.error('Error sending message:', error);
-        alert('Failed to send message. Please try again.');
+        alertError('Failed to send message. Please try again.');
       } finally {
         if (submitBtn) {
           submitBtn.disabled = false;

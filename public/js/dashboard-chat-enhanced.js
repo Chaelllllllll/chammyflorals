@@ -112,14 +112,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Validate file type
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
                 if (!allowedTypes.includes(file.type)) {
-                    alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+                    alertWarning('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
                     imageInput.value = '';
                     return;
                 }
                 
                 // Validate file size (5MB max)
                 if (file.size > 5 * 1024 * 1024) {
-                    alert('Image file size must be less than 5MB');
+                    alertWarning('Image file size must be less than 5MB');
                     imageInput.value = '';
                     return;
                 }
@@ -446,10 +446,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     window.removeImagePreview();
                     await loadMessages();
                 } else {
-                    alert(result.error || 'Failed to send message');
+                    alertError(result.error || 'Failed to send message');
                 }
             } catch (error) {
-                alert('Failed to send message. Please try again.');
+                alertError('Failed to send message. Please try again.');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;

@@ -416,7 +416,7 @@ function formatColor(c) {
           a.remove();
         } catch (err) {
           console.error('Failed to save image:', err);
-          alert('Failed to generate image.');
+          alertError('Failed to generate image.');
         }
       });
     }

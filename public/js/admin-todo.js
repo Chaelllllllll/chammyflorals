@@ -143,7 +143,7 @@
           const ord = await r.json();
           showOrderDetails(ord);
         } catch (err) {
-          alert('Failed to load order details');
+          alertError('Failed to load order details');
           console.error(err);
         }
       }));

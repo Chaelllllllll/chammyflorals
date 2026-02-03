@@ -201,11 +201,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await loadMessages();
                 } else {
                     console.error('Failed to send:', result);
-                    alert(result.error || 'Failed to send message');
+                    alertError(result.error || 'Failed to send message');
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
-                alert('Failed to send message. Please try again.');
+                alertError('Failed to send message. Please try again.');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;

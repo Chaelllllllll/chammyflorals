@@ -19,29 +19,20 @@ async function loadDeliveryOrders() {
     }
 
     // Fetch regular orders and custom orders
-    const [ordersResponse, customOrdersResponse] = await Promise.all([
-      fetch('/api/admin/orders', {
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-      fetch('/api/admin/orders/custom', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ]);
+    const ordersResponse = await fetch('/api/admin/orders', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     
     const orders = await ordersResponse.json();
-    const customOrdersData = await customOrdersResponse.json();
 
-    if (ordersResponse.ok && customOrdersResponse.ok) {
-      // Combine regular orders and custom orders
-      const regularOrders = (orders || []).filter(order => 
-        String(order.status || '').toLowerCase() === 'to receive'
-      ).map(order => ({ ...order, orderType: 'regular' }));
-      
-      const customOrders = (customOrdersData.orders || []).filter(order => 
-        String(order.status || '').toLowerCase() === 'to receive'
-      ).map(order => ({ ...order, orderType: 'custom' }));
-      
-      const deliveryOrders = [...regularOrders, ...customOrders];
+    if (ordersResponse.ok) {
+      // Filter for "To Receive" status only
+      const deliveryOrders = (orders || [])
+        .filter(order => String(order.status || '').toLowerCase() === 'to receive')
+        .map(order => ({
+          ...order,
+          orderType: order.order_type || 'regular'
+        }));
       
       window.deliveryOrders = deliveryOrders;
       updateMetrics();
@@ -166,6 +157,29 @@ async function viewOrderDetails(orderId) {
   const content = document.getElementById('orderDetailsContent');
   const isCustomOrder = order.orderType === 'custom';
   
+  // Fetch customization options to get images for custom orders
+  let customizationOptions = {};
+  if (isCustomOrder) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/customization-options', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Create lookup maps by name
+        customizationOptions = {
+          stems: (data.stems || []).reduce((acc, item) => { acc[item.name] = item; return acc; }, {}),
+          fillers: (data.fillers || []).reduce((acc, item) => { acc[item.name] = item; return acc; }, {}),
+          wrapping: (data.wrapping || []).reduce((acc, item) => { acc[item.name] = item; return acc; }, {}),
+          addons: (data.addons || []).reduce((acc, item) => { acc[item.name] = item; return acc; }, {})
+        };
+      }
+    } catch (err) {
+      console.error('Error fetching customization options:', err);
+    }
+  }
+  
   // Build a professional details layout
   const statusBadge = `<span class="badge ${order.status && String(order.status).toLowerCase() === 'to receive' ? 'bg-success' : 'bg-secondary'}">${escapeHtml(order.status || 'To Receive')}</span>`;
 
@@ -180,12 +194,14 @@ async function viewOrderDetails(orderId) {
     if (order.stems && Array.isArray(order.stems) && order.stems.length) {
       itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Stems</div>';
       order.stems.forEach(stem => {
+        const stemOption = customizationOptions.stems?.[stem.name];
+        const stemImage = stemOption?.image_url || stem.image;
         itemsHtml += `
           <div class="order-item-row">
-            ${stem.image ? `<img src="${escapeHtml(stem.image)}" alt="${escapeHtml(stem.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+            ${stemImage ? `<img src="${escapeHtml(stemImage)}" alt="${escapeHtml(stem.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">🌸</div>`}
             <div style="flex:1">
               <div class="fw-semibold">${escapeHtml(stem.name)}</div>
-              <div class="item-meta">Qty: ${stem.quantity}</div>
+              <div class="item-meta">₱${Number(stem.price || 0).toFixed(2)}</div>
             </div>
           </div>
         `;
@@ -197,12 +213,14 @@ async function viewOrderDetails(orderId) {
     if (order.fillers && Array.isArray(order.fillers) && order.fillers.length) {
       itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Fillers</div>';
       order.fillers.forEach(filler => {
+        const fillerOption = customizationOptions.fillers?.[filler.name];
+        const fillerImage = fillerOption?.image_url || filler.image;
         itemsHtml += `
           <div class="order-item-row">
-            ${filler.image ? `<img src="${escapeHtml(filler.image)}" alt="${escapeHtml(filler.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+            ${fillerImage ? `<img src="${escapeHtml(fillerImage)}" alt="${escapeHtml(filler.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">🌿</div>`}
             <div style="flex:1">
               <div class="fw-semibold">${escapeHtml(filler.name)}</div>
-              <div class="item-meta">Qty: ${filler.quantity}</div>
+              <div class="item-meta">₱${Number(filler.price || 0).toFixed(2)}</div>
             </div>
           </div>
         `;
@@ -210,18 +228,22 @@ async function viewOrderDetails(orderId) {
       itemsHtml += '</div>';
     }
     
-    // Wrapping (stored as single object, not array)
-    if (order.wrapping && typeof order.wrapping === 'object') {
+    // Wrapping (stored as array)
+    if (order.wrapping && Array.isArray(order.wrapping) && order.wrapping.length) {
       itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Wrapping</div>';
-      const wrap = order.wrapping;
-      itemsHtml += `
-        <div class="order-item-row">
-          ${wrap.image ? `<img src="${escapeHtml(wrap.image)}" alt="${escapeHtml(wrap.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
-          <div style="flex:1">
-            <div class="fw-semibold">${escapeHtml(wrap.name)}</div>
+      order.wrapping.forEach(wrap => {
+        const wrapOption = customizationOptions.wrapping?.[wrap.name];
+        const wrapImage = wrapOption?.image_url || wrap.image;
+        itemsHtml += `
+          <div class="order-item-row">
+            ${wrapImage ? `<img src="${escapeHtml(wrapImage)}" alt="${escapeHtml(wrap.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">🎀</div>`}
+            <div style="flex:1">
+              <div class="fw-semibold">${escapeHtml(wrap.name)}</div>
+              <div class="item-meta">₱${Number(wrap.price || 0).toFixed(2)}</div>
+            </div>
           </div>
-        </div>
-      `;
+        `;
+      });
       itemsHtml += '</div>';
     }
     
@@ -317,9 +339,11 @@ async function viewOrderDetails(orderId) {
     // Custom order addons are objects with name, image, price
     addonsHtml = '<div class="mb-2"><div class="details-key">Add-ons</div><div class="order-items-list mt-2">';
     order.addons.forEach(addon => {
+      const addonOption = customizationOptions.addons?.[addon.name];
+      const addonImage = addonOption?.image_url || addon.image;
       addonsHtml += `
         <div class="order-item-row">
-          ${addon.image ? `<img src="${escapeHtml(addon.image)}" alt="${escapeHtml(addon.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+          ${addonImage ? `<img src="${escapeHtml(addonImage)}" alt="${escapeHtml(addon.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">🎁</div>`}
           <div style="flex:1">
             <div class="fw-semibold">${escapeHtml(addon.name)}</div>
             ${addon.price ? `<div class="item-meta">₱${Number(addon.price).toFixed(2)}</div>` : ''}
@@ -907,7 +931,7 @@ document.getElementById('manualOrderForm')?.addEventListener('submit', async (e)
   });
 
   if (!items.length) {
-    alert('Please add at least one item to the order');
+    alertWarning('Please add at least one item to the order');
     return;
   }
 

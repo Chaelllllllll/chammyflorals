@@ -391,14 +391,14 @@
     
     // Validate terms
     if (!termsCheckbox || !termsCheckbox.checked) {
-      alert('Please accept the terms and conditions to proceed.');
+      alertWarning('Please accept the terms and conditions to proceed.');
       termsCheckbox?.focus();
       return;
     }
     
     // Validate required items (stems, fillers, wrapping)
     if (selectedItems.stems.length === 0) {
-      alert('Please select at least one stem for your custom order.');
+      alertWarning('Please select at least one stem for your custom order.');
       // Open stems accordion
       const stemsCollapse = document.getElementById('collapseStems');
       if (stemsCollapse && !stemsCollapse.classList.contains('show')) {
@@ -408,7 +408,7 @@
     }
     
     if (selectedItems.fillers.length === 0) {
-      alert('Please select at least one filler for your custom order.');
+      alertWarning('Please select at least one filler for your custom order.');
       // Open fillers accordion
       const fillersCollapse = document.getElementById('collapseFillers');
       if (fillersCollapse && !fillersCollapse.classList.contains('show')) {
@@ -418,7 +418,7 @@
     }
     
     if (!selectedItems.wrapping) {
-      alert('Please select wrapping for your custom order.');
+      alertWarning('Please select wrapping for your custom order.');
       // Open wrapping accordion
       const wrappingCollapse = document.getElementById('collapseWrapping');
       if (wrappingCollapse && !wrappingCollapse.classList.contains('show')) {
@@ -434,7 +434,7 @@
     const specialInstructions = formData.get('custom_message')?.trim();
     
     if (!fullName || !email || !facebookLink) {
-      alert('Please fill in your name, email, and Facebook profile link.');
+      alertWarning('Please fill in your name, email, and Facebook profile link.');
       return;
     }
     
@@ -491,7 +491,7 @@
       
     } catch (err) {
       console.error('Error submitting custom order:', err);
-      alert('Failed to submit order: ' + err.message);
+      alertError('Failed to submit order: ' + err.message);
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalBtnText;

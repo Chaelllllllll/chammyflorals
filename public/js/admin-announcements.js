@@ -225,7 +225,7 @@ document.getElementById('announcementForm').addEventListener('submit', async (e)
         if (formContainer) formContainer.classList.add('d-none');
         loadAnnouncements();
     } catch (error) {
-        try { await window.showAlertModal('Failed to save announcement: ' + error.message, 'Error'); } catch(e){ alert('Failed to save announcement: ' + error.message); }
+        try { await window.showAlertModal('Failed to save announcement: ' + error.message, 'Error'); } catch(e){ alertError('Failed to save announcement: ' + error.message); }
     }
 });
 
@@ -253,7 +253,7 @@ window.editAnnouncement = async function(id) {
             }
         }
     } catch (error) {
-        try { await window.showAlertModal('Error loading announcement details: ' + error.message, 'Error'); } catch(e){ alert('Error loading announcement details: ' + error.message); }
+        try { await window.showAlertModal('Error loading announcement details: ' + error.message, 'Error'); } catch(e){ alertError('Error loading announcement details: ' + error.message); }
     }
 };
 
@@ -284,7 +284,7 @@ window.deleteAnnouncement = async function(id) {
         try { await window.showAlertModal('Announcement deleted successfully!'); } catch(e){}
         loadAnnouncements();
     } catch (error) {
-        try { await window.showAlertModal('Failed to delete announcement: ' + error.message, 'Error'); } catch(e){ alert('Failed to delete announcement: ' + error.message); }
+        try { await window.showAlertModal('Failed to delete announcement: ' + error.message, 'Error'); } catch(e){ alertError('Failed to delete announcement: ' + error.message); }
     }
 };
 

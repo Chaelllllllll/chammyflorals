@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('adminToken');
   
   if (!token) {
-    alert('Please log in first');
+    alertWarning('Please log in first');
     window.location.href = '/admin/login.html';
     return;
   }
@@ -360,11 +360,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadMessages();
         await loadOrders(); // Refresh orders list
       } else {
-        alert(result.error || 'Failed to send message');
+        alertError(result.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alertError('Failed to send message. Please try again.');
     } finally {
       const pending = document.querySelector(`[data-pending="${pendingId}"]`);
       if (pending && pending.parentElement && pending.parentElement.parentElement) {

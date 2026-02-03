@@ -604,19 +604,56 @@ router.get('/track/:orderId', async (req, res) => {
 router.get('/orders', authenticateCustomer, async (req, res) => {
   try {
     const customerId = req.user.id;
+    const customerEmail = req.user.email;
     
-    const { data, error } = await supabase
+    // Fetch regular orders
+    const { data: regularOrders, error: regularError } = await supabase
       .from('orders')
       .select('*')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching customer orders:', error);
+    if (regularError) {
+      console.error('Error fetching customer orders:', regularError);
       return res.status(500).json({ error: 'Failed to fetch orders' });
     }
 
-    res.json(data || []);
+    // Fetch custom orders by email
+    const { data: customOrders, error: customError } = await supabase
+      .from('custom_orders')
+      .select('*')
+      .eq('email', customerEmail)
+      .order('created_at', { ascending: false });
+
+    if (customError) {
+      console.error('Error fetching custom orders:', customError);
+      // Don't fail the entire request, just continue with regular orders
+    }
+
+    // Combine and normalize both order types
+    const allOrders = [
+      ...(regularOrders || []).map(order => ({
+        ...order,
+        order_type: 'regular'
+      })),
+      ...(customOrders || []).map(order => ({
+        ...order,
+        order_type: 'custom',
+        // Normalize custom order fields to match regular orders
+        // Use order_id if available, otherwise use id as fallback
+        order_id: order.order_id || order.id,
+        flower_type: 'Custom Bouquet',
+        quantity: 1,
+        total_fee: order.total_fee,
+        status: order.status,
+        created_at: order.created_at
+      }))
+    ];
+
+    // Sort combined orders by created_at
+    allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.json(allOrders);
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
@@ -1119,12 +1156,44 @@ router.post('/reviews', upload.single('image'), sanitizeBody, async (req, res) =
       return res.status(400).json({ error: 'orderId, stars and message are required' });
     }
 
-    // validate order exists and get customer name and status
-    const { data: order, error: orderErr } = await supabase
+    // validate order exists in either orders or custom_orders table
+    let order = null;
+    let orderErr = null;
+    
+    // First check regular orders table
+    const { data: regularOrder, error: regularErr } = await supabase
       .from('orders')
       .select('order_id,name,status')
       .eq('order_id', String(orderId))
       .single();
+    
+    if (regularOrder) {
+      order = regularOrder;
+    } else {
+      // If not found, check custom_orders table by order_id
+      const { data: customOrder, error: customErr } = await supabase
+        .from('custom_orders')
+        .select('order_id,name,status')
+        .eq('order_id', String(orderId))
+        .single();
+      
+      if (customOrder) {
+        order = customOrder;
+      } else {
+        // Also try checking by id as fallback
+        const { data: customOrderById, error: customErrById } = await supabase
+          .from('custom_orders')
+          .select('order_id,name,status')
+          .eq('id', String(orderId))
+          .single();
+        
+        if (customOrderById) {
+          order = customOrderById;
+        } else {
+          orderErr = customErrById || customErr;
+        }
+      }
+    }
 
     if (orderErr || !order) {
       return res.status(404).json({ error: 'Order not found' });
@@ -2246,11 +2315,22 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
 router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { name, email, fb_link, status, total_fee, special_instructions } = req.body;
+    const { name, email, fb_link, status, total_fee, special_instructions, stems, fillers, wrapping, addons } = req.body;
+
+    console.log('Updating custom order:', orderId, 'with data:', req.body);
 
     if (!orderId) {
       return res.status(400).json({ error: 'Order ID is required' });
     }
+
+    // Get the current order to check if status changed
+    const { data: currentOrder } = await supabase
+      .from('custom_orders')
+      .select('status, email, name')
+      .eq('order_id', orderId)
+      .single();
+
+    const previousStatus = currentOrder?.status;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -2259,6 +2339,10 @@ router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (total_fee !== undefined) updateData.total_fee = parseFloat(total_fee);
     if (special_instructions !== undefined) updateData.special_instructions = special_instructions;
+    if (stems !== undefined) updateData.stems = stems;
+    if (fillers !== undefined) updateData.fillers = fillers;
+    if (wrapping !== undefined) updateData.wrapping = wrapping;
+    if (addons !== undefined) updateData.addons = addons;
 
     const { data, error } = await supabase
       .from('custom_orders')
@@ -2270,6 +2354,54 @@ router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
     if (error) {
       console.error('Error updating custom order:', error);
       return res.status(500).json({ error: 'Failed to update order' });
+    }
+
+    console.log('Custom order updated successfully:', data);
+
+    // Send email notification if status changed
+    if (status !== undefined && previousStatus !== status && data.email) {
+      try {
+        const statusEmojis = {
+          'Pending': '⏳',
+          'Processing': '🔄',
+          'Ready': '✅',
+          'Delivered': '🎉',
+          'Cancelled': '❌'
+        };
+
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h2 style="margin: 0;">Order Status Update ${statusEmojis[status] || '📦'}</h2>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px;">
+              <p>Hello <strong>${data.name}</strong>,</p>
+              <p>Your custom order <strong>${orderId}</strong> status has been updated to:</p>
+              <div style="background: #ff6f9b; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <strong style="font-size: 24px;">${status}</strong>
+              </div>
+              ${status === 'Ready' ? '<p>Your order is ready for pickup or delivery! We will contact you shortly.</p>' : ''}
+              ${status === 'Delivered' ? '<p>Thank you for your order! We hope you love your custom bouquet. 💐</p>' : ''}
+              ${status === 'Cancelled' ? '<p>If you have any questions, please contact us.</p>' : ''}
+              <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+                For any questions, feel free to reach out to us.
+              </p>
+              <p style="color: #ff6f9b; text-align: center; font-weight: bold;">Thank you for choosing Chammy Florals! 🌸</p>
+            </div>
+          </div>
+        `;
+
+        await mailer.sendMail({
+          to: data.email,
+          subject: `Order Status Update - ${orderId}`,
+          html: emailHtml
+        });
+
+        console.log(`Status update email sent to ${data.email} for order ${orderId}`);
+      } catch (mailErr) {
+        console.error('Failed to send status update email:', mailErr);
+        // Don't fail the request if email fails
+      }
     }
 
     return res.json({ success: true, order: data });

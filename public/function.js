@@ -27,8 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
           emailInput.readOnly = true;
           emailInput.style.backgroundColor = '#f8f9fa';
         }
-        
-        console.log('Customer info pre-filled:', { name: customer.name, email: customer.email });
       } catch (error) {
         console.error('Error pre-filling customer info:', error);
       }
@@ -491,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
       items.push(itemObj);
     });
     if (!items.length) {
-      alert('Please add at least one item to your order');
+      alertWarning('Please add at least one item to your order');
       if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml; }
       return;
     }
@@ -562,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `/order-success.html?orderId=${encodeURIComponent(orderId)}`;
             return;
           }
-        } catch (redirectErr) {alert(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
+        } catch (redirectErr) {alertSuccess(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
         }
       } else {
         // Handle errors
@@ -570,14 +568,14 @@ document.addEventListener('DOMContentLoaded', () => {
           // Token expired or invalid - user needs to log in again
           localStorage.removeItem('auth_token');
           localStorage.removeItem('customer');
-          alert('Your session has expired. Please log in again to place an order.');
+          alertError('Your session has expired. Please log in again to place an order.');
           window.location.href = '/customer-login.html';
           return;
         }
-        alert(result.error || 'Something went wrong. Please try again.');
+        alertError(result.error || 'Something went wrong. Please try again.');
       }
     } catch (error) {
-      alert('Failed to send inquiry. Please try again.');
+      alertError('Failed to send inquiry. Please try again.');
       console.error('Error:', error);
     } finally {
       // restore button
@@ -591,7 +589,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const trackForm = document.getElementById('trackForm');
   if (!trackForm) {
-    console.error('Track form not found');
     return;
   }
 
@@ -841,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const orderId = orderIdInput ? orderIdInput.value.trim() : '';
       
       if (!orderId) {
-        alert('Please enter an Order ID first');
+        alertWarning('Please enter an Order ID first');
         return;
       }
 
@@ -871,9 +868,9 @@ document.addEventListener('DOMContentLoaded', () => {
         textArea.select();
         try {
           document.execCommand('copy');
-          alert('Tracking link copied to clipboard!');
+          alertSuccess('Tracking link copied to clipboard!');
         } catch (e) {
-          alert('Failed to copy link. Please copy manually: ' + trackingUrl);
+          alertError('Failed to copy link. Please copy manually: ' + trackingUrl);
         }
         document.body.removeChild(textArea);
       }
@@ -975,11 +972,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reload messages
         await loadChatMessages(orderId);
       } else {
-        alert(result.error || 'Failed to send message');
+        alertError(result.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alertError('Failed to send message. Please try again.');
     } finally {
       // Re-enable form
       if (submitBtn) {

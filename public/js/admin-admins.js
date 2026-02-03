@@ -70,7 +70,7 @@
       });
 
     }catch(e){
-      console.error(e); alert('Failed to load admin data: '+(e.message||e));
+      console.error(e); alertError('Failed to load admin data: '+(e.message||e));
     }
   }
 
@@ -109,7 +109,7 @@
             await api(`/admins/${encodeURIComponent(id)}`, { method: 'DELETE' });
             if (adminModal) adminModal.hide();
             load();
-          } catch (err) { alert('Delete failed: '+(err.message||err)); }
+          } catch (err) { alertError('Delete failed: '+(err.message||err)); }
         };
       } else if ((r && r.psid)) {
         // no id but has psid (messenger-only record)
@@ -120,7 +120,7 @@
             await api(`/admins/messenger/${encodeURIComponent(r.psid)}`, { method: 'DELETE' });
             if (adminModal) adminModal.hide();
             load();
-          } catch (err) { alert('Delete failed: '+(err.message||err)); }
+          } catch (err) { alertError('Delete failed: '+(err.message||err)); }
         };
       } else {
         modalDeleteBtn.classList.add('d-none');
@@ -142,7 +142,7 @@
     const password = document.getElementById('modalPassword').value || null;
     try{
       if (!id) {
-        alert('Creating new admins from the UI is disabled. Please create accounts via the server or database.');
+        alertInfo('Creating new admins from the UI is disabled. Please create accounts via the server or database.');
         return;
       } else {
         // update basic fields
@@ -154,7 +154,7 @@
       }
       if (adminModal) adminModal.hide();
       load();
-    }catch(e){ alert('Save failed: '+(e.message||e)); }
+    }catch(e){ alertError('Save failed: '+(e.message||e)); }
   });
 
   // Refresh/search handlers

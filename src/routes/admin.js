@@ -577,9 +577,72 @@ router.get('/dashboard', auth, async (req, res) => {
 
 router.get('/orders', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase.from('orders').select('*');
-    if (error) throw error;
-    res.json(data);
+    // Helper function to safely parse array fields
+    const safeArray = (value) => {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    };
+
+    // Fetch regular orders
+    const { data: regularOrders, error: regularError } = await supabase
+      .from('orders')
+      .select('*');
+    
+    if (regularError) throw regularError;
+
+    // Fetch custom orders
+    const { data: customOrders, error: customError } = await supabase
+      .from('custom_orders')
+      .select('*');
+
+    if (customError) {
+      console.error('Error fetching custom orders:', customError);
+      // Continue with regular orders even if custom orders fail
+    }
+
+    // Combine and normalize both order types
+    const allOrders = [
+      ...(regularOrders || []).map(order => ({
+        ...order,
+        order_type: 'regular',
+        orderId: order.order_id,
+        items: order.items || []
+      })),
+      ...(customOrders || []).map(order => {
+        const stems = safeArray(order.stems);
+        const fillers = safeArray(order.fillers);
+        const wrapping = safeArray(order.wrapping);
+        const addons = safeArray(order.addons);
+
+        return {
+          ...order,
+          order_type: 'custom',
+          orderId: order.order_id,
+          flower_type: 'Custom Bouquet',
+          // Combine stems, fillers, wrapping as items for display
+          items: [
+            ...stems.map(s => ({ name: s.name, price: s.price, type: 'stem' })),
+            ...fillers.map(f => ({ name: f.name, price: f.price, type: 'filler' })),
+            ...wrapping.map(w => ({ name: w.name, price: w.price, type: 'wrapping' })),
+            ...addons.map(a => ({ name: a.name, price: a.price, type: 'addon' }))
+          ]
+        };
+      })
+    ];
+
+    // Sort by created_at (newest first)
+    allOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    res.json(allOrders);
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
@@ -818,27 +881,60 @@ router.get('/reports', auth, async (req, res) => {
   try {
     // allow optional date range filtering via ?from=YYYY-MM-DD&to=YYYY-MM-DD
     const { from, to } = req.query || {};
-    const q = supabase.from('orders').select('order_id,name,total_fee,created_at,status').order('created_at', { ascending: true });
-    if (from) q.gte('created_at', new Date(from).toISOString());
-    else {
-      // default to last 12 months
-      const startMonths = new Date();
-      startMonths.setMonth(startMonths.getMonth() - 11);
-      q.gte('created_at', startMonths.toISOString());
-    }
-    if (to) q.lte('created_at', new Date(to).toISOString());
+    
+    // Default to last 12 months if no from date specified
+    const defaultFrom = new Date();
+    defaultFrom.setMonth(defaultFrom.getMonth() - 11);
+    const startDate = from ? new Date(from).toISOString() : defaultFrom.toISOString();
+    const endDate = to ? new Date(to).toISOString() : null;
 
-    const { data: orders, error } = await q;
-    if (error) throw error;
+    // Query regular orders
+    const regularQuery = supabase
+      .from('orders')
+      .select('order_id,name,total_fee,created_at,status')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: true });
+    
+    if (endDate) regularQuery.lte('created_at', endDate);
+
+    // Query custom orders
+    const customQuery = supabase
+      .from('custom_orders')
+      .select('order_id,name,total_fee,created_at,status')
+      .gte('created_at', startDate)
+      .order('created_at', { ascending: true });
+    
+    if (endDate) customQuery.lte('created_at', endDate);
+
+    const [regularResult, customResult] = await Promise.all([regularQuery, customQuery]);
+
+    if (regularResult.error) throw regularResult.error;
+
+    // Combine regular and custom orders
+    const allOrders = [
+      ...(regularResult.data || []).map(o => ({ ...o, order_type: 'regular' })),
+      ...(customResult.data || []).map(o => ({ ...o, order_type: 'custom' }))
+    ];
+
+    // Sort by created_at
+    allOrders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
     // compute total revenue from delivered orders and return list of delivered orders
     let total = 0;
-    const deliveredOrders = (orders || []).filter(o => String(o.status || '').toLowerCase() === 'delivered');
+    const deliveredOrders = allOrders.filter(o => String(o.status || '').toLowerCase() === 'delivered');
     for (const o of deliveredOrders) {
       total += Number(o.total_fee) || 0;
     }
+    
     // return minimal fields for display
-    const rows = deliveredOrders.map(o => ({ order_id: o.order_id, name: o.name, total_fee: Number(o.total_fee) || 0, created_at: o.created_at }));
+    const rows = deliveredOrders.map(o => ({ 
+      order_id: o.order_id, 
+      name: o.name, 
+      total_fee: Number(o.total_fee) || 0, 
+      created_at: o.created_at,
+      order_type: o.order_type 
+    }));
+    
     return res.json({ total_revenue: total, orders: rows });
   } catch (err) {
     console.error('reports error:', err);
@@ -2146,6 +2242,28 @@ router.post('/customization/delete-image', auth, async (req, res) => {
   } catch (err) {
     console.error('Error deleting image:', err);
     return res.status(500).json({ error: 'Failed to delete image' });
+  }
+});
+
+// GET all customization options at once
+router.get('/customization-options', auth, async (req, res) => {
+  try {
+    const [stems, fillers, wrapping, addons] = await Promise.all([
+      supabase.from('custom_stems').select('*').order('name', { ascending: true }),
+      supabase.from('custom_fillers').select('*').order('name', { ascending: true }),
+      supabase.from('custom_wrapping').select('*').order('name', { ascending: true }),
+      supabase.from('custom_addons').select('*').order('name', { ascending: true })
+    ]);
+
+    return res.json({
+      stems: stems.data || [],
+      fillers: fillers.data || [],
+      wrapping: wrapping.data || [],
+      addons: addons.data || []
+    });
+  } catch (err) {
+    console.error('Error fetching customization options:', err);
+    return res.status(500).json({ error: 'Failed to fetch customization options' });
   }
 });
 

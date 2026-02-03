@@ -175,6 +175,6 @@ function showErrorModal(message) {
     const errorModal = new bootstrap.Modal(document.getElementById('errorModal'));
     errorModal.show();
   } else {
-    alert(message);
+    alertError(message);
   }
 }

@@ -9,7 +9,7 @@ async function loadReportsData() {
     return data;
   } catch (err) {
     console.error('loadReportsData error', err);
-    alert('Failed to load reports: ' + (err.message||err));
+    alertError('Failed to load reports: ' + (err.message||err));
     return null;
   }
 }
@@ -38,15 +38,15 @@ function renderTable(orders) {
     } catch (e) { return new Date(d).toLocaleDateString(); }
   };
   tbody.innerHTML = orders.map(o => `
-    <tr data-order-id="${o.order_id || ''}">
-      <td class="text-start">${o.order_id || '—'}</td>
+    <tr data-order-id="${o.order_id || ''}" data-order-type="${o.order_type || 'regular'}">
+      <td class="text-start">${o.order_id || '—'}${o.order_type === 'custom' ? ' <span class="badge bg-pink small">Custom</span>' : ''}</td>
       <td>${o.name || '—'}</td>
       <td>${o.created_at ? dtf(o.created_at) : '—'}</td>
       <td class="text-end">${formatPHP(o.total_fee)}</td>
       <td class="actions">
         <div class="d-flex gap-2 justify-content-end">
-          <button class="btn btn-sm btn-outline-pink reports-view" data-order-id="${o.order_id || ''}" title="View / Edit"><i class="fas fa-eye me-1"></i>View</button>
-          <button class="btn btn-sm btn-outline-danger reports-delete" data-order-id="${o.order_id || ''}">Delete</button>
+          <button class="btn btn-sm btn-outline-pink reports-view" data-order-id="${o.order_id || ''}" data-order-type="${o.order_type || 'regular'}" title="View / Edit"><i class="fas fa-eye me-1"></i>View</button>
+          <button class="btn btn-sm btn-outline-danger reports-delete" data-order-id="${o.order_id || ''}" data-order-type="${o.order_type || 'regular'}">Delete</button>
         </div>
       </td>
     </tr>
@@ -55,8 +55,10 @@ function renderTable(orders) {
   document.querySelectorAll('.reports-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const id = e.target.dataset.orderId;
+      const orderType = e.target.dataset.orderType || 'regular';
       const confirmBtn = document.getElementById('confirmDeleteButton');
       confirmBtn.dataset.orderId = id;
+      confirmBtn.dataset.orderType = orderType;
       const confirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
       confirmModal.show();
     });
@@ -66,13 +68,16 @@ function renderTable(orders) {
   document.querySelectorAll('.reports-view').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.currentTarget.dataset.orderId;
+      const orderType = e.currentTarget.dataset.orderType || 'regular';
       if (!id) return;
+      
       // show modal first with loading state
       const modalEl = document.getElementById('reportOrderModal');
       const modal = new bootstrap.Modal(modalEl);
+      
       // clear form and show loading text
       document.getElementById('reportOrderId').value = id;
-      document.getElementById('reportName').value = '';
+      document.getElementById('reportName').value = 'Loading...';
       document.getElementById('reportEmail').value = '';
       document.getElementById('reportFlowerType').value = '';
       document.getElementById('reportQuantity').value = '';
@@ -86,23 +91,61 @@ function renderTable(orders) {
 
       try {
         const token = localStorage.getItem('adminToken');
-        const resp = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const endpoint = orderType === 'custom' 
+          ? `/api/admin/orders/custom/${encodeURIComponent(id)}`
+          : `/api/admin/orders/${encodeURIComponent(id)}`;
+        
+        const resp = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
         if (!resp.ok) throw new Error('Failed to fetch order');
         const order = await resp.json();
+        
         // populate form with fetched order
         document.getElementById('reportOrderId').value = order.order_id || id;
         document.getElementById('reportName').value = order.name || '';
         document.getElementById('reportEmail').value = order.email || '';
-        document.getElementById('reportFlowerType').value = Array.isArray(order.flower_type) ? order.flower_type.join(', ') : (order.flower_type || '');
-        document.getElementById('reportQuantity').value = order.quantity || '';
+        
+        if (orderType === 'custom') {
+          // For custom orders, show items breakdown
+          let itemsText = [];
+          if (order.stems && Array.isArray(order.stems) && order.stems.length) {
+            itemsText.push('Stems: ' + order.stems.map(s => s.name).join(', '));
+          }
+          if (order.fillers && Array.isArray(order.fillers) && order.fillers.length) {
+            itemsText.push('Fillers: ' + order.fillers.map(f => f.name).join(', '));
+          }
+          if (order.wrapping && Array.isArray(order.wrapping) && order.wrapping.length) {
+            itemsText.push('Wrapping: ' + order.wrapping.map(w => w.name).join(', '));
+          }
+          document.getElementById('reportFlowerType').value = itemsText.join(' | ') || 'Custom Bouquet';
+          document.getElementById('reportQuantity').value = '1';
+          
+          // Custom order addons
+          if (order.addons && Array.isArray(order.addons) && order.addons.length) {
+            document.getElementById('reportAddons').value = order.addons.map(a => a.name).join(', ');
+          } else {
+            document.getElementById('reportAddons').value = '';
+          }
+          
+          // Special instructions instead of message
+          document.getElementById('reportMessage').value = order.special_instructions || '';
+        } else {
+          // Regular order
+          document.getElementById('reportFlowerType').value = Array.isArray(order.flower_type) ? order.flower_type.join(', ') : (order.flower_type || '');
+          document.getElementById('reportQuantity').value = order.quantity || '';
+          try { 
+            document.getElementById('reportAddons').value = order.addons ? (typeof order.addons === 'string' ? order.addons : JSON.stringify(order.addons)) : ''; 
+          } catch(e){ 
+            document.getElementById('reportAddons').value = ''; 
+          }
+          document.getElementById('reportMessage').value = order.message || '';
+        }
+        
         document.getElementById('reportRush').value = order.rush || 'No';
-        try { document.getElementById('reportAddons').value = order.addons ? (typeof order.addons === 'string' ? order.addons : JSON.stringify(order.addons)) : ''; } catch(e){ document.getElementById('reportAddons').value = ''; }
-        document.getElementById('reportMessage').value = order.message || '';
         document.getElementById('reportTotalFee').value = order.total_fee || '';
         document.getElementById('reportPaymentMethod').value = order.payment_method || '';
         document.getElementById('reportStatus').value = order.status || 'Pending';
       } catch (err) {
-        alert('Failed to load order: ' + (err.message || err));
+        alertError('Failed to load order: ' + (err.message || err));
         const mdl = bootstrap.Modal.getInstance(modalEl);
         if (mdl) mdl.hide();
       }
@@ -177,10 +220,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (confirmBtn) {
     confirmBtn.addEventListener('click', async (e) => {
       const id = e.target.dataset.orderId;
+      const orderType = e.target.dataset.orderType || 'regular';
       if (!id) return;
       try {
         const token = localStorage.getItem('adminToken');
-        const resp = await fetch(`/api/admin/orders/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+        const endpoint = orderType === 'custom'
+          ? `/api/admin/orders/custom/${encodeURIComponent(id)}`
+          : `/api/admin/orders/${encodeURIComponent(id)}`;
+        
+        const resp = await fetch(endpoint, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
         const result = await resp.json();
         if (!resp.ok) throw new Error(result.error || 'Failed to delete');
         // refresh data
@@ -192,8 +240,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('totalRevenue').textContent = formatPHP(newData.total_revenue || 0);
         const ps2 = pageSizeSelect ? Number(pageSizeSelect.value) || 10 : 10;
         renderPage(window.reportsOrders, 1, ps2);
+        alertSuccess('Order deleted successfully');
       } catch (err) {
-        alert('Failed to delete order: ' + (err.message || err));
+        alertError('Failed to delete order: ' + (err.message || err));
       }
     });
   }

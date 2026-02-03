@@ -36,7 +36,7 @@
     }, 500);
   } catch (err) {
     console.error('Error processing authentication:', err);
-    alert('Login successful but failed to store credentials. Please try logging in again.');
+    alertError('Login successful but failed to store credentials. Please try logging in again.');
     window.location.href = '/customer-login.html';
   }
 })();

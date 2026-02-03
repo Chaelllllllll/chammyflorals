@@ -9,8 +9,6 @@ async function checkAuth() {
   const customerData = localStorage.getItem('customer');
   const authSection = document.getElementById('authSection');
   
-  console.log('checkAuth called, token present:', !!token);
-  
   if (!token || !customerData) {
     // Not logged in - show login button
     authSection.innerHTML = `
@@ -26,7 +24,6 @@ async function checkAuth() {
   try {
     const data = JSON.parse(customerData);
     currentCustomer = data;
-    console.log('Customer authenticated:', data.email);
     
     // Logged in - show dashboard button
     authSection.innerHTML = `
@@ -99,18 +96,12 @@ window.addEventListener('DOMContentLoaded', () => {
   // Handle Order Now button click (navbar)
   const orderNowBtn = document.getElementById('orderNowBtn');
   if (orderNowBtn) {
-    console.log('Order Now button found, attaching listener');
     orderNowBtn.addEventListener('click', handleOrderClick);
-  } else {
-    console.warn('Order Now button not found');
   }
   
   // Handle Order Now button click (hero section)
   const heroOrderBtn = document.getElementById('heroOrderBtn');
   if (heroOrderBtn) {
-    console.log('Hero Order button found, attaching listener');
     heroOrderBtn.addEventListener('click', handleOrderClick);
-  } else {
-    console.warn('Hero Order button not found');
   }
 });
