@@ -209,7 +209,7 @@ window.showOrderDetails = async function(orderId) {
         }
     }
     
-    modalTitle.textContent = `Order #${order.order_id || order.id}`;
+    modalTitle.innerHTML = `<i class="fa fa-receipt"></i>Order #${order.order_id || order.id}`;
     
     const date = new Date(order.created_at).toLocaleDateString('en-US', { 
         month: 'long', 
@@ -223,32 +223,41 @@ window.showOrderDetails = async function(orderId) {
     const orderStatus = order.status || 'pending';
     const statusSteps = getOrderProgress(orderStatus);
     
+    // Format status with badge
+    const statusBadgeClass = {
+        'pending': 'bg-warning',
+        'processing': 'bg-info',
+        'to receive': 'bg-primary',
+        'delivered': 'bg-success',
+        'cancelled': 'bg-danger'
+    }[orderStatus.toLowerCase()] || 'bg-secondary';
+    
     modalContent.innerHTML = `
         <div class="order-detail-section">
-            <h4>Order Information</h4>
+            <h4><i class="fa fa-info-circle"></i>Order Information</h4>
+            <div class="order-detail-item">
+                <span class="order-detail-label">Order ID</span>
+                <span class="order-detail-value" style="font-family: 'Courier New', monospace; background: #f8f8f8; padding: 6px 12px; border-radius: 6px; display: inline-block;">${order.order_id || 'N/A'}</span>
+            </div>
             <div class="order-detail-item">
                 <span class="order-detail-label">Order Date</span>
                 <span class="order-detail-value">${date}</span>
             </div>
             <div class="order-detail-item">
-                <span class="order-detail-label">Order ID</span>
-                <span class="order-detail-value">${order.order_id || 'N/A'}</span>
-            </div>
-            <div class="order-detail-item">
                 <span class="order-detail-label">Status</span>
-                <span class="order-detail-value">${orderStatus.toUpperCase()}</span>
+                <span class="order-detail-value"><span class="badge ${statusBadgeClass} px-3 py-2" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">${orderStatus}</span></span>
             </div>
         </div>
         
         <div class="order-detail-section">
-            <h4>Items</h4>
+            <h4><i class="fa fa-box"></i>Items</h4>
             <div class="order-detail-item">
                 <span class="order-detail-label">Flower Type</span>
                 <span class="order-detail-value">${order.flower_type || 'Custom'}</span>
             </div>
             <div class="order-detail-item">
                 <span class="order-detail-label">Quantity</span>
-                <span class="order-detail-value">${order.quantity || 1}</span>
+                <span class="order-detail-value">${order.quantity || 1} pc(s)</span>
             </div>
             ${order.addons && Array.isArray(order.addons) && order.addons.length > 0 ? `
             <div class="order-detail-item">
@@ -259,19 +268,19 @@ window.showOrderDetails = async function(orderId) {
             ${order.message && order.message !== 'Not provided' ? `
             <div class="order-detail-item">
                 <span class="order-detail-label">Message</span>
-                <span class="order-detail-value">${order.message}</span>
+                <span class="order-detail-value" style="font-style: italic;">"${order.message}"</span>
             </div>
             ` : ''}
             ${order.rush ? `
             <div class="order-detail-item">
                 <span class="order-detail-label">Rush Order</span>
-                <span class="order-detail-value">Yes</span>
+                <span class="order-detail-value"><span class="badge bg-danger"><i class="fa fa-bolt me-1"></i>Rush</span></span>
             </div>
             ` : ''}
         </div>
         
         <div class="order-detail-section">
-            <h4>Contact Details</h4>
+            <h4><i class="fa fa-user"></i>Contact Details</h4>
             <div class="order-detail-item">
                 <span class="order-detail-label">Name</span>
                 <span class="order-detail-value">${order.name || 'N/A'}</span>
@@ -282,22 +291,22 @@ window.showOrderDetails = async function(orderId) {
             </div>
             <div class="order-detail-item">
                 <span class="order-detail-label">Facebook Link</span>
-                <span class="order-detail-value">${order.fb_link || 'Not provided'}</span>
+                <span class="order-detail-value">${order.fb_link ? `<a href="${order.fb_link}" target="_blank" style="color: #ff6f9b; text-decoration: none;"><i class="fab fa-facebook me-1"></i>View Profile</a>` : 'Not provided'}</span>
             </div>
         </div>
         
         <div class="order-detail-section">
-            <h4>Order Progress</h4>
+            <h4><i class="fa fa-tasks"></i>Order Progress</h4>
             <div class="progress-tracker">
                 ${statusSteps}
             </div>
         </div>
         
-        <div class="order-detail-section">
-            <h4>Payment</h4>
-            <div class="order-detail-item">
+        <div class="order-detail-section" style="background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%); border-color: #ffd6e0;">
+            <h4><i class="fa fa-credit-card"></i>Payment</h4>
+            <div class="order-detail-item" style="border: none;">
                 <span class="order-detail-label">Total Amount</span>
-                <span class="order-detail-value" style="font-size: 18px; color: #667eea;">₱${order.total_fee || '0.00'}</span>
+                <span class="order-detail-value highlight">₱${order.total_fee || '0.00'}</span>
             </div>
         </div>
         

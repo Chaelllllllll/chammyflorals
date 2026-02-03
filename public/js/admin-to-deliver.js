@@ -18,18 +18,30 @@ async function loadDeliveryOrders() {
       return;
     }
 
-    // Fetch all orders
-    const response = await fetch('/api/admin/orders', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // Fetch regular orders and custom orders
+    const [ordersResponse, customOrdersResponse] = await Promise.all([
+      fetch('/api/admin/orders', {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+      fetch('/api/admin/orders/custom', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ]);
     
-    const orders = await response.json();
+    const orders = await ordersResponse.json();
+    const customOrdersData = await customOrdersResponse.json();
 
-    if (response.ok) {
-      // Filter only "To Receive" status orders
-      const deliveryOrders = (orders || []).filter(order => 
+    if (ordersResponse.ok && customOrdersResponse.ok) {
+      // Combine regular orders and custom orders
+      const regularOrders = (orders || []).filter(order => 
         String(order.status || '').toLowerCase() === 'to receive'
-      );
+      ).map(order => ({ ...order, orderType: 'regular' }));
+      
+      const customOrders = (customOrdersData.orders || []).filter(order => 
+        String(order.status || '').toLowerCase() === 'to receive'
+      ).map(order => ({ ...order, orderType: 'custom' }));
+      
+      const deliveryOrders = [...regularOrders, ...customOrders];
       
       window.deliveryOrders = deliveryOrders;
       updateMetrics();
@@ -62,18 +74,22 @@ function renderDeliveryTable() {
 
   tbody.innerHTML = orders.map(order => {
     const total = Number(order.total_fee || 0);
+    const isCustom = order.orderType === 'custom';
     
     return `
       <tr>
-        <td><strong class="text-pink">${escapeHtml(order.order_id || '-')}</strong></td>
+        <td>
+          <strong class="text-pink">${escapeHtml(order.order_id || '-')}</strong>
+          ${isCustom ? '<span class="badge bg-pink ms-2 small">Custom</span>' : ''}
+        </td>
         <td>${escapeHtml(order.name || '-')}</td>
         <td class="text-success fw-bold">₱${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         <td class="text-center">
           <div class="d-flex gap-2 justify-content-center">
-            <button class="btn btn-sm btn-outline-pink view-details-btn" data-order-id="${escapeHtml(order.order_id)}" title="View Details">
+            <button class="btn btn-sm btn-outline-pink view-details-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="View Details">
               <i class="fas fa-eye me-1"></i>View
             </button>
-            <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" title="Mark as Delivered">
+            <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="Mark as Delivered">
               <i class="fas fa-truck me-1"></i>Deliver
             </button>
           </div>
@@ -86,7 +102,8 @@ function renderDeliveryTable() {
   document.querySelectorAll('.deliver-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const orderId = this.getAttribute('data-order-id');
-      showDeliveryConfirmation(orderId);
+      const orderType = this.getAttribute('data-order-type');
+      showDeliveryConfirmation(orderId, orderType);
     });
   });
 
@@ -94,7 +111,8 @@ function renderDeliveryTable() {
   document.querySelectorAll('.view-details-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const orderId = this.getAttribute('data-order-id');
-      viewOrderDetails(orderId);
+      const orderType = this.getAttribute('data-order-type');
+      viewOrderDetails(orderId, orderType);
     });
   });
 }
@@ -146,96 +164,172 @@ async function viewOrderDetails(orderId) {
   }
 
   const content = document.getElementById('orderDetailsContent');
+  const isCustomOrder = order.orderType === 'custom';
+  
   // Build a professional details layout
   const statusBadge = `<span class="badge ${order.status && String(order.status).toLowerCase() === 'to receive' ? 'bg-success' : 'bg-secondary'}">${escapeHtml(order.status || 'To Receive')}</span>`;
 
   // Items
   let itemsHtml = '';
-  // Helpers to normalize item data
-  function getItemName(it) {
-    if (!it) return 'Item';
-    if (typeof it === 'string') return it;
-    if (typeof it.name === 'string') return it.name;
-    if (typeof it.flower_type === 'string') return it.flower_type;
-    if (typeof it.product === 'string') return it.product;
-    if (it.name && typeof it.name === 'object') {
-      return it.name.name || it.name.title || JSON.stringify(it.name).slice(0, 100);
-    }
-    return JSON.stringify(it).slice(0, 100);
-  }
-
-  function getItemQty(it) {
-    if (!it) return 1;
-    return Number(it.quantity || it.qty || it.count || 1) || 1;
-  }
-
-  function getItemPrice(it) {
-    if (!it) return 0;
-    return Number(it.price || it.unit_price || it.cost || 0) || 0;
-  }
-
-  function getItemImage(it) {
-    if (!it) return '';
-    const img = it.image || it.img || it.photo || it.thumbnail || it.thumb || '';
-    if (!img) return '';
-    if (typeof img === 'string') return img;
-    if (typeof img === 'object') return img.url || img.src || '';
-    return '';
-  }
-
-  // Normalize generic field values to readable strings (handles objects and arrays)
-  function normalizeField(val) {
-    if (val == null) return '';
-    if (typeof val === 'string') return val;
-    if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-    if (Array.isArray(val)) {
-      return val.map(v => normalizeField(v)).filter(Boolean).join(', ');
-    }
-    if (typeof val === 'object') {
-      // Try common keys
-      if (val.name && typeof val.name === 'string') return val.name;
-      if (val.title && typeof val.title === 'string') return val.title;
-      if (val.label && typeof val.label === 'string') return val.label;
-      if (val.value && (typeof val.value === 'string' || typeof val.value === 'number')) return String(val.value);
-      // Fallback to JSON
-      try { return JSON.stringify(val); } catch (e) { return String(val); }
-    }
-    return String(val);
-  }
-
-  const items = Array.isArray(order.items) && order.items.length ? order.items : (order.flower_type ? (Array.isArray(order.flower_type) ? order.flower_type.map((t,i)=>({ flower_type: t, quantity: (Array.isArray(order.quantity)?order.quantity[i]:order.quantity) })) : [{ flower_type: order.flower_type, quantity: order.quantity || 1 }]) : []);
-
-  if (items.length) {
+  
+  if (isCustomOrder) {
+    // Handle custom order items (stems, fillers, wrapping, addons)
     itemsHtml = '<div class="order-items-list">';
-    items.forEach(it => {
-      const rawName = getItemName(it);
-      const name = escapeHtml(rawName);
-      const qty = getItemQty(it);
-      const colorRaw = (it && (it.color || it.variant || it.variant_color)) ? (it.color || it.variant || it.variant_color) : '';
-      const color = colorRaw ? escapeHtml(normalizeField(colorRaw)) : '';
-      const price = getItemPrice(it);
-      const subtotal = price * qty;
-      const img = getItemImage(it);
-
+    
+    // Stems
+    if (order.stems && Array.isArray(order.stems) && order.stems.length) {
+      itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Stems</div>';
+      order.stems.forEach(stem => {
+        itemsHtml += `
+          <div class="order-item-row">
+            ${stem.image ? `<img src="${escapeHtml(stem.image)}" alt="${escapeHtml(stem.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+            <div style="flex:1">
+              <div class="fw-semibold">${escapeHtml(stem.name)}</div>
+              <div class="item-meta">Qty: ${stem.quantity}</div>
+            </div>
+          </div>
+        `;
+      });
+      itemsHtml += '</div>';
+    }
+    
+    // Fillers
+    if (order.fillers && Array.isArray(order.fillers) && order.fillers.length) {
+      itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Fillers</div>';
+      order.fillers.forEach(filler => {
+        itemsHtml += `
+          <div class="order-item-row">
+            ${filler.image ? `<img src="${escapeHtml(filler.image)}" alt="${escapeHtml(filler.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+            <div style="flex:1">
+              <div class="fw-semibold">${escapeHtml(filler.name)}</div>
+              <div class="item-meta">Qty: ${filler.quantity}</div>
+            </div>
+          </div>
+        `;
+      });
+      itemsHtml += '</div>';
+    }
+    
+    // Wrapping (stored as single object, not array)
+    if (order.wrapping && typeof order.wrapping === 'object') {
+      itemsHtml += '<div class="mb-3"><div class="fw-semibold text-pink mb-2">Wrapping</div>';
+      const wrap = order.wrapping;
       itemsHtml += `
         <div class="order-item-row">
-          ${img ? `<img src="${escapeHtml(img)}" alt="${name}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+          ${wrap.image ? `<img src="${escapeHtml(wrap.image)}" alt="${escapeHtml(wrap.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
           <div style="flex:1">
-            <div class="fw-semibold">${name}</div>
-            <div class="item-meta">${color ? color + ' • ' : ''}Qty: ${qty}${price ? ' • ₱' + price.toFixed(2) : ''}</div>
+            <div class="fw-semibold">${escapeHtml(wrap.name)}</div>
           </div>
-          <div class="text-end fw-bold">${price ? '₱' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div>
         </div>
       `;
-    });
+      itemsHtml += '</div>';
+    }
+    
     itemsHtml += '</div>';
   } else {
-    itemsHtml = '<div class="text-muted">No items information available</div>';
+    // Handle regular order items
+    // Helpers to normalize item data
+    function getItemName(it) {
+      if (!it) return 'Item';
+      if (typeof it === 'string') return it;
+      if (typeof it.name === 'string') return it.name;
+      if (typeof it.flower_type === 'string') return it.flower_type;
+      if (typeof it.product === 'string') return it.product;
+      if (it.name && typeof it.name === 'object') {
+        return it.name.name || it.name.title || JSON.stringify(it.name).slice(0, 100);
+      }
+      return JSON.stringify(it).slice(0, 100);
+    }
+
+    function getItemQty(it) {
+      if (!it) return 1;
+      return Number(it.quantity || it.qty || it.count || 1) || 1;
+    }
+
+    function getItemPrice(it) {
+      if (!it) return 0;
+      return Number(it.price || it.unit_price || it.cost || 0) || 0;
+    }
+
+    function getItemImage(it) {
+      if (!it) return '';
+      const img = it.image || it.img || it.photo || it.thumbnail || it.thumb || '';
+      if (!img) return '';
+      if (typeof img === 'string') return img;
+      if (typeof img === 'object') return img.url || img.src || '';
+      return '';
+    }
+
+    // Normalize generic field values to readable strings (handles objects and arrays)
+    function normalizeField(val) {
+      if (val == null) return '';
+      if (typeof val === 'string') return val;
+      if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+      if (Array.isArray(val)) {
+        return val.map(v => normalizeField(v)).filter(Boolean).join(', ');
+      }
+      if (typeof val === 'object') {
+        // Try common keys
+        if (val.name && typeof val.name === 'string') return val.name;
+        if (val.title && typeof val.title === 'string') return val.title;
+        if (val.label && typeof val.label === 'string') return val.label;
+        if (val.value && (typeof val.value === 'string' || typeof val.value === 'number')) return String(val.value);
+        // Fallback to JSON
+        try { return JSON.stringify(val); } catch (e) { return String(val); }
+      }
+      return String(val);
+    }
+
+    const items = Array.isArray(order.items) && order.items.length ? order.items : (order.flower_type ? (Array.isArray(order.flower_type) ? order.flower_type.map((t,i)=>({ flower_type: t, quantity: (Array.isArray(order.quantity)?order.quantity[i]:order.quantity) })) : [{ flower_type: order.flower_type, quantity: order.quantity || 1 }]) : []);
+
+    if (items.length) {
+      itemsHtml = '<div class="order-items-list">';
+      items.forEach(it => {
+        const rawName = getItemName(it);
+        const name = escapeHtml(rawName);
+        const qty = getItemQty(it);
+        const colorRaw = (it && (it.color || it.variant || it.variant_color)) ? (it.color || it.variant || it.variant_color) : '';
+        const color = colorRaw ? escapeHtml(normalizeField(colorRaw)) : '';
+        const price = getItemPrice(it);
+        const subtotal = price * qty;
+        const img = getItemImage(it);
+
+        itemsHtml += `
+          <div class="order-item-row">
+            ${img ? `<img src="${escapeHtml(img)}" alt="${name}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+            <div style="flex:1">
+              <div class="fw-semibold">${name}</div>
+              <div class="item-meta">${color ? color + ' • ' : ''}Qty: ${qty}${price ? ' • ₱' + price.toFixed(2) : ''}</div>
+            </div>
+            <div class="text-end fw-bold">${price ? '₱' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div>
+          </div>
+        `;
+      });
+      itemsHtml += '</div>';
+    } else {
+      itemsHtml = '<div class="text-muted">No items information available</div>';
+    }
   }
 
   // Add-ons
   let addonsHtml = '';
-  if (order.addons && ((Array.isArray(order.addons) && order.addons.length) || typeof order.addons === 'string')) {
+  if (isCustomOrder && order.addons && Array.isArray(order.addons) && order.addons.length) {
+    // Custom order addons are objects with name, image, price
+    addonsHtml = '<div class="mb-2"><div class="details-key">Add-ons</div><div class="order-items-list mt-2">';
+    order.addons.forEach(addon => {
+      addonsHtml += `
+        <div class="order-item-row">
+          ${addon.image ? `<img src="${escapeHtml(addon.image)}" alt="${escapeHtml(addon.name)}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
+          <div style="flex:1">
+            <div class="fw-semibold">${escapeHtml(addon.name)}</div>
+            ${addon.price ? `<div class="item-meta">₱${Number(addon.price).toFixed(2)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    });
+    addonsHtml += '</div></div>';
+  } else if (!isCustomOrder && order.addons && ((Array.isArray(order.addons) && order.addons.length) || typeof order.addons === 'string')) {
+    // Regular order addons are strings
     const addons = Array.isArray(order.addons) ? order.addons : [order.addons];
     addonsHtml = `<div class="mb-2"><div class="details-key">Add-ons</div><div class="small text-muted">${addons.map(a=>escapeHtml(a)).join(', ')}</div></div>`;
   }
@@ -325,15 +419,16 @@ async function viewOrderDetails(orderId) {
 }
 
 // Show delivery confirmation modal
-function showDeliveryConfirmation(orderId) {
+function showDeliveryConfirmation(orderId, orderType = 'regular') {
   const order = (window.deliveryOrders || []).find(o => String(o.order_id) === String(orderId));
   if (!order) {
     showErrorModal('Order not found');
     return;
   }
 
-  // Store order total for validation
+  // Store order total and type for validation
   const orderTotal = Number(order.total_fee || 0);
+  const isCustomOrder = orderType === 'custom';
   
   // Populate order information
   document.getElementById('deliveryOrderId').textContent = order.order_id || '-';
@@ -405,19 +500,31 @@ function showDeliveryConfirmation(orderId) {
     
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/orders/${orderId}/deliver`, {
-        method: 'POST',
+      
+      // Use different endpoint for custom orders
+      const endpoint = isCustomOrder 
+        ? `/api/admin/orders/custom/${orderId}`
+        : `/api/admin/orders/${orderId}/deliver`;
+      
+      const method = isCustomOrder ? 'PUT' : 'POST';
+      
+      const body = isCustomOrder 
+        ? JSON.stringify({ status: 'Delivered' })
+        : JSON.stringify({ 
+            received: amountPaid,
+            receiverName: receiverName,
+            deliveredBy: deliveredBy,
+            notes: notes || undefined,
+            payment_method: paymentMethod
+          });
+      
+      const response = await fetch(endpoint, {
+        method: method,
         headers: { 
           'Content-Type': 'application/json', 
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify({ 
-          received: amountPaid,
-          receiverName: receiverName,
-          deliveredBy: deliveredBy,
-          notes: notes || undefined,
-          payment_method: paymentMethod
-        }),
+        body: body,
       });
       
       const result = await response.json();

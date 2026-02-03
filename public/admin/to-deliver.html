@@ -104,16 +104,47 @@
     </div>
     
     <ul class="sidebar-nav">
+      <!-- Main -->
       <li class="sidebar-nav-item">
         <a href="/admin/dashboard.html" class="sidebar-nav-link">
           <i class="fas fa-tachometer-alt"></i>
           <span>Dashboard</span>
         </a>
       </li>
+      
+      <!-- Orders Section -->
+      <li class="sidebar-section-label">Orders</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/to-deliver.html" class="sidebar-nav-link active">
+          <i class="fas fa-truck"></i>
+          <span>To Deliver</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/custom-orders.html" class="sidebar-nav-link">
+          <i class="fas fa-palette"></i>
+          <span>Custom Orders</span>
+        </a>
+      </li>
+      
+      <!-- Store Section -->
+      <li class="sidebar-section-label">Store</li>
       <li class="sidebar-nav-item">
         <a href="/admin/products.html" class="sidebar-nav-link">
           <i class="fas fa-box-open"></i>
           <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/customization.html" class="sidebar-nav-link">
+          <i class="fas fa-swatchbook"></i>
+          <span>Customization</span>
         </a>
       </li>
       <li class="sidebar-nav-item">
@@ -122,12 +153,25 @@
           <span>Reviews</span>
         </a>
       </li>
+      
+      <!-- Communication Section -->
+      <li class="sidebar-section-label">Communication</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/messages.html" class="sidebar-nav-link" id="messagesNavLink">
+          <i class="fas fa-comments"></i>
+          <span>Messages</span>
+          <span id="messagesBadge" class="badge bg-danger" style="display: none;">0</span>
+        </a>
+      </li>
       <li class="sidebar-nav-item">
         <a href="/admin/announcements.html" class="sidebar-nav-link">
           <i class="fas fa-bullhorn"></i>
           <span>Announcements</span>
         </a>
       </li>
+      
+      <!-- Analytics Section -->
+      <li class="sidebar-section-label">Analytics</li>
       <li class="sidebar-nav-item">
         <a href="/admin/reports.html" class="sidebar-nav-link">
           <i class="fas fa-chart-line"></i>
@@ -140,30 +184,17 @@
           <span>Analytics</span>
         </a>
       </li>
-      <li class="sidebar-nav-item">
-        <a href="/admin/todo.html" class="sidebar-nav-link">
-          <i class="fas fa-tasks"></i>
-          <span>To Do</span>
-        </a>
-      </li>
-      <li class="sidebar-nav-item">
-        <a href="/admin/to-deliver.html" class="sidebar-nav-link active">
-          <i class="fas fa-truck"></i>
-          <span>To Deliver</span>
-        </a>
-      </li>
+      
+      <!-- Settings Section -->
+      <li class="sidebar-section-label">Settings</li>
       <li class="sidebar-nav-item">
         <a href="/admin/admins.html" class="sidebar-nav-link">
           <i class="fas fa-user-shield"></i>
           <span>Admins</span>
         </a>
       </li>
-      <li class="sidebar-nav-item">
-        <a href="/admin/messages.html" class="sidebar-nav-link">
-          <i class="fas fa-comments"></i>
-          <span>Messages</span>
-        </a>
-      </li>
+      
+      <!-- Logout -->
       <li class="sidebar-nav-item">
         <button class="btn btn-pink w-100" id="logoutButton">
           <i class="fas fa-sign-out-alt me-2"></i>Logout

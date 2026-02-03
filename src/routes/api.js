@@ -2020,4 +2020,264 @@ router.post('/admin/customer-messages/send', upload.single('image'), async (req,
     }
   });
 
+// ========================
+// CUSTOMIZATION OPTIONS (PUBLIC)
+// ========================
+
+const CUSTOM_TABLES_PUBLIC = {
+  stems: 'custom_stems',
+  fillers: 'custom_fillers',
+  wrapping: 'custom_wrapping',
+  addons: 'custom_addons'
+};
+
+// GET all active options for all types (for the customize modal)
+router.get('/customization/options', async (req, res) => {
+  try {
+    const results = {};
+    
+    for (const [type, table] of Object.entries(CUSTOM_TABLES_PUBLIC)) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('id, name, price, image_url')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      
+      if (error) {
+        console.error(`Error fetching ${type}:`, error);
+        results[type] = [];
+      } else {
+        results[type] = data || [];
+      }
+    }
+    
+    return res.json(results);
+  } catch (err) {
+    console.error('Error fetching customization options:', err);
+    return res.status(500).json({ error: 'Failed to fetch options' });
+  }
+});
+
+// POST submit a custom order
+router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
+  try {
+    const {
+      full_name,
+      email,
+      facebook_link,
+      stems,
+      fillers,
+      wrapping,
+      addons,
+      special_instructions,
+      estimated_total
+    } = req.body;
+    
+    // Validate required fields
+    if (!full_name || full_name.trim() === '') {
+      return res.status(400).json({ error: 'Full name is required' });
+    }
+    if (!email || email.trim() === '') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Validate at least one item selected
+    const hasItems = (stems && stems.length > 0) || 
+                     (fillers && fillers.length > 0) || 
+                     wrapping || 
+                     (addons && addons.length > 0);
+    
+    if (!hasItems) {
+      return res.status(400).json({ error: 'Please select at least one item for your custom order' });
+    }
+    
+    // Get customer_id from authenticated user (null for guest orders or admins)
+    let customer_id = null;
+    if (req.userType === 'customer' && req.user && req.user.id) {
+      customer_id = req.user.id;
+    }
+    // For admins or guests, customer_id remains null
+    
+    // Generate order ID using the same secure method as regular products
+    const orderId = generateOrderId();
+    
+    // Create order in custom_orders table
+    const { data: order, error } = await supabase
+      .from('custom_orders')
+      .insert({
+        order_id: orderId,
+        customer_id: customer_id,
+        name: full_name.trim(),
+        email: email.trim(),
+        fb_link: facebook_link || null,
+        stems: stems || [],
+        fillers: fillers || [],
+        wrapping: wrapping || null,
+        addons: addons || [],
+        special_instructions: special_instructions || null,
+        total_fee: estimated_total || 0,
+        status: 'Pending'
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating custom order:', error);
+      return res.status(500).json({ error: 'Failed to create order' });
+    }
+    
+    // Send confirmation email (best effort)
+    try {
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h2 style="margin: 0;">Custom Order Received! 🌸</h2>
+          </div>
+          <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px;">
+            <p>Thank you for your custom order, <strong>${full_name}</strong>!</p>
+            <p>Your order number is: <strong style="color: #ff6f9b; font-size: 18px;">${orderId}</strong></p>
+            
+            <h3 style="color: #ff6f9b; border-bottom: 2px solid #ff6f9b; padding-bottom: 5px;">Order Details:</h3>
+            <ul style="list-style: none; padding: 0;">
+              ${stems && stems.length ? `<li style="padding: 5px 0;"><strong>🌹 Stems:</strong> ${stems.map(s => `${s.name} x${s.quantity} (₱${(s.price * s.quantity).toFixed(2)})`).join(', ')}</li>` : ''}
+              ${fillers && fillers.length ? `<li style="padding: 5px 0;"><strong>🌿 Fillers:</strong> ${fillers.map(f => `${f.name} x${f.quantity} (₱${(f.price * f.quantity).toFixed(2)})`).join(', ')}</li>` : ''}
+              ${wrapping ? `<li style="padding: 5px 0;"><strong>🎀 Wrapping:</strong> ${wrapping.name} (₱${parseFloat(wrapping.price).toFixed(2)})</li>` : ''}
+              ${addons && addons.length ? `<li style="padding: 5px 0;"><strong>✨ Add-ons:</strong> ${addons.map(a => `${a.name} (₱${parseFloat(a.price).toFixed(2)})`).join(', ')}</li>` : ''}
+            </ul>
+            
+            ${special_instructions ? `<div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+              <strong>💬 Special Instructions:</strong><br/>
+              ${special_instructions}
+            </div>` : ''}
+            
+            <div style="background: #ff6f9b; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <strong style="font-size: 20px;">Estimated Total: ₱${parseFloat(estimated_total || 0).toFixed(2)}</strong>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+              We will contact you shortly via ${facebook_link ? 'Facebook' : 'email'} to confirm your order and provide payment details.
+            </p>
+            <p style="color: #ff6f9b; text-align: center; font-weight: bold;">Thank you for choosing Chammy Florals! 💐</p>
+          </div>
+        </div>
+      `;
+      
+      const mailer = require('../lib/mailer');
+      await mailer.sendMail({
+        to: email,
+        subject: `Custom Order Confirmation - ${orderId}`,
+        html: emailHtml
+      });
+    } catch (mailErr) {
+      console.error('Failed to send custom order confirmation email:', mailErr);
+    }
+    
+    // Send Discord notification (best effort)
+    try {
+      if (process.env.DISCORD_WEBHOOK_URL) {
+        const stemsList = stems?.map(s => `${s.name} x${s.quantity}`).join(', ') || 'None';
+        const fillersList = fillers?.map(f => `${f.name} x${f.quantity}`).join(', ') || 'None';
+        const wrappingName = wrapping?.name || 'None';
+        const addonsList = addons?.map(a => a.name).join(', ') || 'None';
+        
+        await fetch(process.env.DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              title: '🎨 New Custom Order Received!',
+              color: 0xff6f9b,
+              fields: [
+                { name: 'Order ID', value: orderId, inline: true },
+                { name: 'Customer', value: full_name, inline: true },
+                { name: 'Total', value: `₱${parseFloat(estimated_total || 0).toFixed(2)}`, inline: true },
+                { name: '🌹 Stems', value: stemsList, inline: false },
+                { name: '🌿 Fillers', value: fillersList, inline: false },
+                { name: '🎀 Wrapping', value: wrappingName, inline: true },
+                { name: '✨ Add-ons', value: addonsList, inline: true }
+              ],
+              timestamp: new Date().toISOString()
+            }]
+          })
+        });
+      }
+    } catch (discordErr) {
+      console.error('Failed to send Discord notification:', discordErr);
+    }
+    
+    return res.status(201).json({
+      success: true,
+      order_number: orderId,
+      order_id: order.id
+    });
+    
+  } catch (err) {
+    console.error('Error submitting custom order:', err);
+    return res.status(500).json({ error: 'Failed to submit order' });
+  }
+});
+
+// PUT update a custom order (admin only)
+router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { name, email, fb_link, status, total_fee, special_instructions } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (fb_link !== undefined) updateData.fb_link = fb_link;
+    if (status !== undefined) updateData.status = status;
+    if (total_fee !== undefined) updateData.total_fee = parseFloat(total_fee);
+    if (special_instructions !== undefined) updateData.special_instructions = special_instructions;
+
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .update(updateData)
+      .eq('order_id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating custom order:', error);
+      return res.status(500).json({ error: 'Failed to update order' });
+    }
+
+    return res.json({ success: true, order: data });
+  } catch (err) {
+    console.error('Error updating custom order:', err);
+    return res.status(500).json({ error: 'Failed to update order' });
+  }
+});
+
+// DELETE a custom order (admin only)
+router.delete('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    const { error } = await supabase
+      .from('custom_orders')
+      .delete()
+      .eq('order_id', orderId);
+
+    if (error) {
+      console.error('Error deleting custom order:', error);
+      return res.status(500).json({ error: 'Failed to delete order' });
+    }
+
+    return res.json({ success: true, message: 'Order deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting custom order:', err);
+    return res.status(500).json({ error: 'Failed to delete order' });
+  }
+});
+
 module.exports = router;

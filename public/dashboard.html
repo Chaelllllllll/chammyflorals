@@ -371,10 +371,17 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.65);
             z-index: 9999;
             padding: 20px;
             overflow-y: auto;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
         
         .order-modal.show {
@@ -385,48 +392,98 @@
         
         .order-modal-content {
             background: white;
-            border-radius: 20px;
-            max-width: 800px;
+            border-radius: 24px;
+            max-width: 900px;
             width: 100%;
             max-height: 90vh;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
             display: flex;
             flex-direction: column;
+            animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
         
         .order-modal-header {
             background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
             color: white;
-            padding: 30px;
-            border-radius: 20px 20px 0 0;
+            padding: 32px 36px;
+            border-radius: 24px 24px 0 0;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .order-modal-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
         }
         
         .order-modal-header h3 {
             margin: 0;
             font-weight: 800;
-            font-size: 24px;
+            font-size: 26px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -0.3px;
+        }
+        
+        .order-modal-header h3 i {
+            background: rgba(255, 255, 255, 0.25);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 22px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         
         .close-modal {
             background: rgba(255, 255, 255, 0.2);
             border: none;
-            width: 40px;
-            height: 40px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             color: white;
             cursor: pointer;
             font-size: 20px;
             transition: all 0.3s;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
         }
         
         .close-modal:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: rotate(90deg);
+            background: rgba(255, 255, 255, 0.35);
+            transform: rotate(90deg) scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
         .order-modal-body {
@@ -436,56 +493,85 @@
         }
         
         .order-detail-section {
-            margin-bottom: 30px;
-            padding: 25px;
-            background: linear-gradient(180deg, #fffafc, #fff1f6);
-            border-radius: 15px;
-            border: 2px solid #ffe9f5;
+            margin-bottom: 24px;
+            padding: 28px;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #f0f0f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+        
+        .order-detail-section:hover {
+            border-color: #ffe9f5;
+            box-shadow: 0 4px 16px rgba(255, 111, 155, 0.08);
         }
         
         .order-detail-section h4 {
-            color: #ff6f9b;
+            color: #3a2b33;
             font-weight: 700;
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             gap: 10px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f8f8f8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 13px;
         }
         
-        .order-detail-section h4:before {
-            content: '';
-            width: 4px;
-            height: 24px;
-            background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
-            border-radius: 4px;
+        .order-detail-section h4 i {
+            color: #ff6f9b;
+            font-size: 18px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
+            border-radius: 8px;
         }
         
         .order-detail-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 15px 0;
-            border-bottom: 1px solid #ffe9f5;
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 16px;
+            align-items: start;
+            padding: 14px 0;
+            border-bottom: 1px solid #f5f5f5;
         }
         
         .order-detail-item:last-child {
             border-bottom: none;
+            padding-bottom: 0;
+        }
+        
+        .order-detail-item:first-child {
+            padding-top: 0;
         }
         
         .order-detail-label {
             font-weight: 600;
-            color: #7a6975;
-            font-size: 14px;
-            flex: 0 0 140px;
+            color: #888;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         
         .order-detail-value {
             color: #3a2b33;
-            font-weight: 500;
-            text-align: right;
-            flex: 1;
+            font-weight: 600;
+            text-align: left;
             word-break: break-word;
+            font-size: 15px;
+        }
+        
+        .order-detail-value.highlight {
+            color: #ff6f9b;
+            font-size: 24px;
+            font-weight: 800;
         }
         
         .progress-tracker {
@@ -952,21 +1038,27 @@
             
             .order-modal-content {
                 max-height: 95vh;
-                border-radius: 15px;
+                border-radius: 16px;
             }
             
             .order-modal-header {
-                padding: 20px;
-                border-radius: 15px 15px 0 0;
+                padding: 24px 20px;
+                border-radius: 16px 16px 0 0;
             }
             
             .order-modal-header h3 {
+                font-size: 20px;
+            }
+            
+            .order-modal-header h3 i {
+                width: 40px;
+                height: 40px;
                 font-size: 18px;
             }
             
             .close-modal {
-                width: 35px;
-                height: 35px;
+                width: 38px;
+                height: 38px;
                 font-size: 18px;
             }
             
@@ -975,30 +1067,38 @@
             }
             
             .order-detail-section {
-                padding: 18px;
-                margin-bottom: 20px;
+                padding: 20px;
+                margin-bottom: 16px;
+                border-radius: 12px;
             }
             
             .order-detail-section h4 {
-                font-size: 16px;
-                margin-bottom: 15px;
+                font-size: 12px;
+                margin-bottom: 16px;
+            }
+            
+            .order-detail-section h4 i {
+                width: 24px;
+                height: 24px;
+                font-size: 14px;
             }
             
             .order-detail-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
+                grid-template-columns: 1fr;
+                gap: 6px;
                 padding: 12px 0;
             }
             
             .order-detail-label {
-                flex: none;
-                font-size: 13px;
+                font-size: 11px;
             }
             
             .order-detail-value {
-                text-align: left;
                 font-size: 14px;
+            }
+            
+            .order-detail-value.highlight {
+                font-size: 22px;
             }
             
             .progress-step {

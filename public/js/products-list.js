@@ -1,29 +1,50 @@
-// Fetch products from public API and render as cards on the homepage
+// Products list with category filtering and lazy loading
 document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('productsContainer');
-  if (!container) return;
+  const categoriesRow = document.getElementById('categoriesRow');
+  const productsContainer = document.getElementById('productsContainer');
+  const loadingIndicator = document.getElementById('loadingIndicator');
+  const noMoreProducts = document.getElementById('noMoreProducts');
+  const productsSectionTitle = document.getElementById('productsSectionTitle');
+  const productsSectionSubtitle = document.getElementById('productsSectionSubtitle');
+  const clearCategoryBtn = document.getElementById('clearCategoryBtn');
+  
+  if (!categoriesRow || !productsContainer) return;
 
   let allProducts = [];
+  let filteredProducts = [];
+  let displayedProducts = [];
+  let currentCategory = null;
+  let currentPage = 0;
+  const PRODUCTS_PER_PAGE = 12;
+  let isLoading = false;
+  let hasMore = true;
 
+  // Load all products from API
   async function loadProducts() {
     try {
       const res = await fetch('/api/products');
       if (!res.ok) throw new Error('Failed to fetch products');
       const products = await res.json();
       allProducts = products || [];
-      renderProducts(allProducts);
+      
+      // Render categories
+      renderCategories();
+      
+      // Show all products initially
+      filteredProducts = [...allProducts];
+      currentPage = 0;
+      displayedProducts = [];
+      hasMore = true;
+      loadMoreProducts();
       
       // Check if URL has a product parameter to auto-open modal
       const urlParams = new URLSearchParams(window.location.search);
       const productId = urlParams.get('product');
       if (productId) {
-        // Find and show the product
         const product = allProducts.find(p => p.id == productId);
         if (product) {
-          // Wait for DOM to be ready
           setTimeout(() => {
             showPriceModal(product);
-            // Wait for modal to be created, then show it
             setTimeout(() => {
               const modalEl = document.getElementById('productPriceModal');
               if (modalEl && typeof bootstrap !== 'undefined') {
@@ -33,154 +54,355 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
           }, 300);
         }
-        // Clean URL without reloading
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch (err) {
       console.error('Error loading products:', err);
-      container.innerHTML = '<p class="text-center text-muted">Failed to load products.</p>';
+      productsContainer.innerHTML = '<div class="col-12"><p class="text-center text-muted">Failed to load products.</p></div>';
     }
   }
 
-  function renderProducts(products) {
-    if (!products.length) {
-      container.innerHTML = '<p class="text-center text-muted">No products available right now.</p>';
+  // Extract unique categories from products
+  function getCategories() {
+    const categoryMap = new Map();
+    allProducts.forEach(p => {
+      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+      if (!categoryMap.has(cat)) {
+        categoryMap.set(cat, {
+          name: cat,
+          count: 0,
+          image: p.image_url || 'flowers/bouquetwithglitter.jfif'
+        });
+      }
+      categoryMap.get(cat).count++;
+    });
+    return Array.from(categoryMap.values());
+  }
+
+  // Render category cards; when `query` is provided, only show categories/products matching query
+  function renderCategories(query = '') {
+    let baseProducts = allProducts;
+    if (query && String(query).trim()) {
+      const q = String(query).trim().toLowerCase();
+      baseProducts = allProducts.filter(p => {
+        if (!p) return false;
+        const name = (p.name || '').toLowerCase();
+        const cat = (p.category || '').toLowerCase();
+        if (name.includes(q) || cat.includes(q)) return true;
+        if (Array.isArray(p.pricing)) {
+          for (const r of p.pricing) {
+            if ((r.label || '').toString().toLowerCase().includes(q)) return true;
+          }
+        }
+        return false;
+      });
+    }
+
+    // derive categories from the filtered product list
+    const categoryMap = new Map();
+    baseProducts.forEach(p => {
+      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+      if (!categoryMap.has(cat)) {
+        categoryMap.set(cat, { name: cat, count: 0, image: p.image_url || 'flowers/bouquetwithglitter.jfif' });
+      }
+      categoryMap.get(cat).count++;
+    });
+
+    const categories = Array.from(categoryMap.values());
+
+    if (!categories.length) {
+      categoriesRow.innerHTML = '<div class="col-12"><p class="text-center text-muted">No categories available.</p></div>';
       return;
     }
-    // Group products by category (use provided category or fallback to 'Uncategorized')
-    const groups = {};
-    products.forEach(p => {
-      const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
+
+    categoriesRow.innerHTML = categories.map(cat => `
+      <div class="col-lg-3 col-md-4 col-sm-6 col-6">
+        <div class="category-card" data-category="${escapeHtml(cat.name)}">
+          <div class="category-card-inner">
+            <div class="category-image">
+              <img src="${escapeHtml(cat.image)}" alt="${escapeHtml(cat.name)}">
+              <div class="category-overlay">
+                <i class="fa fa-arrow-right"></i>
+              </div>
+            </div>
+            <div class="category-info">
+              <h6 class="category-name">${escapeHtml(cat.name)}</h6>
+              <p class="category-count">${cat.count} ${cat.count === 1 ? 'item' : 'items'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // Add click handlers to category cards
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', function() {
+        const category = this.dataset.category;
+        selectCategory(category);
+      });
+    });
+  }
+
+  // Select a category and filter products
+  function selectCategory(category) {
+    currentCategory = category;
+    
+    // Update active state on category cards
+    document.querySelectorAll('.category-card').forEach(card => {
+      if (card.dataset.category === category) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
     });
 
-    container.innerHTML = '';
-    // Render each category as a section with heading
-    Object.keys(groups).forEach(cat => {
-      const section = document.createElement('section');
-      section.className = 'mb-5';
+    // Update section title
+    productsSectionTitle.textContent = category;
+    productsSectionSubtitle.textContent = `Browse ${category.toLowerCase()} products`;
+    clearCategoryBtn.style.display = 'inline-block';
 
-      // Category header with decorative line
-      const headerDiv = document.createElement('div');
-      headerDiv.className = 'text-center mb-4';
-      headerDiv.innerHTML = `
-        <div class="d-inline-flex align-items-center gap-3">
-          <div style="width: 50px; height: 2px; background: linear-gradient(to right, transparent, #ff99bb);"></div>
-          <h4 class="fw-bold mb-0 text-pink">${escapeHtml(cat)}</h4>
-          <div style="width: 50px; height: 2px; background: linear-gradient(to left, transparent, #ff99bb);"></div>
-        </div>
-      `;
-      section.appendChild(headerDiv);
+    // Delegate filtering to the search-aware filter function so category + search combine
+    const q = (typeof productsSearch !== 'undefined' && productsSearch && productsSearch.value) ? productsSearch.value : '';
+    filterBySearch(q);
 
-      const row = document.createElement('div');
-      row.className = 'row g-4 justify-content-center';
+    // Scroll to products section
+    const productsSection = document.getElementById('productsSectionTitle');
+    if (productsSection) {
+      productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
-      groups[cat].forEach(p => {
-        const col = document.createElement('div');
-        col.className = 'col-lg-3 col-md-4 col-sm-6';
-        const imgSrc = p.image_url || 'flowers/bouquetwithglitter.jfif';
+  // Clear category filter
+  function clearCategoryFilter() {
+    currentCategory = null;
+    
+    // Remove active state from all categories
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.classList.remove('active');
+    });
 
-        // Get price preview (first pricing item)
-        let pricePreview = '';
-        if (p.pricing && Array.isArray(p.pricing) && p.pricing.length && p.pricing[0].price) {
-          pricePreview = `<div class="small text-muted mb-2">Starting at <span class="fw-bold text-pink">₱${p.pricing[0].price}</span></div>`;
+    // Update section title
+    productsSectionTitle.textContent = 'All Products';
+    productsSectionSubtitle.textContent = 'Browse our entire collection';
+    clearCategoryBtn.style.display = 'none';
+
+    // Show all products
+    filteredProducts = [...allProducts];
+    
+    // Reset pagination and display
+    currentPage = 0;
+    displayedProducts = [];
+    hasMore = true;
+    productsContainer.innerHTML = '';
+    noMoreProducts.style.display = 'none';
+    
+    // Load first page
+    loadMoreProducts();
+  }
+
+  // Load more products (lazy loading)
+  function loadMoreProducts() {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    loadingIndicator.style.display = 'block';
+
+    // Simulate async loading with setTimeout
+    setTimeout(() => {
+      const start = currentPage * PRODUCTS_PER_PAGE;
+      const end = start + PRODUCTS_PER_PAGE;
+      const productsToAdd = filteredProducts.slice(start, end);
+
+      if (productsToAdd.length === 0) {
+        hasMore = false;
+        loadingIndicator.style.display = 'none';
+        if (displayedProducts.length > 0) {
+          noMoreProducts.style.display = 'block';
         }
+        isLoading = false;
+        return;
+      }
 
-        // Create modern card with hover effects
-        const card = document.createElement('div');
-        card.className = 'card h-100 border-0 shadow-sm product-card';
-        card.style.cssText = 'transition: all 0.3s ease; cursor: pointer; overflow: hidden;';
-        card.innerHTML = `
-          <div class="position-relative overflow-hidden" style="height: 220px;">
-            <img src="${imgSrc}" alt="${escapeHtml(p.name)}" class="card-img-top" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-            <div class="position-absolute top-0 end-0 m-2">
-              <span class="badge bg-white text-pink shadow-sm px-3 py-2">
-                <i class="fa fa-flower"></i>
-              </span>
-            </div>
-          </div>
-          <div class="card-body text-center d-flex flex-column">
-            <h5 class="card-title fw-bold mb-2" style="color: #333; font-size: 1.1rem;">${escapeHtml(p.name)}</h5>
-            ${pricePreview}
-            <div class="mt-auto">
-              <button class="btn btn-pink w-100 view-price-btn">
-                <i class="fa fa-eye me-2"></i>View Details
-              </button>
-            </div>
-          </div>
-        `;
-
-        // Add hover effect
-        card.addEventListener('mouseenter', () => {
-          card.style.transform = 'translateY(-8px)';
-          card.style.boxShadow = '0 8px 24px rgba(255, 111, 155, 0.2)';
-          const img = card.querySelector('img');
-          if (img) img.style.transform = 'scale(1.1)';
-        });
-
-        card.addEventListener('mouseleave', () => {
-          card.style.transform = 'translateY(0)';
-          card.style.boxShadow = '';
-          const img = card.querySelector('img');
-          if (img) img.style.transform = 'scale(1)';
-        });
-
-        const btn = card.querySelector('.view-price-btn');
-        if (btn) btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          showPriceModal(p);
-        });
-
-        // Make entire card clickable
-        card.addEventListener('click', () => showPriceModal(p));
-
-        col.appendChild(card);
-        row.appendChild(col);
+      // Render products
+      productsToAdd.forEach(product => {
+        const productCard = createProductCard(product);
+        productsContainer.appendChild(productCard);
+        displayedProducts.push(product);
       });
 
-      section.appendChild(row);
-      container.appendChild(section);
-    });
-
-    // done
-  }
-
-  // filter products by query and re-render
-  function filterAndRender(query) {
-    if (!query || !query.trim()) return renderProducts(allProducts);
-    const q = String(query).trim().toLowerCase();
-    const filtered = allProducts.filter(p => {
-      if (!p) return false;
-      const name = (p.name || '').toLowerCase();
-      const cat = (p.category || '').toLowerCase();
-      if (name.includes(q) || cat.includes(q)) return true;
-      // also check pricing labels
-      if (Array.isArray(p.pricing)) {
-        for (const r of p.pricing) {
-          if ((r.label||'').toString().toLowerCase().includes(q)) return true;
+      currentPage++;
+      
+      // Check if there are more products
+      if (end >= filteredProducts.length) {
+        hasMore = false;
+        if (displayedProducts.length > 0) {
+          noMoreProducts.style.display = 'block';
         }
       }
-      return false;
-    });
-    renderProducts(filtered);
+
+      loadingIndicator.style.display = 'none';
+      isLoading = false;
+    }, 300);
   }
 
-  // wire search input/button
+  // Create a product card element
+  function createProductCard(product) {
+    const col = document.createElement('div');
+    col.className = 'col-lg-3 col-md-4 col-sm-6 col-6';
+    
+    const imgSrc = product.image_url || 'flowers/bouquetwithglitter.jfif';
+
+    // Get price preview (first pricing item)
+    let pricePreview = '';
+    if (product.pricing && Array.isArray(product.pricing) && product.pricing.length && product.pricing[0].price) {
+      pricePreview = `<div class="small text-muted mb-2">Starting at <span class="fw-bold text-pink">₱${product.pricing[0].price}</span></div>`;
+    }
+
+    // Create modern card with hover effects
+    const card = document.createElement('div');
+    card.className = 'card h-100 border-0 shadow-sm product-card';
+    card.style.cssText = 'transition: all 0.3s ease; cursor: pointer; overflow: hidden;';
+    card.innerHTML = `
+      <div class="position-relative overflow-hidden" style="height: 220px;">
+        <img src="${imgSrc}" alt="${escapeHtml(product.name)}" class="card-img-top" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+        <div class="position-absolute top-0 end-0 m-2">
+          <span class="badge bg-white text-pink shadow-sm px-3 py-2">
+            <i class="fa fa-flower"></i>
+          </span>
+        </div>
+      </div>
+      <div class="card-body text-center d-flex flex-column">
+        <h5 class="card-title fw-bold mb-2" style="color: #333; font-size: 1.1rem;">${escapeHtml(product.name)}</h5>
+        ${pricePreview}
+        <div class="mt-auto">
+          <button class="btn btn-pink w-100 view-price-btn">
+            <i class="fa fa-eye me-2"></i>View Details
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Add hover effect
+    card.addEventListener('mouseenter', () => {
+      card.style.transform = 'translateY(-8px)';
+      card.style.boxShadow = '0 8px 24px rgba(255, 111, 155, 0.2)';
+      const img = card.querySelector('img');
+      if (img) img.style.transform = 'scale(1.1)';
+    });
+
+    card.addEventListener('mouseleave', () => {
+      card.style.transform = 'translateY(0)';
+      card.style.boxShadow = '';
+      const img = card.querySelector('img');
+      if (img) img.style.transform = 'scale(1)';
+    });
+
+    const btn = card.querySelector('.view-price-btn');
+    if (btn) btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showPriceModal(product);
+    });
+
+    // Make entire card clickable
+    card.addEventListener('click', () => showPriceModal(product));
+
+    col.appendChild(card);
+    return col;
+  }
+
+  // Filter products by search query
+  function filterBySearch(query) {
+    if (!query || !query.trim()) {
+      // If no search query, restore filtered products based on current category
+      if (currentCategory) {
+        filteredProducts = allProducts.filter(p => {
+          const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+          return cat === currentCategory;
+        });
+      } else {
+        filteredProducts = [...allProducts];
+      }
+    } else {
+      const q = String(query).trim().toLowerCase();
+      const baseProducts = currentCategory 
+        ? allProducts.filter(p => {
+            const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
+            return cat === currentCategory;
+          })
+        : allProducts;
+      
+      filteredProducts = baseProducts.filter(p => {
+        if (!p) return false;
+        const name = (p.name || '').toLowerCase();
+        const cat = (p.category || '').toLowerCase();
+        if (name.includes(q) || cat.includes(q)) return true;
+        // also check pricing labels
+        if (Array.isArray(p.pricing)) {
+          for (const r of p.pricing) {
+            if ((r.label||'').toString().toLowerCase().includes(q)) return true;
+          }
+        }
+        return false;
+      });
+    }
+
+    // Reset pagination and display
+    currentPage = 0;
+    displayedProducts = [];
+    hasMore = true;
+    productsContainer.innerHTML = '';
+    noMoreProducts.style.display = 'none';
+    
+    // Load first page
+    loadMoreProducts();
+  }
+
+  // Wire search input/button
   const productsSearch = document.getElementById('productsSearch');
   const productsSearchBtn = document.getElementById('productsSearchBtn');
+  
   if (productsSearch) {
     productsSearch.addEventListener('input', (e) => {
-      // live filter as user types
-      filterAndRender(e.target.value || '');
+      const q = e.target.value || '';
+      // Update categories and products as user types
+      try { renderCategories(q); } catch (err) {}
+      filterBySearch(q);
     });
   }
+  
   if (productsSearchBtn) {
     productsSearchBtn.addEventListener('click', () => {
       const q = productsSearch ? productsSearch.value : '';
-      filterAndRender(q);
+      try { renderCategories(q); } catch (err) {}
+      filterBySearch(q);
     });
   }
+
+  // Wire clear category button
+  if (clearCategoryBtn) {
+    clearCategoryBtn.addEventListener('click', clearCategoryFilter);
+  }
+
+  // Infinite scroll - detect when user scrolls near bottom
+  function handleScroll() {
+    if (isLoading || !hasMore) return;
+    
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const bottomPosition = document.documentElement.offsetHeight - 500; // Trigger 500px before bottom
+    
+    if (scrollPosition >= bottomPosition) {
+      loadMoreProducts();
+    }
+  }
+
+  // Throttle scroll events
+  let scrollTimeout;
+  window.addEventListener('scroll', () => {
+    if (scrollTimeout) {
+      clearTimeout(scrollTimeout);
+    }
+    scrollTimeout = setTimeout(handleScroll, 100);
+  });
 
   function showPriceModal(product) {
     // create or update modal

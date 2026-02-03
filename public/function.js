@@ -193,16 +193,16 @@ document.addEventListener('DOMContentLoaded', () => {
       // render addons (product.addons may be array of objects or strings)
       if (addonsContainer) {
         if (product.addons && Array.isArray(product.addons) && product.addons.length) {
-          const html = product.addons.map(a => {
+          const html = product.addons.map((a, idx) => {
             if (typeof a === 'string') {
               const val = escapeHtml(a);
-              return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input" id="addon_${val}"><label class="form-check-label fw-semibold" for="addon_${val}">${val}</label></div>`;
+              return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input addon-checkbox" id="addon_${idx}" data-name="${val}" data-price="0"><label class="form-check-label fw-semibold" for="addon_${idx}" style="cursor: pointer;">${val}</label></div>`;
             }
-            const label = String(a.label || '').trim();
-            const price = a.price != null ? `₱${Number(a.price).toLocaleString()}` : '';
-            const value = escapeHtml(label + (price ? ` - ${price}` : ''));
-            const id = 'addon_' + label.replace(/\s+/g, '_');
-            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${value}" class="form-check-input" id="${id}"><label class="form-check-label" for="${id}"><span class="fw-semibold">${escapeHtml(label)}</span>${price ? ` <span class="badge bg-pink text-white ms-2">${price}</span>` : ''}</label></div>`;
+            const label = String(a.label || a.name || '').trim();
+            const price = a.price != null ? Number(a.price) : 0;
+            const priceStr = price > 0 ? `₱${price.toLocaleString()}` : '';
+            const id = 'addon_' + idx;
+            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" class="form-check-input addon-checkbox" id="${id}" data-name="${escapeHtml(label)}" data-price="${price}"><label class="form-check-label" for="${id}" style="cursor: pointer;"><span class="fw-semibold">${escapeHtml(label)}</span>${priceStr ? ` <span class="badge bg-pink text-white ms-2">${priceStr}</span>` : ''}</label></div>`;
           }).join('');
           addonsContainer.innerHTML = html;
           try {

@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="google-site-verification" content="N9lxiUXoVxZO4JMUQz83P3YGXc5KRZNsKC8ITIyWhSI" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Chammy Florals</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link rel="shortcut icon" href="https://chammyflorals.vercel.app/flowers/cherry-blossom.png" type="image/x-icon">
@@ -257,12 +260,6 @@
             <i class="fa fa-star me-1"></i>Reviews
           </a>
         </li>
-        <li class="nav-item me-2 my-2 my-lg-0">
-          <a class="btn btn-sm btn-outline-secondary" href="https://chammy-florals-status.vercel.app/">
-            <i class="fa fa-heartbeat me-1"></i>Status
-          </a>
-        </li>
-        
         <li class="nav-item me-2 my-2 my-lg-0" id="authSection">
         </li>
       </ul>
@@ -309,6 +306,9 @@
             <div class="d-flex justify-content-center gap-2 gap-md-3 flex-wrap mb-3">
               <button class="btn btn-pink btn-lg px-4" id="heroOrderBtn">
                 <i class="fa fa-shopping-bag me-2"></i>Order Now
+              </button>
+              <button class="btn btn-outline-pink btn-lg px-4" id="heroCustomizeBtn" data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
+                <i class="fa fa-palette me-2"></i>Customize Order
               </button>
             </div>
           </div>
@@ -371,22 +371,58 @@
   </div>
 
 
-  <section class="container my-5">
-    <div class="mb-3">
+  <section class="container">
+    <div class="mb-4">
       <div class="text-center">
         <h2 class="fw-bold mb-0">Our Collections</h2>
         <div class="small text-muted">Handpicked & handcrafted — find the perfect arrangement</div>
       </div>
       <div class="mt-3 d-flex justify-content-center">
         <form id="productsSearchForm" class="d-flex mx-auto" style="max-width:560px; width:100%;" role="search" onsubmit="return false;">
-          <input id="productsSearch" class="form-control form-control-sm flex-fill" placeholder="Search products" aria-label="Search products">
+          <input id="productsSearch" class="form-control form-control-sm flex-fill" placeholder="Search categories or products" aria-label="Search products and categories">
           <button id="productsSearchBtn" class="btn btn-pink btn-sm ms-2" type="button">Search</button>
         </form>
       </div>
     </div>
 
-    <div id="productsContainer">
+    <!-- Categories Section -->
+    <div id="categoriesContainer" class="mb-5">
+      <div class="row g-3 justify-content-center" id="categoriesRow">
+        <!-- Categories will be loaded here -->
+      </div>
+    </div>
+
+    <!-- Products Section -->
+    <div class="mb-3 ">
+      <div class="d-flex flex-column flex-md-row align-items-center justify-content-center mb-3">
+        <div class="text-center">
+          <h3 class="fw-bold mb-1" id="productsSectionTitle">All Products</h3>
+          <div class="small text-muted" id="productsSectionSubtitle">Browse our entire collection</div>
+        </div>
+        <div class="ms-md-3 mt-2 mt-md-0">
+          <button id="clearCategoryBtn" class="btn btn-outline-pink btn-sm" style="display: none;">
+            <i class="fa fa-times me-1"></i>Clear Filter
+          </button>
+        </div>
+      </div>
       
+    </div>
+
+    <div id="productsContainer" class="row g-4 justify-content-center">
+      <!-- Products will be loaded here -->
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loadingIndicator" class="text-center py-4" style="display: none;">
+      <div class="spinner-border text-pink" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading more products...</p>
+    </div>
+    
+    <!-- No more products indicator -->
+    <div id="noMoreProducts" class="text-center py-4" style="display: none;">
+      <p class="text-muted"><i class="fa fa-check-circle text-pink me-2"></i>You've reached the end</p>
     </div>
   </section>
 
@@ -564,10 +600,170 @@
       </div>
     </div>
   </div>
+</div>
 
-    <style>
-    
-  </style>
+<!-- Customize Order Modal -->
+<div class="modal fade" id="customizeOrderModal" tabindex="-1" aria-labelledby="customizeOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content rounded-4 border-0 shadow-lg">
+      
+      <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
+        <div class="w-100">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+              <i class="fa fa-palette" style="font-size: 1.5rem; color: #ff6f9b;"></i>
+            </div>
+            <div>
+              <h5 class="modal-title text-white mb-0 fw-bold" style="font-size: 1.5rem;">Customize Your Order</h5>
+              <p class="text-white mb-0 opacity-75 small">Create your own unique bouquet arrangement</p>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body p-3 p-md-4">
+        <form id="customizeOrderForm" class="needs-validation" novalidate>
+          
+          <!-- Section 1: Personal Information -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">1</div>
+              <h6 class="mb-0 fw-bold">Personal Information</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-user me-2" style="color: #ff6f9b;"></i>Full Name
+                </label>
+                <input type="text" name="custom_user_name" class="form-control" placeholder="Enter your name" required>
+                <div class="invalid-feedback">Please enter your name.</div>
+              </div>
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-envelope me-2" style="color: #ff6f9b;"></i>Email Address
+                </label>
+                <input type="email" name="custom_user_email" class="form-control" placeholder="your@email.com" required>
+                <div class="invalid-feedback">Please enter a valid email.</div>
+              </div>
+              <div class="col-lg-4 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa-brands fa-facebook me-2" style="color: #ff6f9b;"></i>Facebook Account Link
+                </label>
+                <input type="url" name="custom_fb_link" class="form-control" placeholder="https://facebook.com/yourprofile" required>
+                <div class="invalid-feedback">Please enter your Facebook profile link.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Stems Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">2</div>
+              <h6 class="mb-0 fw-bold">Select Stems</h6>
+            </div>
+            <div id="customStemsContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading stems...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Fillers Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">3</div>
+              <h6 class="mb-0 fw-bold">Select Fillers</h6>
+            </div>
+            <div id="customFillersContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading fillers...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Wrapping Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">4</div>
+              <h6 class="mb-0 fw-bold">Select Wrapping</h6>
+            </div>
+            <div id="customWrappingContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading wrapping options...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Add-ons Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">5</div>
+              <h6 class="mb-0 fw-bold">Add-ons (Optional)</h6>
+            </div>
+            <div id="customAddonsContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading add-ons...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 6: Special Instructions -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">6</div>
+              <h6 class="mb-0 fw-bold">Additional Details</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-comment me-2" style="color: #ff6f9b;"></i>Special Message or Instructions
+                </label>
+                <textarea name="custom_message" class="form-control" rows="3" placeholder="Add any special requests or messages for your custom order..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Summary -->
+          <div class="mb-4 p-3 rounded-3" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="mb-0 fw-bold" style="color: #ff6f9b;">
+                <i class="fa fa-receipt me-2"></i>Estimated Total
+              </h6>
+              <span class="fs-4 fw-bold" style="color: #ff6f9b;" id="customOrderTotal">₱0.00</span>
+            </div>
+          </div>
+
+          <!-- Terms and Conditions -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="customAgreeTerms" required>
+              <label class="form-check-label" for="customAgreeTerms">
+                I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" class="fw-semibold" style="color: #ff6f9b;">Terms and Conditions</a>
+              </label>
+              <div class="invalid-feedback">
+                You must agree to the terms and conditions before placing an order.
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-lg py-3" id="placeCustomOrderBtn" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white;">
+              <i class="fa fa-palette me-2"></i>Place Custom Order
+            </button>
+            <div class="text-center small text-muted">
+              <i class="fa fa-lock me-1"></i>Your information is secure and will only be used to process your order
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
@@ -896,6 +1092,145 @@
   <link rel="stylesheet" href="/css/notify-prompt.css">
   <script src="/js/push-subscribe.js"></script>
   <script src="/js/notify-prompt.js"></script>
-  
+  <script src="/js/customize-order.js"></script>
+
+              <h6 class="mb-0 fw-bold">Personal Information</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-user me-2" style="color: #8b5cf6;"></i>Full Name
+                </label>
+                <input type="text" name="custom_user_name" class="form-control" placeholder="Enter your name" required>
+                <div class="invalid-feedback">Please enter your name.</div>
+              </div>
+              <div class="col-lg-4 col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-envelope me-2" style="color: #8b5cf6;"></i>Email Address
+                </label>
+                <input type="email" name="custom_user_email" class="form-control" placeholder="your@email.com" required>
+                <div class="invalid-feedback">Please enter a valid email.</div>
+              </div>
+              <div class="col-lg-4 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa-brands fa-facebook me-2" style="color: #8b5cf6;"></i>Facebook Account Link
+                </label>
+                <input type="url" name="custom_fb_link" class="form-control" placeholder="https://facebook.com/yourprofile" required>
+                <div class="invalid-feedback">Please enter your Facebook profile link.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Stems Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #8b5cf6;">2</div>
+              <h6 class="mb-0 fw-bold">Select Stems</h6>
+            </div>
+            <div id="customStemsContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading stems...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Fillers Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #8b5cf6;">3</div>
+              <h6 class="mb-0 fw-bold">Select Fillers</h6>
+            </div>
+            <div id="customFillersContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading fillers...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Wrapping Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #8b5cf6;">4</div>
+              <h6 class="mb-0 fw-bold">Select Wrapping</h6>
+            </div>
+            <div id="customWrappingContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading wrapping options...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Add-ons Selection -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #8b5cf6;">5</div>
+              <h6 class="mb-0 fw-bold">Add-ons (Optional)</h6>
+            </div>
+            <div id="customAddonsContainer" class="row g-3">
+              <div class="col-12 text-center text-muted py-3">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                Loading add-ons...
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 6: Special Instructions -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #8b5cf6;">6</div>
+              <h6 class="mb-0 fw-bold">Additional Details</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-comment me-2" style="color: #8b5cf6;"></i>Special Message or Instructions
+                </label>
+                <textarea name="custom_message" class="form-control" rows="3" placeholder="Add any special requests or messages for your custom order..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Summary -->
+          <div class="mb-4 p-3 rounded-3" style="background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+              <h6 class="mb-0 fw-bold" style="color: #8b5cf6;">
+                <i class="fa fa-receipt me-2"></i>Estimated Total
+              </h6>
+              <span class="fs-4 fw-bold" style="color: #8b5cf6;" id="customOrderTotal">₱0.00</span>
+            </div>
+          </div>
+
+          <!-- Terms and Conditions -->
+          <div class="mb-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="customAgreeTerms" required>
+              <label class="form-check-label" for="customAgreeTerms">
+                I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" class="fw-semibold" style="color: #8b5cf6;">Terms and Conditions</a>
+              </label>
+              <div class="invalid-feedback">
+                You must agree to the terms and conditions before placing an order.
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-lg py-3" id="placeCustomOrderBtn" style="background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white;">
+              <i class="fa fa-palette me-2"></i>Place Custom Order
+            </button>
+            <div class="text-center small text-muted">
+              <i class="fa fa-lock me-1"></i>Your information is secure and will only be used to process your order
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/customize-order.js"></script>
+
 </body>
 </html>

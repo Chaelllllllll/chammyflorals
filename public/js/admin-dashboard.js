@@ -23,6 +23,7 @@ async function loadOrders() {
       return;
     }
 
+  // Load regular orders
   const response = await fetch('/api/admin/orders', {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -35,32 +36,34 @@ async function loadOrders() {
     }
 
     if (response.ok) {
+      const allOrders = orders || [];
+      
       // Check for new orders and trigger notification
       const storedOrderIds = localStorage.getItem('adminKnownOrderIds');
       let knownOrderIds = storedOrderIds ? JSON.parse(storedOrderIds) : [];
       
-      if (orders && orders.length > 0 && knownOrderIds.length > 0) {
-        const newOrders = orders.filter(order => !knownOrderIds.includes(order.order_id));
+      if (allOrders && allOrders.length > 0 && knownOrderIds.length > 0) {
+        const newOrders = allOrders.filter(order => !knownOrderIds.includes(order.order_id));
         
         // Trigger notification for each new order
         if (newOrders.length > 0 && window.notificationManager) {
           newOrders.forEach(order => {
             window.notificationManager.notifyNewOrder(
               order.order_id,
-              order.customer_name || 'Customer'
+              order.customer_name || order.name || 'Customer'
             );
           });
         }
       }
       
       // Update known order IDs
-      if (orders && orders.length > 0) {
-        const allOrderIds = orders.map(o => o.order_id);
+      if (allOrders && allOrders.length > 0) {
+        const allOrderIds = allOrders.map(o => o.order_id);
         localStorage.setItem('adminKnownOrderIds', JSON.stringify(allOrderIds));
       }
       
       // keep full orders data in window for detail lookups and filtering
-      window.ordersData = orders || [];
+      window.ordersData = allOrders || [];
         // pagination defaults
         window.ordersPerPage = 10;
         window.currentPage = 1;
@@ -368,7 +371,6 @@ function updateStatusCounts() {
   setText('countAll', counts.All);
   setText('countPending', counts.Pending);
   setText('countProcessing', counts.Processing);
-  setText('countToReceive', counts['To Receive']);
   // update mobile dropdown counts and bell total if present
   try {
     const ddAll = document.getElementById('ddCountAll'); if (ddAll) { if (counts.All === 0) ddAll.style.display = 'none'; else { ddAll.style.display = ''; ddAll.textContent = fmt(counts.All); } }
@@ -378,6 +380,9 @@ function updateStatusCounts() {
   } catch (e) {}
   try {
     const ddProcessing = document.getElementById('ddCountProcessing'); if (ddProcessing) { if (counts.Processing === 0) ddProcessing.style.display = 'none'; else { ddProcessing.style.display = ''; ddProcessing.textContent = fmt(counts.Processing); } }
+  } catch (e) {}
+  try {
+    const ddCustom = document.getElementById('ddCountCustom'); if (ddCustom) { if (counts.Custom === 0) ddCustom.style.display = 'none'; else { ddCustom.style.display = ''; ddCustom.textContent = fmt(counts.Custom); } }
   } catch (e) {}
   try {
     const ddToReceive = document.getElementById('ddCountToReceive'); if (ddToReceive) { if (counts['To Receive'] === 0) ddToReceive.style.display = 'none'; else { ddToReceive.style.display = ''; ddToReceive.textContent = fmt(counts['To Receive']); } }
@@ -413,9 +418,11 @@ function applyOrderFilters() {
     const status = String((o.status || '')).toLowerCase();
     return status !== 'delivered' && status !== 'to receive';
   });
+  
   if (statusVal) {
     list = list.filter(o => String(o.status || '') === statusVal);
   }
+  
   if (searchVal) {
     list = list.filter(o => {
       return String(o.order_id || '').toLowerCase().includes(searchVal)

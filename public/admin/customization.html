@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chammy Florals - Customization Options</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body { overflow-x: hidden; }
+    
+    .card {
+      border-radius: 12px !important;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    .nav-tabs .nav-link {
+      color: #5a4a4a;
+      border: none;
+      padding: 1rem 1.5rem;
+      font-weight: 500;
+    }
+    .nav-tabs .nav-link.active {
+      color: #ff6f9b;
+      border-bottom: 3px solid #ff6f9b;
+      background: transparent;
+    }
+    .nav-tabs .nav-link:hover {
+      color: #ff6f9b;
+    }
+    
+    .btn-pink {
+      background: linear-gradient(135deg, #ff8fb3 0%, #ff6f9b 100%);
+      color: white;
+      border: none;
+    }
+    .btn-pink:hover {
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff5085 100%);
+      color: white;
+    }
+    
+    .btn-outline-pink {
+      color: #ff6f9b;
+      border-color: #ff6f9b;
+    }
+    .btn-outline-pink:hover {
+      background-color: #ff6f9b;
+      color: white;
+    }
+    
+    .bg-pink {
+      background-color: #ff6f9b !important;
+    }
+    
+    .text-pink {
+      color: #ff6f9b !important;
+    }
+    
+    .option-card {
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1rem;
+      background: white;
+      transition: all 0.3s ease;
+    }
+    .option-card:hover {
+      box-shadow: 0 4px 12px rgba(255, 111, 155, 0.15);
+    }
+    .option-card.inactive {
+      opacity: 0.6;
+      background: #f8f9fa;
+    }
+    
+    .option-image {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
+    
+    .toolbar.card {
+      background: linear-gradient(180deg, #fffafc, #fff1f6);
+      border: none;
+    }
+    
+    .modal-content {
+      border-radius: 12px;
+    }
+    
+    /* Image upload preview */
+    .image-upload-container {
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .image-upload-container:hover {
+      border-color: #ff6f9b;
+      background: #fff5f8;
+    }
+    .image-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .nav-tabs .nav-link {
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+      }
+      .toolbar.card {
+        padding: 1rem !important;
+      }
+      .toolbar .d-flex {
+        flex-direction: column !important;
+        gap: 1rem;
+      }
+      .option-card {
+        flex-direction: column;
+        text-align: center;
+      }
+      .option-image {
+        width: 100%;
+        height: 150px;
+        margin-bottom: 1rem;
+      }
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <!-- Sidebar Toggle Button -->
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-chevron-right"></i>
+  </button>
+
+  <!-- Sidebar Overlay (Mobile) -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        <i class="fas fa-flower"></i>
+        <span>Chammy Florals</span>
+      </a>
+    </div>
+    
+    <ul class="sidebar-nav">
+      <!-- Main -->
+      <li class="sidebar-nav-item">
+        <a href="/admin/dashboard.html" class="sidebar-nav-link">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      
+      <!-- Orders Section -->
+      <li class="sidebar-section-label">Orders</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/to-deliver.html" class="sidebar-nav-link">
+          <i class="fas fa-truck"></i>
+          <span>To Deliver</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/custom-orders.html" class="sidebar-nav-link">
+          <i class="fas fa-palette"></i>
+          <span>Custom Orders</span>
+        </a>
+      </li>
+      
+      <!-- Store Section -->
+      <li class="sidebar-section-label">Store</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/products.html" class="sidebar-nav-link">
+          <i class="fas fa-box-open"></i>
+          <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/customization.html" class="sidebar-nav-link active">
+          <i class="fas fa-swatchbook"></i>
+          <span>Customization</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reviews.html" class="sidebar-nav-link">
+          <i class="fas fa-star"></i>
+          <span>Reviews</span>
+        </a>
+      </li>
+      
+      <!-- Communication Section -->
+      <li class="sidebar-section-label">Communication</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/messages.html" class="sidebar-nav-link" id="messagesNavLink">
+          <i class="fas fa-comments"></i>
+          <span>Messages</span>
+          <span id="messagesBadge" class="badge bg-danger" style="display: none;">0</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/announcements.html" class="sidebar-nav-link">
+          <i class="fas fa-bullhorn"></i>
+          <span>Announcements</span>
+        </a>
+      </li>
+      
+      <!-- Analytics Section -->
+      <li class="sidebar-section-label">Analytics</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reports.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-line"></i>
+          <span>Transactions</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/analytics.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-area"></i>
+          <span>Analytics</span>
+        </a>
+      </li>
+      
+      <!-- Settings Section -->
+      <li class="sidebar-section-label">Settings</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/admins.html" class="sidebar-nav-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Admins</span>
+        </a>
+      </li>
+      
+      <!-- Logout -->
+      <li class="sidebar-nav-item">
+        <button class="btn btn-pink w-100" id="logoutButton">
+        <i class="fas fa-sign-out-alt me-2"></i>Logout
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="container-fluid py-4">
+      <!-- Main Card Container -->
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <!-- Tabs Navigation -->
+          <ul class="nav nav-tabs mb-4" id="optionsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="stems-tab" data-bs-toggle="tab" data-bs-target="#stems" type="button" role="tab">
+                <i class="fa fa-seedling me-2"></i>Stems
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="fillers-tab" data-bs-toggle="tab" data-bs-target="#fillers" type="button" role="tab">
+                <i class="fa fa-leaf me-2"></i>Fillers
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="wrapping-tab" data-bs-toggle="tab" data-bs-target="#wrapping" type="button" role="tab">
+                <i class="fa fa-gift me-2"></i>Wrapping
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="addons-tab" data-bs-toggle="tab" data-bs-target="#addons" type="button" role="tab">
+                <i class="fa fa-plus-circle me-2"></i>Add-ons
+              </button>
+            </li>
+          </ul>
+
+          <!-- Tab Content -->
+          <div class="tab-content" id="optionsTabContent">
+      <!-- Stems Tab -->
+      <div class="tab-pane fade show active" id="stems" role="tabpanel">
+        <div class="toolbar card p-3 mb-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold text-pink"><i class="fa fa-seedling me-2"></i>Manage Stems</h5>
+              <small class="text-muted">Add flower stems for custom bouquets</small>
+            </div>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#addOptionModal" data-type="stems">
+              <i class="fa fa-plus me-2"></i>Add Stem
+            </button>
+          </div>
+        </div>
+        <div id="stemsContainer" class="row g-3">
+          <div class="col-12 text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Loading stems...
+          </div>
+        </div>
+      </div>
+
+      <!-- Fillers Tab -->
+      <div class="tab-pane fade" id="fillers" role="tabpanel">
+        <div class="toolbar card p-3 mb-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold text-pink"><i class="fa fa-leaf me-2"></i>Manage Fillers</h5>
+              <small class="text-muted">Add filler options for arrangements</small>
+            </div>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#addOptionModal" data-type="fillers">
+              <i class="fa fa-plus me-2"></i>Add Filler
+            </button>
+          </div>
+        </div>
+        <div id="fillersContainer" class="row g-3">
+          <div class="col-12 text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Loading fillers...
+          </div>
+        </div>
+      </div>
+
+      <!-- Wrapping Tab -->
+      <div class="tab-pane fade" id="wrapping" role="tabpanel">
+        <div class="toolbar card p-3 mb-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold text-pink"><i class="fa fa-gift me-2"></i>Manage Wrapping</h5>
+              <small class="text-muted">Add wrapping styles for bouquets</small>
+            </div>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#addOptionModal" data-type="wrapping">
+              <i class="fa fa-plus me-2"></i>Add Wrapping
+            </button>
+          </div>
+        </div>
+        <div id="wrappingContainer" class="row g-3">
+          <div class="col-12 text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Loading wrapping options...
+          </div>
+        </div>
+      </div>
+
+      <!-- Add-ons Tab -->
+      <div class="tab-pane fade" id="addons" role="tabpanel">
+        <div class="toolbar card p-3 mb-4">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold text-purple"><i class="fa fa-plus-circle me-2"></i>Manage Add-ons</h5>
+              <small class="text-muted">Add extra items for custom orders</small>
+            </div>
+            <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#addOptionModal" data-type="addons">
+              <i class="fa fa-plus me-2"></i>Add Add-on
+            </button>
+          </div>
+        </div>
+        <div id="addonsContainer" class="row g-3">
+          <div class="col-12 text-center py-5 text-muted">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            Loading add-ons...
+          </div>
+        </div>
+          </div>
+        </div>
+      </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add/Edit Option Modal -->
+  <div class="modal fade" id="addOptionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header border-0" style="background: linear-gradient(135deg, #ff8fb3 0%, #ff6f9b 100%);">
+          <h5 class="modal-title text-white fw-bold" id="optionModalTitle">
+            <i class="fa fa-plus me-2"></i>Add Option
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <form id="optionForm">
+            <input type="hidden" id="optionId" name="id">
+            <input type="hidden" id="optionType" name="type">
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Name</label>
+              <input type="text" class="form-control" id="optionName" name="name" required placeholder="Enter name">
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Price (₱)</label>
+              <input type="number" class="form-control" id="optionPrice" name="price" required min="0" step="0.01" placeholder="0.00">
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Image (optional)</label>
+              <input type="hidden" id="optionImageUrl" name="image_url">
+              <input type="hidden" id="optionOldImageUrl" name="old_image_url">
+              <div class="image-upload-container" id="imageUploadContainer">
+                <i class="fa fa-cloud-upload fa-3x text-muted mb-2"></i>
+                <p class="mb-2">Click to upload image</p>
+                <small class="text-muted">Max size: 5MB (JPG, PNG, WEBP)</small>
+                <input type="file" id="optionImageFile" accept="image/*" style="display:none;">
+                <img id="imagePreview" class="image-preview" style="display:none;">
+              </div>
+              <div id="uploadProgress" class="progress mt-2" style="display:none; height: 4px;">
+                <div class="progress-bar bg-pink" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="optionActive" name="is_active" checked>
+              <label class="form-check-label" for="optionActive">Active (visible to customers)</label>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-pink" id="saveOptionBtn">
+                <i class="fa fa-save me-2"></i>Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteOptionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header border-0 bg-danger text-white">
+          <h5 class="modal-title fw-bold">
+            <i class="fa fa-trash me-2"></i>Delete
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <p>Are you sure you want to delete <strong id="deleteOptionName"></strong>?</p>
+          <p class="text-muted small">This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+            <i class="fa fa-trash me-2"></i>Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script>
+    const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
+    const STORAGE_BUCKET = 'customization-images';
+    let currentDeleteId = null;
+    let currentDeleteType = null;
+    let uploadedFile = null;
+
+    // Image upload handling
+    document.getElementById('imageUploadContainer').addEventListener('click', () => {
+      document.getElementById('optionImageFile').click();
+    });
+
+    document.getElementById('optionImageFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      
+      uploadedFile = file;
+      
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = document.getElementById('imagePreview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        document.querySelector('#imageUploadContainer i').style.display = 'none';
+        document.querySelector('#imageUploadContainer p').style.display = 'none';
+        document.querySelector('#imageUploadContainer small').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Upload image to storage
+    async function uploadImage(file, type, itemId) {
+      if (!file) return null;
+      
+      console.log('Uploading image:', { fileName: file.name, type, itemId });
+      
+      const progressBar = document.querySelector('#uploadProgress .progress-bar');
+      document.getElementById('uploadProgress').style.display = 'block';
+      progressBar.style.width = '30%';
+      
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('type', type);
+        formData.append('itemId', itemId.toString());
+        
+        console.log('FormData entries:');
+        for (let pair of formData.entries()) {
+          console.log(pair[0] + ':', pair[1]);
+        }
+        
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_URL}/api/admin/customization/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        
+        progressBar.style.width = '100%';
+        
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error('Upload error response:', errorData);
+          throw new Error(errorData.error || 'Upload failed');
+        }
+        
+        const data = await res.json();
+        console.log('Upload successful:', data);
+        document.getElementById('uploadProgress').style.display = 'none';
+        progressBar.style.width = '0%';
+        
+        return data.url;
+      } catch (err) {
+        console.error('Upload error:', err);
+        document.getElementById('uploadProgress').style.display = 'none';
+        alert('Failed to upload image');
+        return null;
+      }
+    }
+
+    // Delete image from storage
+    async function deleteImage(imageUrl) {
+      if (!imageUrl) return;
+      
+      try {
+        const token = localStorage.getItem('adminToken');
+        await fetch(`${API_URL}/api/admin/customization/delete-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ imageUrl })
+        });
+      } catch (err) {
+        console.error('Failed to delete image:', err);
+      }
+    }
+
+    // Check admin auth
+    async function checkAuth() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/admin/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('adminToken');
+      window.location.href = '/admin/login.html';
+    });
+
+    // Load all options
+    async function loadOptions(type) {
+      const container = document.getElementById(`${type}Container`);
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_URL}/api/admin/customization/${type}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Failed to load');
+        
+        const data = await res.json();
+        
+        if (!data.length) {
+          container.innerHTML = `
+            <div class="col-12 text-center py-5 text-muted">
+              <i class="fa fa-inbox fa-3x mb-3 opacity-50"></i>
+              <p>No ${type} added yet.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = data.map(item => `
+          <div class="col-lg-4 col-md-6">
+            <div class="option-card d-flex align-items-center gap-3 ${!item.is_active ? 'inactive' : ''}">
+              ${item.image_url ? 
+                `<img src="${item.image_url}" alt="${item.name}" class="option-image">` : 
+                `<div class="option-image d-flex align-items-center justify-content-center bg-light">
+                  <i class="fa fa-image text-muted"></i>
+                </div>`
+              }
+              <div class="flex-grow-1">
+                <h6 class="mb-1 fw-bold">${item.name}</h6>
+                <span class="badge bg-pink">₱${parseFloat(item.price).toFixed(2)}</span>
+                ${!item.is_active ? '<span class="badge bg-secondary ms-1">Inactive</span>' : ''}
+              </div>
+              <div class="d-flex flex-column gap-1">
+                <button class="btn btn-sm btn-outline-pink edit-btn" data-id="${item.id}" data-type="${type}">
+                  <i class="fa fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${item.id}" data-type="${type}" data-name="${item.name}">
+                  <i class="fa fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+        
+        // Attach event listeners
+        container.querySelectorAll('.edit-btn').forEach(btn => {
+          btn.addEventListener('click', () => editOption(btn.dataset.type, btn.dataset.id));
+        });
+        container.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', () => showDeleteModal(btn.dataset.type, btn.dataset.id, btn.dataset.name));
+        });
+        
+      } catch (err) {
+        console.error(`Error loading ${type}:`, err);
+        container.innerHTML = `
+          <div class="col-12 text-center py-5 text-danger">
+            <i class="fa fa-exclamation-circle me-2"></i>Failed to load ${type}
+          </div>
+        `;
+      }
+    }
+
+    // Open add modal
+    document.querySelectorAll('[data-bs-target="#addOptionModal"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        document.getElementById('optionType').value = type;
+        document.getElementById('optionId').value = '';
+        document.getElementById('optionForm').reset();
+        document.getElementById('optionActive').checked = true;
+        document.getElementById('optionOldImageUrl').value = '';
+        
+        // Reset image upload
+        uploadedFile = null;
+        document.getElementById('imagePreview').style.display = 'none';
+        document.querySelector('#imageUploadContainer i').style.display = 'block';
+        document.querySelector('#imageUploadContainer p').style.display = 'block';
+        document.querySelector('#imageUploadContainer small').style.display = 'block';
+        
+        const typeLabel = type.charAt(0).toUpperCase() + type.slice(1, -1);
+        document.getElementById('optionModalTitle').innerHTML = `<i class="fa fa-plus me-2"></i>Add ${typeLabel}`;
+      });
+    });
+
+    // Edit option
+    async function editOption(type, id) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        const res = await fetch(`${API_URL}/api/admin/customization/${type}/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Failed to load option');
+        
+        const item = await res.json();
+        
+        document.getElementById('optionType').value = type;
+        document.getElementById('optionId').value = id;
+        document.getElementById('optionName').value = item.name || '';
+        document.getElementById('optionPrice').value = item.price || 0;
+        document.getElementById('optionImageUrl').value = item.image_url || '';
+        document.getElementById('optionOldImageUrl').value = item.image_url || '';
+        document.getElementById('optionActive').checked = item.is_active !== false;
+        
+        // Show existing image preview
+        if (item.image_url) {
+          const preview = document.getElementById('imagePreview');
+          preview.src = item.image_url;
+          preview.style.display = 'block';
+          document.querySelector('#imageUploadContainer i').style.display = 'none';
+          document.querySelector('#imageUploadContainer p').style.display = 'none';
+          document.querySelector('#imageUploadContainer small').style.display = 'none';
+        }
+        
+        const typeLabel = type.charAt(0).toUpperCase() + type.slice(1, -1);
+        document.getElementById('optionModalTitle').innerHTML = `<i class="fa fa-edit me-2"></i>Edit ${typeLabel}`;
+        
+        new bootstrap.Modal(document.getElementById('addOptionModal')).show();
+        
+      } catch (err) {
+        console.error('Error loading option:', err);
+        alert('Failed to load option details');
+      }
+    }
+
+    // Save option
+    document.getElementById('optionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const type = document.getElementById('optionType').value;
+      const id = document.getElementById('optionId').value;
+      const isEdit = !!id;
+      const oldImageUrl = document.getElementById('optionOldImageUrl').value;
+      
+      const saveBtn = document.getElementById('saveOptionBtn');
+      const originalText = saveBtn.innerHTML;
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+      
+      try {
+        const token = localStorage.getItem('adminToken');
+        let imageUrl = document.getElementById('optionImageUrl').value;
+        let itemId = id;
+        
+        // If creating new item, save to DB first to get the ID
+        if (!isEdit) {
+          const data = {
+            name: document.getElementById('optionName').value,
+            price: parseFloat(document.getElementById('optionPrice').value),
+            image_url: null, // will update after upload
+            is_active: document.getElementById('optionActive').checked
+          };
+          
+          const res = await fetch(`${API_URL}/api/admin/customization/${type}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+          });
+          
+          if (!res.ok) throw new Error('Failed to create item');
+          
+          const result = await res.json();
+          itemId = result.id;
+          
+          // Now upload image with the real ID
+          if (uploadedFile) {
+            imageUrl = await uploadImage(uploadedFile, type, itemId);
+            if (!imageUrl) throw new Error('Image upload failed');
+            
+            // Update the item with image URL
+            const updateRes = await fetch(`${API_URL}/api/admin/customization/${type}/${itemId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ ...data, image_url: imageUrl })
+            });
+            
+            if (!updateRes.ok) throw new Error('Failed to update image URL');
+          }
+        } else {
+          // Editing existing item
+          // Upload new image if selected
+          if (uploadedFile) {
+            imageUrl = await uploadImage(uploadedFile, type, itemId);
+            if (!imageUrl) throw new Error('Image upload failed');
+          }
+          
+          const data = {
+            name: document.getElementById('optionName').value,
+            price: parseFloat(document.getElementById('optionPrice').value),
+            image_url: imageUrl || null,
+            is_active: document.getElementById('optionActive').checked
+          };
+          
+          const res = await fetch(`${API_URL}/api/admin/customization/${type}/${itemId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+          });
+          
+          if (!res.ok) throw new Error('Failed to update');
+          
+          // Delete old image if it was replaced
+          if (oldImageUrl && imageUrl && oldImageUrl !== imageUrl) {
+            await deleteImage(oldImageUrl);
+          }
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('addOptionModal')).hide();
+        uploadedFile = null;
+        loadOptions(type);
+        
+      } catch (err) {
+        console.error('Error saving option:', err);
+        alert('Failed to save option: ' + err.message);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
+      }
+    });
+
+    // Show delete modal
+    function showDeleteModal(type, id, name) {
+      currentDeleteId = id;
+      currentDeleteType = type;
+      document.getElementById('deleteOptionName').textContent = name;
+      new bootstrap.Modal(document.getElementById('deleteOptionModal')).show();
+    }
+
+    // Confirm delete
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+      if (!currentDeleteId || !currentDeleteType) return;
+      
+      try {
+        const token = localStorage.getItem('adminToken');
+        
+        // Get item details to find image URL
+        const getRes = await fetch(`${API_URL}/api/admin/customization/${currentDeleteType}/${currentDeleteId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        let imageUrl = null;
+        if (getRes.ok) {
+          const item = await getRes.json();
+          imageUrl = item.image_url;
+        }
+        
+        // Delete from database
+        const res = await fetch(`${API_URL}/api/admin/customization/${currentDeleteType}/${currentDeleteId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error('Failed to delete');
+        
+        // Delete image from storage
+        if (imageUrl) {
+          await deleteImage(imageUrl);
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('deleteOptionModal')).hide();
+        loadOptions(currentDeleteType);
+        
+      } catch (err) {
+        console.error('Error deleting option:', err);
+        alert('Failed to delete option');
+      }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!await checkAuth()) return;
+      
+      // Load all option types
+      loadOptions('stems');
+      loadOptions('fillers');
+      loadOptions('wrapping');
+      loadOptions('addons');
+    });
+  </script>
+</body>
+</html>

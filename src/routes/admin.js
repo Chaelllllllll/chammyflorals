@@ -10,7 +10,11 @@ const push = require('../lib/push-notifications');
 const mailer = require('../lib/mailer');
 
 function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // limit uploads to 5MB
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // limit uploads to 5MB
+});
 const router = express.Router();
 const fs = require('fs');
 const messenger = require('../lib/messenger');
@@ -579,6 +583,128 @@ router.get('/orders', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching orders:', error);
     res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// ============================================
+// Custom Orders Management Endpoints
+// IMPORTANT: Must be before /orders/:orderId to avoid route collision
+// ============================================
+
+// GET all custom orders
+router.get('/orders/custom', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ orders: data || [] });
+  } catch (err) {
+    console.error('Error fetching custom orders:', err);
+    res.status(500).json({ error: 'Failed to fetch custom orders' });
+  }
+});
+
+// GET single custom order by order_id
+router.get('/orders/custom/:orderId', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching custom order:', err);
+    res.status(500).json({ error: 'Failed to fetch custom order' });
+  }
+});
+
+// UPDATE custom order status
+router.put('/orders/custom/:orderId/status', auth, validateOrderStatus, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    
+    if (!orderId || !status) {
+      return res.status(400).json({ error: 'Order ID and status are required' });
+    }
+    
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .update({ 
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('order_id', orderId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Send notification email to customer (best effort)
+    try {
+      if (data.email) {
+        const statusEmojis = {
+          'Pending': '⏳',
+          'Processing': '🔄',
+          'Ready': '✅',
+          'Delivered': '🎉',
+          'Cancelled': '❌'
+        };
+        
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h2 style="margin: 0;">Order Status Update ${statusEmojis[status] || '📦'}</h2>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px;">
+              <p>Hello <strong>${data.name}</strong>,</p>
+              <p>Your custom order <strong>${orderId}</strong> status has been updated to:</p>
+              <div style="background: #ff6f9b; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <strong style="font-size: 24px;">${status}</strong>
+              </div>
+              ${status === 'Ready' ? '<p>Your order is ready for pickup or delivery! We will contact you shortly.</p>' : ''}
+              ${status === 'Delivered' ? '<p>Thank you for your order! We hope you love your custom bouquet. 💐</p>' : ''}
+              ${status === 'Cancelled' ? '<p>If you have any questions, please contact us.</p>' : ''}
+              <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+                For any questions, feel free to reach out to us.
+              </p>
+              <p style="color: #ff6f9b; text-align: center; font-weight: bold;">Thank you for choosing Chammy Florals! 🌸</p>
+            </div>
+          </div>
+        `;
+        
+        await mailer.sendMail({
+          to: data.email,
+          subject: `Order Status Update - ${orderId}`,
+          html: emailHtml
+        });
+      }
+    } catch (mailErr) {
+      console.error('Failed to send status update email:', mailErr);
+    }
+    
+    res.json({ success: true, order: data });
+  } catch (err) {
+    console.error('Error updating order status:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
   }
 });
 
@@ -1730,6 +1856,127 @@ router.delete('/products/:id/gallery', auth, async (req, res) => {
   }
 });
 
+// ============================================
+// Custom Orders Management Endpoints
+// ============================================
+
+// GET all custom orders
+router.get('/orders/custom', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ orders: data || [] });
+  } catch (err) {
+    console.error('Error fetching custom orders:', err);
+    res.status(500).json({ error: 'Failed to fetch custom orders' });
+  }
+});
+
+// GET single custom order by order_id
+router.get('/orders/custom/:orderId', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    res.json(data);
+  } catch (err) {
+    console.error('Error fetching custom order:', err);
+    res.status(500).json({ error: 'Failed to fetch custom order' });
+  }
+});
+
+// UPDATE custom order status
+router.put('/orders/custom/:orderId/status', auth, validateOrderStatus, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    
+    if (!orderId || !status) {
+      return res.status(400).json({ error: 'Order ID and status are required' });
+    }
+    
+    const { data, error } = await supabase
+      .from('custom_orders')
+      .update({ 
+        status: status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('order_id', orderId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Send notification email to customer (best effort)
+    try {
+      if (data.email) {
+        const statusEmojis = {
+          'Pending': '⏳',
+          'Processing': '🔄',
+          'Ready': '✅',
+          'Delivered': '🎉',
+          'Cancelled': '❌'
+        };
+        
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+              <h2 style="margin: 0;">Order Status Update ${statusEmojis[status] || '📦'}</h2>
+            </div>
+            <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px;">
+              <p>Hello <strong>${data.name}</strong>,</p>
+              <p>Your custom order <strong>${orderId}</strong> status has been updated to:</p>
+              <div style="background: #ff6f9b; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                <strong style="font-size: 24px;">${status}</strong>
+              </div>
+              ${status === 'Ready' ? '<p>Your order is ready for pickup or delivery! We will contact you shortly.</p>' : ''}
+              ${status === 'Delivered' ? '<p>Thank you for your order! We hope you love your custom bouquet. 💐</p>' : ''}
+              ${status === 'Cancelled' ? '<p>If you have any questions, please contact us.</p>' : ''}
+              <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
+                For any questions, feel free to reach out to us.
+              </p>
+              <p style="color: #ff6f9b; text-align: center; font-weight: bold;">Thank you for choosing Chammy Florals! 🌸</p>
+            </div>
+          </div>
+        `;
+        
+        await mailer.sendMail({
+          to: data.email,
+          subject: `Order Status Update - ${orderId}`,
+          html: emailHtml
+        });
+      }
+    } catch (mailErr) {
+      console.error('Failed to send status update email:', mailErr);
+    }
+    
+    res.json({ success: true, order: data });
+  } catch (err) {
+    console.error('Error updating order status:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
 module.exports = router;
 
 // Admin-only endpoint to trigger reviews storage cleanup (optional dry-run)
@@ -1790,5 +2037,237 @@ router.post('/reviews/cleanup', auth, async (req, res) => {
   } catch (err) {
     console.error('Failed running reviews cleanup:', err);
     return res.status(500).json({ error: 'Cleanup failed', details: err.message || err });
+  }
+});
+
+// =====================
+// CUSTOMIZATION OPTIONS
+// =====================
+
+const CUSTOM_TABLES = {
+  stems: 'custom_stems',
+  fillers: 'custom_fillers',
+  wrapping: 'custom_wrapping',
+  addons: 'custom_addons'
+};
+
+// Helper to validate type parameter
+function validateCustomType(type) {
+  return CUSTOM_TABLES[type] ? CUSTOM_TABLES[type] : null;
+}
+
+// IMPORTANT: Specific routes must come BEFORE parameterized routes to avoid :type matching "upload"
+
+// POST upload image for customization option
+router.post('/customization/upload', auth, upload.single('image'), async (req, res) => {
+  try {
+    console.log('Upload request received:', {
+      hasFile: !!req.file,
+      body: req.body,
+      fileInfo: req.file ? { name: req.file.originalname, size: req.file.size, mimetype: req.file.mimetype } : null
+    });
+
+    if (!req.file) {
+      console.error('No file in request');
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const { type, itemId } = req.body;
+    if (!type || !itemId) {
+      console.error('Missing type or itemId:', { type, itemId });
+      return res.status(400).json({ error: 'Type and itemId required', received: { type, itemId } });
+    }
+
+    // Validate type
+    if (!validateCustomType(type)) {
+      return res.status(400).json({ error: 'Invalid option type' });
+    }
+
+    const file = req.file;
+    const fileExt = file.originalname.split('.').pop();
+    const fileName = `${type}/${itemId}_${Date.now()}.${fileExt}`;
+    const BUCKET = 'customization-images';
+
+    console.log('Attempting upload:', { fileName, bucket: BUCKET, size: file.buffer.length });
+
+    // Upload to Supabase storage
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .upload(fileName, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Storage upload error:', error);
+      return res.status(500).json({ error: 'Failed to upload image' });
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from(BUCKET)
+      .getPublicUrl(fileName);
+
+    return res.json({ url: urlData.publicUrl, path: fileName });
+  } catch (err) {
+    console.error('Error uploading image:', err);
+    return res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+// POST delete image from storage
+router.post('/customization/delete-image', auth, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'Image URL required' });
+    }
+
+    // Extract file path from URL
+    const BUCKET = 'customization-images';
+    const urlParts = imageUrl.split(`${BUCKET}/`);
+    if (urlParts.length < 2) {
+      return res.status(400).json({ error: 'Invalid image URL' });
+    }
+
+    const filePath = urlParts[1].split('?')[0]; // Remove query params if any
+
+    // Delete from storage
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Storage delete error:', error);
+      return res.status(500).json({ error: 'Failed to delete image' });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting image:', err);
+    return res.status(500).json({ error: 'Failed to delete image' });
+  }
+});
+
+// GET all options of a type
+router.get('/customization/:type', auth, async (req, res) => {
+  const table = validateCustomType(req.params.type);
+  if (!table) return res.status(400).json({ error: 'Invalid option type' });
+  
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order('name', { ascending: true });
+    
+    if (error) throw error;
+    return res.json(data || []);
+  } catch (err) {
+    console.error(`Error fetching ${req.params.type}:`, err);
+    return res.status(500).json({ error: 'Failed to fetch options' });
+  }
+});
+
+// GET single option by id
+router.get('/customization/:type/:id', auth, async (req, res) => {
+  const table = validateCustomType(req.params.type);
+  if (!table) return res.status(400).json({ error: 'Invalid option type' });
+  
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Option not found' });
+    return res.json(data);
+  } catch (err) {
+    console.error(`Error fetching ${req.params.type}/${req.params.id}:`, err);
+    return res.status(500).json({ error: 'Failed to fetch option' });
+  }
+});
+
+// POST create new option
+router.post('/customization/:type', auth, async (req, res) => {
+  const table = validateCustomType(req.params.type);
+  if (!table) return res.status(400).json({ error: 'Invalid option type' });
+  
+  const { name, price, image_url, is_active } = req.body;
+  
+  if (!name || name.trim() === '') {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  if (price === undefined || isNaN(parseFloat(price))) {
+    return res.status(400).json({ error: 'Valid price is required' });
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .insert({
+        name: name.trim(),
+        price: parseFloat(price),
+        image_url: image_url || null,
+        is_active: is_active !== false
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return res.status(201).json(data);
+  } catch (err) {
+    console.error(`Error creating ${req.params.type}:`, err);
+    return res.status(500).json({ error: 'Failed to create option' });
+  }
+});
+
+// PUT update option
+router.put('/customization/:type/:id', auth, async (req, res) => {
+  const table = validateCustomType(req.params.type);
+  if (!table) return res.status(400).json({ error: 'Invalid option type' });
+  
+  const { name, price, image_url, is_active } = req.body;
+  
+  const updates = { updated_at: new Date().toISOString() };
+  if (name !== undefined) updates.name = name.trim();
+  if (price !== undefined) updates.price = parseFloat(price);
+  if (image_url !== undefined) updates.image_url = image_url || null;
+  if (is_active !== undefined) updates.is_active = is_active;
+  
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .update(updates)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Option not found' });
+    return res.json(data);
+  } catch (err) {
+    console.error(`Error updating ${req.params.type}/${req.params.id}:`, err);
+    return res.status(500).json({ error: 'Failed to update option' });
+  }
+});
+
+// DELETE option
+router.delete('/customization/:type/:id', auth, async (req, res) => {
+  const table = validateCustomType(req.params.type);
+  if (!table) return res.status(400).json({ error: 'Invalid option type' });
+  
+  try {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq('id', req.params.id);
+    
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(`Error deleting ${req.params.type}/${req.params.id}:`, err);
+    return res.status(500).json({ error: 'Failed to delete option' });
   }
 });
