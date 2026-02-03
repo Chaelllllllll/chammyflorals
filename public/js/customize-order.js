@@ -638,12 +638,38 @@
     }, 100);
   }
 
+  // Check if user is authenticated
+  function isAuthenticated() {
+    const token = localStorage.getItem('auth_token');
+    const customerData = localStorage.getItem('customer');
+    return !!(token && customerData);
+  }
+
   // Initialize when modal opens
   function init() {
     const modal = document.getElementById('customizeOrderModal');
     if (!modal) return;
     
-    modal.addEventListener('show.bs.modal', () => {
+    // Intercept modal show event to check authentication
+    modal.addEventListener('show.bs.modal', (event) => {
+      if (!isAuthenticated()) {
+        // Prevent modal from opening
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Show login required toast
+        if (typeof alertWarning === 'function') {
+          alertWarning('Please login first to customize your order');
+        }
+        
+        // Redirect to customer login page after a short delay
+        setTimeout(() => {
+          window.location.href = 'customer-login.html';
+        }, 1500);
+        
+        return;
+      }
+      
       loadCustomizationOptions();
       prefillUserInfo();
     });
