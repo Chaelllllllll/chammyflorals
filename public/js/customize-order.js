@@ -396,12 +396,34 @@
       return;
     }
     
-    // Validate at least one item selected
-    if (selectedItems.stems.length === 0 && 
-        selectedItems.fillers.length === 0 && 
-        !selectedItems.wrapping && 
-        selectedItems.addons.length === 0) {
-      alert('Please select at least one item for your custom order.');
+    // Validate required items (stems, fillers, wrapping)
+    if (selectedItems.stems.length === 0) {
+      alert('Please select at least one stem for your custom order.');
+      // Open stems accordion
+      const stemsCollapse = document.getElementById('collapseStems');
+      if (stemsCollapse && !stemsCollapse.classList.contains('show')) {
+        new bootstrap.Collapse(stemsCollapse, { toggle: true });
+      }
+      return;
+    }
+    
+    if (selectedItems.fillers.length === 0) {
+      alert('Please select at least one filler for your custom order.');
+      // Open fillers accordion
+      const fillersCollapse = document.getElementById('collapseFillers');
+      if (fillersCollapse && !fillersCollapse.classList.contains('show')) {
+        new bootstrap.Collapse(fillersCollapse, { toggle: true });
+      }
+      return;
+    }
+    
+    if (!selectedItems.wrapping) {
+      alert('Please select wrapping for your custom order.');
+      // Open wrapping accordion
+      const wrappingCollapse = document.getElementById('collapseWrapping');
+      if (wrappingCollapse && !wrappingCollapse.classList.contains('show')) {
+        new bootstrap.Collapse(wrappingCollapse, { toggle: true });
+      }
       return;
     }
     
@@ -411,8 +433,8 @@
     const facebookLink = formData.get('custom_fb_link')?.trim();
     const specialInstructions = formData.get('custom_message')?.trim();
     
-    if (!fullName || !email) {
-      alert('Please fill in your name and email.');
+    if (!fullName || !email || !facebookLink) {
+      alert('Please fill in your name, email, and Facebook profile link.');
       return;
     }
     
@@ -482,17 +504,25 @@
     const successHtml = `
       <div class="modal fade" id="customOrderSuccessModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
-            <div class="mb-3">
-              <i class="fa fa-check-circle text-success" style="font-size: 4rem;"></i>
+          <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+            <div class="text-center" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 40px 30px;">
+              <div style="width: 80px; height: 80px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                <i class="fa fa-check" style="font-size: 40px; color: #ff6f9b;"></i>
+              </div>
+              <h3 class="text-white fw-bold mb-2" style="font-size: 28px;">Order Placed!</h3>
+              <p class="text-white mb-0" style="opacity: 0.95; font-size: 15px;">Your custom order has been placed</p>
             </div>
-            <h4 class="fw-bold mb-2">Order Submitted!</h4>
-            <p class="text-muted">Your custom order has been received.</p>
-            <p>Order Number: <strong class="text-purple">${orderNumber}</strong></p>
-            <p class="small text-muted">We've sent a confirmation email. We'll contact you shortly with payment details.</p>
-            <button type="button" class="btn btn-purple mt-3" data-bs-dismiss="modal">
-              <i class="fa fa-thumbs-up me-2"></i>Got it!
-            </button>
+            
+            <div class="p-4" style="background: #fff;">
+              <div style="background: linear-gradient(135deg, #fff5f8 0%, #ffe9f0 100%); border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
+                <div style="font-size: 12px; color: #999; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;">Order Number</div>
+                <div style="font-size: 24px; font-weight: 700; color: #ff6f9b; letter-spacing: 1px;">${orderNumber}</div>
+              </div>
+              
+              <button type="button" class="btn w-100 py-3" data-bs-dismiss="modal" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 16px;">
+                <i class="fa fa-thumbs-up me-2"></i>Got it!
+              </button>
+            </div>
           </div>
         </div>
       </div>

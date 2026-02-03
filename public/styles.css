@@ -1140,3 +1140,36 @@ body.admin-page {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(255, 111, 155, 0.3);
 }
+/* Custom Order Accordion Styling */
+#customizeOrderAccordion .accordion-item {
+  border-radius: 12px !important;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+#customizeOrderAccordion .accordion-button {
+  border-radius: 12px !important;
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 2px 8px rgba(255, 111, 155, 0.1);
+}
+
+#customizeOrderAccordion .accordion-button:not(.collapsed) {
+  box-shadow: 0 4px 12px rgba(255, 111, 155, 0.2);
+}
+
+#customizeOrderAccordion .accordion-button:focus {
+  box-shadow: 0 4px 12px rgba(255, 111, 155, 0.3);
+  border-color: transparent;
+}
+
+#customizeOrderAccordion .accordion-button::after {
+  background-size: 1.25rem;
+  filter: invert(44%) sepia(49%) saturate(3178%) hue-rotate(314deg) brightness(101%) contrast(101%);
+}
+
+#customizeOrderAccordion .accordion-body {
+  padding: 1.25rem;
+  background: white;
+}

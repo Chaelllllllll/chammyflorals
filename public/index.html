@@ -656,60 +656,100 @@
             </div>
           </div>
 
-          <!-- Section 2: Stems Selection -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">2</div>
-              <h6 class="mb-0 fw-bold">Select Stems</h6>
-            </div>
-            <div id="customStemsContainer" class="row g-3">
-              <div class="col-12 text-center text-muted py-3">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Loading stems...
+          <!-- Accordion for Items Selection -->
+          <div class="accordion mb-4" id="customizeOrderAccordion">
+            
+            <!-- Section 2: Stems Selection -->
+            <div class="accordion-item border-0 shadow-sm mb-2">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStems" aria-expanded="true" aria-controls="collapseStems" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
+                  <div class="d-flex align-items-center gap-2 w-100">
+                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">2</div>
+                    <h6 class="mb-0 fw-bold">Select Stems</h6>
+                    <span class="badge bg-danger ms-auto">Required</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="collapseStems" class="accordion-collapse collapse show" data-bs-parent="#customizeOrderAccordion">
+                <div class="accordion-body">
+                  <div id="customStemsContainer" class="row g-3">
+                    <div class="col-12 text-center text-muted py-3">
+                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Loading stems...
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section 3: Fillers Selection -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">3</div>
-              <h6 class="mb-0 fw-bold">Select Fillers</h6>
-            </div>
-            <div id="customFillersContainer" class="row g-3">
-              <div class="col-12 text-center text-muted py-3">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Loading fillers...
+            <!-- Section 3: Fillers Selection -->
+            <div class="accordion-item border-0 shadow-sm mb-2">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFillers" aria-expanded="false" aria-controls="collapseFillers" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
+                  <div class="d-flex align-items-center gap-2 w-100">
+                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">3</div>
+                    <h6 class="mb-0 fw-bold">Select Fillers</h6>
+                    <span class="badge bg-danger ms-auto">Required</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="collapseFillers" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
+                <div class="accordion-body">
+                  <div id="customFillersContainer" class="row g-3">
+                    <div class="col-12 text-center text-muted py-3">
+                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Loading fillers...
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section 4: Wrapping Selection -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">4</div>
-              <h6 class="mb-0 fw-bold">Select Wrapping</h6>
-            </div>
-            <div id="customWrappingContainer" class="row g-3">
-              <div class="col-12 text-center text-muted py-3">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Loading wrapping options...
+            <!-- Section 4: Wrapping Selection -->
+            <div class="accordion-item border-0 shadow-sm mb-2">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWrapping" aria-expanded="false" aria-controls="collapseWrapping" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
+                  <div class="d-flex align-items-center gap-2 w-100">
+                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">4</div>
+                    <h6 class="mb-0 fw-bold">Select Wrapping</h6>
+                    <span class="badge bg-danger ms-auto">Required</span>
+                  </div>
+                </button>
+              </h2>
+              <div id="collapseWrapping" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
+                <div class="accordion-body">
+                  <div id="customWrappingContainer" class="row g-3">
+                    <div class="col-12 text-center text-muted py-3">
+                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Loading wrapping options...
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Section 5: Add-ons Selection -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">5</div>
-              <h6 class="mb-0 fw-bold">Add-ons (Optional)</h6>
-            </div>
-            <div id="customAddonsContainer" class="row g-3">
-              <div class="col-12 text-center text-muted py-3">
-                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                Loading add-ons...
+            <!-- Section 5: Add-ons Selection -->
+            <div class="accordion-item border-0 shadow-sm mb-2">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddons" aria-expanded="false" aria-controls="collapseAddons" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
+                  <div class="d-flex align-items-center gap-2 w-100">
+                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">5</div>
+                    <h6 class="mb-0 fw-bold">Add-ons (Optional)</h6>
+                  </div>
+                </button>
+              </h2>
+              <div id="collapseAddons" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
+                <div class="accordion-body">
+                  <div id="customAddonsContainer" class="row g-3">
+                    <div class="col-12 text-center text-muted py-3">
+                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                      Loading add-ons...
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+
           </div>
 
           <!-- Section 6: Special Instructions -->

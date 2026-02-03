@@ -2052,15 +2052,19 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     if (!email || email.trim() === '') {
       return res.status(400).json({ error: 'Email is required' });
     }
+    if (!facebook_link || facebook_link.trim() === '') {
+      return res.status(400).json({ error: 'Facebook account link is required' });
+    }
     
-    // Validate at least one item selected
-    const hasItems = (stems && stems.length > 0) || 
-                     (fillers && fillers.length > 0) || 
-                     wrapping || 
-                     (addons && addons.length > 0);
-    
-    if (!hasItems) {
-      return res.status(400).json({ error: 'Please select at least one item for your custom order' });
+    // Validate at least one item selected in each category
+    if (!stems || stems.length === 0) {
+      return res.status(400).json({ error: 'Please select at least one stem' });
+    }
+    if (!fillers || fillers.length === 0) {
+      return res.status(400).json({ error: 'Please select at least one filler' });
+    }
+    if (!wrapping) {
+      return res.status(400).json({ error: 'Please select wrapping' });
     }
     
     // Get customer_id from authenticated user (null for guest orders or admins)
@@ -2101,35 +2105,74 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     // Send confirmation email (best effort)
     try {
       const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h2 style="margin: 0;">Custom Order Received! 🌸</h2>
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background: white;">
+          <div style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white; padding: 40px 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 600;">Order Confirmed!</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 10px 10px;">
-            <p>Thank you for your custom order, <strong>${full_name}</strong>!</p>
-            <p>Your order number is: <strong style="color: #ff6f9b; font-size: 18px;">${orderId}</strong></p>
+          
+          <div style="padding: 40px 30px;">
+            <p style="font-size: 16px; color: #333; margin-bottom: 10px;">Dear <strong>${full_name}</strong>,</p>
+            <p style="font-size: 15px; color: #666; line-height: 1.6; margin-bottom: 30px;">
+              Thank you for your custom order! We have received your request and will begin preparing your beautiful arrangement.
+            </p>
             
-            <h3 style="color: #ff6f9b; border-bottom: 2px solid #ff6f9b; padding-bottom: 5px;">Order Details:</h3>
-            <ul style="list-style: none; padding: 0;">
-              ${stems && stems.length ? `<li style="padding: 5px 0;"><strong>🌹 Stems:</strong> ${stems.map(s => `${s.name} x${s.quantity} (₱${(s.price * s.quantity).toFixed(2)})`).join(', ')}</li>` : ''}
-              ${fillers && fillers.length ? `<li style="padding: 5px 0;"><strong>🌿 Fillers:</strong> ${fillers.map(f => `${f.name} x${f.quantity} (₱${(f.price * f.quantity).toFixed(2)})`).join(', ')}</li>` : ''}
-              ${wrapping ? `<li style="padding: 5px 0;"><strong>🎀 Wrapping:</strong> ${wrapping.name} (₱${parseFloat(wrapping.price).toFixed(2)})</li>` : ''}
-              ${addons && addons.length ? `<li style="padding: 5px 0;"><strong>✨ Add-ons:</strong> ${addons.map(a => `${a.name} (₱${parseFloat(a.price).toFixed(2)})`).join(', ')}</li>` : ''}
-            </ul>
-            
-            ${special_instructions ? `<div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
-              <strong>💬 Special Instructions:</strong><br/>
-              ${special_instructions}
-            </div>` : ''}
-            
-            <div style="background: #ff6f9b; color: white; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <strong style="font-size: 20px;">Estimated Total: ₱${parseFloat(estimated_total || 0).toFixed(2)}</strong>
+            <div style="background: #fff; border: 2px solid #ffe9f0; border-radius: 12px; padding: 20px; margin: 25px 0;">
+              <h3 style="font-size: 16px; color: #ff6f9b; margin: 0 0 15px 0;">Order Details</h3>
+              
+              <div style="background: #f8f9fa; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px;">
+                <span style="font-size: 12px; color: #999;">ORDER ID: </span>
+                <span style="font-size: 16px; font-weight: 700; color: #ff6f9b; letter-spacing: 1px;">${orderId}</span>
+              </div>
+              
+              <table style="width: 100%; border-collapse: collapse;">
+                ${stems && stems.length ? stems.map(s => `
+                  <tr style="border-bottom: 1px solid #f0f0f0;">
+                    <td style="padding: 10px 0; color: #333; font-size: 14px;"><strong>Stems:</strong> ${s.name}</td>
+                    <td style="padding: 10px 0; color: #666; text-align: center;">x${s.quantity}</td>
+                    <td style="padding: 10px 0; color: #ff6f9b; text-align: right; font-weight: 600;">₱${(s.price * s.quantity).toFixed(2)}</td>
+                  </tr>
+                `).join('') : ''}
+                ${fillers && fillers.length ? fillers.map(f => `
+                  <tr style="border-bottom: 1px solid #f0f0f0;">
+                    <td style="padding: 10px 0; color: #333; font-size: 14px;"><strong>Fillers:</strong> ${f.name}</td>
+                    <td style="padding: 10px 0; color: #666; text-align: center;">x${f.quantity}</td>
+                    <td style="padding: 10px 0; color: #ff6f9b; text-align: right; font-weight: 600;">₱${(f.price * f.quantity).toFixed(2)}</td>
+                  </tr>
+                `).join('') : ''}
+                ${wrapping ? `
+                  <tr style="border-bottom: 1px solid #f0f0f0;">
+                    <td style="padding: 10px 0; color: #333; font-size: 14px;"><strong>Wrapping:</strong> ${wrapping.name}</td>
+                    <td style="padding: 10px 0; color: #666; text-align: center;">x1</td>
+                    <td style="padding: 10px 0; color: #ff6f9b; text-align: right; font-weight: 600;">₱${parseFloat(wrapping.price).toFixed(2)}</td>
+                  </tr>
+                ` : ''}
+                ${addons && addons.length ? addons.map(a => `
+                  <tr style="border-bottom: 1px solid #f0f0f0;">
+                    <td style="padding: 10px 0; color: #333; font-size: 14px;"><strong>Add-on:</strong> ${a.name}</td>
+                    <td style="padding: 10px 0; color: #666; text-align: center;">x1</td>
+                    <td style="padding: 10px 0; color: #ff6f9b; text-align: right; font-weight: 600;">₱${parseFloat(a.price).toFixed(2)}</td>
+                  </tr>
+                `).join('') : ''}
+                <tr style="border-top: 2px solid #ff6f9b;">
+                  <td colspan="2" style="padding: 15px 0; color: #333; font-size: 16px; font-weight: 700;">Total</td>
+                  <td style="padding: 15px 0; color: #ff6f9b; text-align: right; font-size: 20px; font-weight: 700;">₱${parseFloat(estimated_total || 0).toLocaleString()}</td>
+                </tr>
+              </table>
+              ${special_instructions ? `
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                  <strong style="color: #333; font-size: 14px;">Special Instructions:</strong>
+                  <p style="margin: 8px 0 0 0; color: #666; font-size: 14px; line-height: 1.6;">${special_instructions}</p>
+                </div>
+              ` : ''}
             </div>
             
-            <p style="color: #666; font-size: 14px; border-top: 1px solid #ddd; padding-top: 15px; margin-top: 20px;">
-              We will contact you shortly via ${facebook_link ? 'Facebook' : 'email'} to confirm your order and provide payment details.
+            <p style="font-size: 14px; color: #999; text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              Need help? Contact us through Facebook or reply to this email.
             </p>
-            <p style="color: #ff6f9b; text-align: center; font-weight: bold;">Thank you for choosing Chammy Florals! 💐</p>
+          </div>
+          
+          <div style="background: #f8f9fa; padding: 20px; text-align: center; color: #999; font-size: 13px;">
+            <p style="margin: 0;"><strong style="color: #ff6f9b;">Chammy Florals</strong> - Crafting moments with love</p>
           </div>
         </div>
       `;
@@ -2148,26 +2191,32 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     try {
       const messenger = require('../lib/messenger');
       
-      // Build custom order message for Messenger
-      const stemsList = stems?.map(s => `${s.name} x${s.quantity}`).join('; ') || 'None';
-      const fillersList = fillers?.map(f => `${f.name} x${f.quantity}`).join('; ') || 'None';
-      const wrappingName = wrapping?.name || 'None';
-      const addonsList = addons?.map(a => a.name).join('; ') || 'None';
-      
       const lines = [];
-      lines.push('⋆˚✿˖° 𝐍𝐞𝐰 𝐂𝐮𝐬𝐭𝐨𝐦 𝐎𝐫𝐝𝐞𝐫! ⋆˚✿˖°');
-      lines.push('──────────୨ৎ──────────');
-      lines.push(`𝗢𝗿𝗱𝗲𝗿 𝗜𝗗: ${orderId}`);
-      lines.push(`𝗖𝘂𝘀𝘁𝗼𝗺𝗲𝗿: ${full_name}`);
-      if (fb_link) lines.push(`𝗙𝗮𝗰𝗲𝗯𝗼𝗼𝗸: ${fb_link}`);
-      lines.push(`🌹 𝗦𝘁𝗲𝗺𝘀: ${stemsList}`);
-      lines.push(`🌿 𝗙𝗶𝗹𝗹𝗲𝗿𝘀: ${fillersList}`);
-      lines.push(`🎀 𝗪𝗿𝗮𝗽𝗽𝗶𝗻𝗴: ${wrappingName}`);
-      lines.push(`✨ 𝗔𝗱𝗱-𝗼𝗻𝘀: ${addonsList}`);
-      if (special_instructions) lines.push(`💬 𝗡𝗼𝘁𝗲𝘀: ${special_instructions}`);
-      lines.push('──────────୨ৎ──────────');
-      lines.push(`𝗧𝗼𝘁𝗮𝗹: ₱${Number(estimated_total).toLocaleString()}`);
-      lines.push(`𝗦𝘁𝗮𝘁𝘂𝘀: Pending`);
+      lines.push('New Custom Order!');
+      lines.push('----------------------------');
+      lines.push(`Order ID: ${orderId}`);
+      lines.push(`Customer: ${full_name}`);
+      if (facebook_link) lines.push(`Facebook: ${facebook_link}`);
+      lines.push('----------------------------');
+      lines.push('Items:');
+      if (stems && stems.length) {
+        stems.forEach(s => lines.push(`  Stems: ${s.name} x${s.quantity} - ₱${(s.price * s.quantity).toFixed(2)}`));
+      }
+      if (fillers && fillers.length) {
+        fillers.forEach(f => lines.push(`  Fillers: ${f.name} x${f.quantity} - ₱${(f.price * f.quantity).toFixed(2)}`));
+      }
+      if (wrapping) {
+        lines.push(`  Wrapping: ${wrapping.name} - ₱${parseFloat(wrapping.price).toFixed(2)}`);
+      }
+      if (addons && addons.length) {
+        addons.forEach(a => lines.push(`  Add-on: ${a.name} - ₱${parseFloat(a.price).toFixed(2)}`));
+      }
+      if (special_instructions) {
+        lines.push(`Special Instructions: ${special_instructions}`);
+      }
+      lines.push('----------------------------');
+      lines.push(`Total: ₱${Number(estimated_total).toLocaleString()}`);
+      lines.push(`Status: Pending`);
       
       const customMessage = lines.join('\n');
       const notifyResult = await messenger.notifyAdmins(customMessage);
