@@ -63,7 +63,7 @@ async function renderPageReviews() {
               </div>
               <div class="col-md-6">
                 <div class="review-image-wrapper" data-image-url="${escapeHtml(r.image_url)}">
-                  <img src="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.col-md-6').style.display='none'" />
+                  <img src="${escapeHtml(r.image_url)}" alt="Review image" loading="lazy" onerror="this.closest('.col-md-6').style.display='none'" />
                 </div>
               </div>
             </div>

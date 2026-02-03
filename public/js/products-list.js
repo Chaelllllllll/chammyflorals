@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="category-card" data-category="${escapeHtml(cat.name)}">
           <div class="category-card-inner">
             <div class="category-image">
-              <img src="${escapeHtml(cat.image)}" alt="${escapeHtml(cat.name)}">
+              <img src="${escapeHtml(cat.image)}" alt="${escapeHtml(cat.name)}" loading="lazy">
               <div class="category-overlay">
                 <i class="fa fa-arrow-right"></i>
               </div>
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     card.style.cssText = 'transition: all 0.3s ease; cursor: pointer; overflow: hidden;';
     card.innerHTML = `
       <div class="position-relative overflow-hidden" style="height: 220px;">
-        <img src="${imgSrc}" alt="${escapeHtml(product.name)}" class="card-img-top" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
+        <img src="${imgSrc}" alt="${escapeHtml(product.name)}" class="card-img-top" loading="lazy" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
         <div class="position-absolute top-0 end-0 m-2">
           <span class="badge bg-white text-pink shadow-sm px-3 py-2">
             <i class="fa fa-flower"></i>

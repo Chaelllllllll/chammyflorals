@@ -67,7 +67,7 @@ async function renderPreview() {
       <div class="card h-100" style="border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
         ${r.image_url ? `
           <div style="position: relative; width: 100%; height: 180px; overflow: hidden; background: #f5f5f5;">
-            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image"
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" loading="lazy"
                  style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;"
                  onmouseover="this.style.transform='scale(1.05)'"
                  onmouseout="this.style.transform='scale(1)'"
@@ -100,7 +100,7 @@ async function renderModalList() {
         <div class="card-body d-flex p-3">
           ${r.image_url ? `
             <div class="review-thumb-wrap">
-            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" loading="lazy" onerror="this.closest('.review-thumb-wrap').style.display='none'" />
           </div>
           ` : ''}
           <div class="flex-grow-1">

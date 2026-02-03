@@ -78,7 +78,7 @@
           <div class="col-md-6">
             <div class="customize-option-card d-flex align-items-center p-2 border rounded" data-type="${type}" data-id="${opt.id}">
               ${opt.image_url ? 
-                `<img src="${opt.image_url}" alt="${opt.name}" class="customize-option-image me-2" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">` : 
+                `<img src="${opt.image_url}" alt="${opt.name}" class="customize-option-image me-2 has-preview" data-preview-url="${opt.image_url}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;cursor:pointer;">` : 
                 `<div class="customize-option-image me-2 d-flex align-items-center justify-content-center bg-light" style="width:50px;height:50px;border-radius:8px;">
                   <i class="fa fa-image text-muted"></i>
                 </div>`
@@ -105,6 +105,9 @@
     container.querySelectorAll('.qty-input').forEach(input => {
       input.addEventListener('change', handleQuantityInput);
     });
+    
+    // Attach image preview listeners
+    attachImagePreviewListeners(container);
   }
 
   // Render single-select options (for wrapping)
@@ -130,7 +133,7 @@
                 <input class="form-check-input me-2" type="radio" name="wrapping" id="wrap_${opt.id}" value="${opt.id}">
                 <label class="form-check-label d-flex align-items-center flex-grow-1" for="wrap_${opt.id}" style="cursor:pointer;">
                   ${opt.image_url ? 
-                    `<img src="${opt.image_url}" alt="${opt.name}" class="me-2" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : 
+                    `<img src="${opt.image_url}" alt="${opt.name}" class="me-2 has-preview" data-preview-url="${opt.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;">` : 
                     `<div class="me-2 d-flex align-items-center justify-content-center bg-light" style="width:40px;height:40px;border-radius:6px;">
                       <i class="fa fa-image text-muted small"></i>
                     </div>`
@@ -162,6 +165,9 @@
         }
       });
     });
+    
+    // Attach image preview listeners
+    attachImagePreviewListeners(container);
   }
 
   // Render checkbox options (for add-ons)
@@ -187,7 +193,7 @@
                 <input class="form-check-input me-2" type="checkbox" id="addon_${opt.id}" value="${opt.id}" data-name="${opt.name}" data-price="${opt.price}">
                 <label class="form-check-label d-flex align-items-center flex-grow-1" for="addon_${opt.id}" style="cursor:pointer;">
                   ${opt.image_url ? 
-                    `<img src="${opt.image_url}" alt="${opt.name}" class="me-2" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">` : 
+                    `<img src="${opt.image_url}" alt="${opt.name}" class="me-2 has-preview" data-preview-url="${opt.image_url}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;cursor:pointer;">` : 
                     `<div class="me-2 d-flex align-items-center justify-content-center bg-light" style="width:40px;height:40px;border-radius:6px;">
                       <i class="fa fa-image text-muted small"></i>
                     </div>`
@@ -221,6 +227,9 @@
         }
       });
     });
+    
+    // Attach image preview listeners
+    attachImagePreviewListeners(container);
   }
 
   // Handle quantity button clicks
@@ -495,6 +504,108 @@
     
     document.body.insertAdjacentHTML('beforeend', successHtml);
     new bootstrap.Modal(document.getElementById('customOrderSuccessModal')).show();
+  }
+
+  // Image preview tooltip functionality
+  let imagePreviewTooltip = null;
+  let previewTimeout = null;
+
+  function attachImagePreviewListeners(container) {
+    container.querySelectorAll('.has-preview').forEach(img => {
+      // Desktop: hover
+      img.addEventListener('mouseenter', showImagePreview);
+      img.addEventListener('mouseleave', hideImagePreview);
+      img.addEventListener('mousemove', moveImagePreview);
+      
+      // Mobile: long press
+      let pressTimer = null;
+      img.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        pressTimer = setTimeout(() => {
+          showImagePreview(e);
+        }, 500); // 500ms long press
+      });
+      
+      img.addEventListener('touchend', (e) => {
+        clearTimeout(pressTimer);
+        hideImagePreview();
+      });
+      
+      img.addEventListener('touchmove', (e) => {
+        clearTimeout(pressTimer);
+      });
+    });
+  }
+
+  function showImagePreview(e) {
+    const img = e.target;
+    const imageUrl = img.dataset.previewUrl;
+    
+    if (!imageUrl) return;
+    
+    // Remove existing tooltip
+    if (imagePreviewTooltip) {
+      imagePreviewTooltip.remove();
+    }
+    
+    // Create tooltip
+    imagePreviewTooltip = document.createElement('div');
+    imagePreviewTooltip.className = 'image-preview-tooltip';
+    imagePreviewTooltip.innerHTML = `
+      <img src="${imageUrl}" alt="Preview" style="max-width: 250px; max-height: 250px; object-fit: contain; border-radius: 8px;">
+    `;
+    
+    document.body.appendChild(imagePreviewTooltip);
+    
+    // Position tooltip
+    positionTooltip(e);
+  }
+
+  function moveImagePreview(e) {
+    if (imagePreviewTooltip) {
+      positionTooltip(e);
+    }
+  }
+
+  function positionTooltip(e) {
+    if (!imagePreviewTooltip) return;
+    
+    const offset = 15;
+    let x = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    let y = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+    
+    const tooltipRect = imagePreviewTooltip.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Adjust position if tooltip goes off screen
+    if (x + tooltipRect.width + offset > viewportWidth) {
+      x = x - tooltipRect.width - offset;
+    } else {
+      x = x + offset;
+    }
+    
+    if (y + tooltipRect.height + offset > viewportHeight) {
+      y = y - tooltipRect.height - offset;
+    } else {
+      y = y + offset;
+    }
+    
+    imagePreviewTooltip.style.left = x + 'px';
+    imagePreviewTooltip.style.top = y + 'px';
+  }
+
+  function hideImagePreview() {
+    if (previewTimeout) {
+      clearTimeout(previewTimeout);
+    }
+    
+    previewTimeout = setTimeout(() => {
+      if (imagePreviewTooltip) {
+        imagePreviewTooltip.remove();
+        imagePreviewTooltip = null;
+      }
+    }, 100);
   }
 
   // Initialize when modal opens

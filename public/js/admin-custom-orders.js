@@ -33,7 +33,10 @@
       }
 
       const data = await response.json();
-      allOrders = data.orders || [];
+      allOrders = (data.orders || []).filter(order => {
+        const status = String(order.status || '').toLowerCase();
+        return status !== 'to receive';
+      });
       filteredOrders = [...allOrders];
       
       renderOrdersTable();
@@ -74,22 +77,22 @@
           <td>${order.name || 'N/A'}</td>
           <td><small>${order.email || 'N/A'}</small></td>
           <td>
-            <button class="btn btn-sm btn-outline-info" onclick="window.adminCustomOrders.viewItems('${order.order_id}')" title="View Items">
-              <i class="fa fa-box-open me-1"></i>View
+            <button class="btn btn-sm btn-pink" onclick="window.adminCustomOrders.viewItems('${order.order_id}')" title="View Items">
+              <i class="fa fa-box-open me-1 text-white"></i><span class="text-white">View</span>
             </button>
           </td>
           <td class="fw-bold">₱${parseFloat(order.total_fee || 0).toFixed(2)}</td>
           <td><span class="badge ${statusClass}">${order.status || 'Pending'}</span></td>
           <td><small>${date}</small></td>
           <td>
-            <button class="btn btn-sm btn-outline-primary" onclick="window.adminCustomOrders.viewDetails('${order.order_id}')" title="View Details">
-              <i class="fa fa-eye"></i>
+            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.viewDetails('${order.order_id}')" title="View Details">
+              <i class="fa fa-eye text-pink"></i>
             </button>
-            <button class="btn btn-sm btn-outline-success" onclick="window.adminCustomOrders.editOrder('${order.order_id}')" title="Edit Order">
-              <i class="fa fa-edit"></i>
+            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.editOrder('${order.order_id}')" title="Edit Order">
+              <i class="fa fa-edit text-pink"></i>
             </button>
-            <button class="btn btn-sm btn-outline-danger" onclick="window.adminCustomOrders.deleteOrder('${order.order_id}')" title="Delete Order">
-              <i class="fa fa-trash"></i>
+            <button class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.deleteOrder('${order.order_id}')" title="Delete Order">
+              <i class="fa fa-trash text-pink"></i>
             </button>
           </td>
         </tr>
@@ -483,31 +486,611 @@
   }
 
   // Edit order
-  function editOrder(orderId) {
+  async function editOrder(orderId) {
     const order = allOrders.find(o => o.order_id === orderId);
     if (!order) return;
+
+    // Load available items first
+    await loadAvailableItems();
 
     document.getElementById('editOrderId').value = orderId;
     document.getElementById('editName').value = order.name || '';
     document.getElementById('editEmail').value = order.email || '';
     document.getElementById('editFbLink').value = order.fb_link || '';
     document.getElementById('editStatus').value = order.status || 'Pending';
-    document.getElementById('editTotalFee').value = order.total_fee || 0;
     document.getElementById('editInstructions').value = order.special_instructions || '';
 
+    // Populate items
+    populateEditItems(order);
+    
+    // Calculate and set total
+    calculateEditTotal();
+
     new bootstrap.Modal(document.getElementById('editOrderModal')).show();
+  }
+
+  // Populate items in edit modal
+  let availableItems = { stems: [], fillers: [], wrapping: [], addons: [] };
+  let editOrderData = null;
+
+  async function loadAvailableItems() {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/customization/options`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        availableItems = await response.json();
+      }
+    } catch (error) {
+      console.error('Error loading available items:', error);
+    }
+  }
+
+  function populateEditItems(order) {
+    editOrderData = JSON.parse(JSON.stringify(order)); // Deep clone
+    const container = document.getElementById('editItemsContainer');
+    let html = '';
+
+    // Stems
+    html += `
+      <div class="card mb-3 border-0 shadow-sm" id="stemsSection">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 text-pink"><i class="fas fa-flower me-2"></i>Stems</h6>
+          <button type="button" class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.addItemRow('stems')">
+            <i class="fas fa-plus me-1"></i>Add Stem
+          </button>
+        </div>
+        <div class="card-body" id="stemsContainer">
+          ${renderItemRows(editOrderData.stems || [], 'stems')}
+        </div>
+      </div>
+    `;
+
+    // Fillers
+    html += `
+      <div class="card mb-3 border-0 shadow-sm" id="fillersSection">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 text-pink"><i class="fas fa-leaf me-2"></i>Fillers</h6>
+          <button type="button" class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.addItemRow('fillers')">
+            <i class="fas fa-plus me-1"></i>Add Filler
+          </button>
+        </div>
+        <div class="card-body" id="fillersContainer">
+          ${renderItemRows(editOrderData.fillers || [], 'fillers')}
+        </div>
+      </div>
+    `;
+
+    // Wrapping
+    html += `
+      <div class="card mb-3 border-0 shadow-sm" id="wrappingSection">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 text-pink"><i class="fas fa-gift me-2"></i>Wrapping</h6>
+          <button type="button" class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.addWrapping()">
+            <i class="fas fa-plus me-1"></i>Change Wrapping
+          </button>
+        </div>
+        <div class="card-body" id="wrappingContainer">
+          ${editOrderData.wrapping ? renderWrapping(editOrderData.wrapping) : '<p class="text-muted mb-0">No wrapping selected</p>'}
+        </div>
+      </div>
+    `;
+
+    // Addons
+    html += `
+      <div class="card mb-3 border-0 shadow-sm" id="addonsSection">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 text-pink"><i class="fas fa-plus-circle me-2"></i>Add-ons</h6>
+          <button type="button" class="btn btn-sm btn-outline-pink" onclick="window.adminCustomOrders.addAddon()">
+            <i class="fas fa-plus me-1"></i>Add Addon
+          </button>
+        </div>
+        <div class="card-body" id="addonsContainer">
+          ${editOrderData.addons && editOrderData.addons.length > 0 ? renderAddons(editOrderData.addons) : '<p class="text-muted mb-0">No add-ons selected</p>'}
+        </div>
+      </div>
+    `;
+
+    container.innerHTML = html;
+    attachEditEventListeners();
+  }
+
+  function renderItemRows(items, type) {
+    if (!items || items.length === 0) {
+      return '<p class="text-muted mb-0">No items added</p>';
+    }
+    return `
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="text-center">Quantity</th>
+              <th class="text-end">Price</th>
+              <th class="text-end">Total</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item, idx) => `
+              <tr class="item-row" data-item-type="${type}" data-item-index="${idx}">
+                <td><small>${item.name}</small></td>
+                <td>
+                  <div class="input-group input-group-sm" style="width: 120px; margin: 0 auto;">
+                    <button class="btn btn-outline-secondary qty-decrease" type="button">
+                      <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="number" class="form-control text-center item-quantity" 
+                           value="${item.quantity}" min="0" data-price="${item.price}" data-name="${item.name}" style="padding: 0.25rem;">
+                    <button class="btn btn-outline-secondary qty-increase" type="button">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                </td>
+                <td class="text-end"><small class="text-muted">₱${parseFloat(item.price).toFixed(2)}</small></td>
+                <td class="text-end"><strong class="text-pink item-subtotal">₱${(item.quantity * item.price).toFixed(2)}</strong></td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm text-pink remove-item" title="Remove">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderWrapping(wrapping) {
+    return `
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <tbody>
+            <tr data-item-type="wrapping" data-wrapping-price="${wrapping.price}" data-wrapping-name="${wrapping.name}">
+              <td><small>${wrapping.name}</small></td>
+              <td class="text-end"><strong class="text-pink">₱${parseFloat(wrapping.price).toFixed(2)}</strong></td>
+              <td class="text-end" style="width: 50px;">
+                <button type="button" class="btn btn-sm text-pink remove-wrapping" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderAddons(addons) {
+    return `
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <tbody>
+            ${addons.map((addon, idx) => `
+              <tr data-item-type="addons" data-item-index="${idx}" data-addon-price="${addon.price}" data-addon-name="${addon.name}">
+                <td><small>${addon.name}</small></td>
+                <td class="text-end"><strong class="text-pink">₱${parseFloat(addon.price).toFixed(2)}</strong></td>
+                <td class="text-end" style="width: 50px;">
+                  <button type="button" class="btn btn-sm text-pink remove-addon" title="Remove">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function attachEditEventListeners() {
+    // Quantity input change
+    document.querySelectorAll('.item-quantity').forEach(input => {
+      input.addEventListener('input', function() {
+        const row = this.closest('.item-row');
+        const price = parseFloat(this.dataset.price);
+        const quantity = parseInt(this.value) || 0;
+        const subtotal = price * quantity;
+        
+        row.querySelector('.item-subtotal').textContent = `₱${subtotal.toFixed(2)}`;
+        calculateEditTotal();
+      });
+    });
+
+    // Decrease button
+    document.querySelectorAll('.qty-decrease').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const input = this.parentElement.querySelector('.item-quantity');
+        const currentValue = parseInt(input.value) || 0;
+        if (currentValue > 0) {
+          input.value = currentValue - 1;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+    });
+
+    // Increase button
+    document.querySelectorAll('.qty-increase').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const input = this.parentElement.querySelector('.item-quantity');
+        const currentValue = parseInt(input.value) || 0;
+        input.value = currentValue + 1;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
+
+    // Remove item buttons
+    document.querySelectorAll('.remove-item').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const row = this.closest('tr.item-row');
+        const table = this.closest('table');
+        row.remove();
+        // If no more rows, show "no items" message
+        if (table && table.querySelectorAll('tbody tr').length === 0) {
+          const container = table.closest('.table-responsive').parentElement;
+          container.innerHTML = '<p class="text-muted mb-0">No items added</p>';
+        }
+        calculateEditTotal();
+      });
+    });
+
+    // Remove wrapping button
+    document.querySelectorAll('.remove-wrapping').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const container = document.getElementById('wrappingContainer');
+        container.innerHTML = '<p class="text-muted mb-0">No wrapping selected</p>';
+        calculateEditTotal();
+      });
+    });
+
+    // Remove addon buttons
+    document.querySelectorAll('.remove-addon').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const row = this.closest('tr[data-item-type="addons"]');
+        const table = this.closest('table');
+        row.remove();
+        // If no more addon rows, show "no add-ons" message
+        if (table && table.querySelectorAll('tbody tr').length === 0) {
+          const container = document.getElementById('addonsContainer');
+          container.innerHTML = '<p class="text-muted mb-0">No add-ons selected</p>';
+        }
+        calculateEditTotal();
+      });
+    });
+  }
+
+  // Add item row
+  function addItemRow(type) {
+    const items = availableItems[type] || [];
+    if (items.length === 0) {
+      alert('No available items to add');
+      return;
+    }
+
+    const container = document.getElementById(`${type}Container`);
+    const existingText = container.querySelector('.text-muted');
+    if (existingText) existingText.remove();
+
+    // Create selection modal content
+    let html = `
+      <div class="modal fade" id="addItemModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header gradient-pink">
+              <h5 class="modal-title text-white">Select ${type.charAt(0).toUpperCase() + type.slice(1)}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <select class="form-select" id="itemSelect">
+                <option value="">Choose...</option>
+                ${items.map(item => `<option value="${item.id}" data-name="${item.name}" data-price="${item.price}">${item.name} - ₱${parseFloat(item.price).toFixed(2)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-pink" id="confirmAddItem">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    document.body.appendChild(tempDiv.firstElementChild);
+
+    const modal = new bootstrap.Modal(document.getElementById('addItemModal'));
+    modal.show();
+
+    document.getElementById('confirmAddItem').addEventListener('click', () => {
+      const select = document.getElementById('itemSelect');
+      const option = select.selectedOptions[0];
+      if (!option || !option.value) {
+        alert('Please select an item');
+        return;
+      }
+
+      const item = {
+        name: option.dataset.name,
+        price: parseFloat(option.dataset.price),
+        quantity: 1
+      };
+
+      // Check if container has "no items" message
+      const noItemsMsg = container.querySelector('.text-muted');
+      if (noItemsMsg) {
+        container.innerHTML = renderItemRows([item], type);
+      } else {
+        // Add to existing table
+        const tbody = container.querySelector('tbody');
+        if (tbody) {
+          const newRow = `
+            <tr class="item-row" data-item-type="${type}">
+              <td><small>${item.name}</small></td>
+              <td>
+                <div class="input-group input-group-sm" style="width: 120px; margin: 0 auto;">
+                  <button class="btn btn-outline-secondary qty-decrease" type="button">
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <input type="number" class="form-control text-center item-quantity" 
+                         value="${item.quantity}" min="0" data-price="${item.price}" data-name="${item.name}" style="padding: 0.25rem;">
+                  <button class="btn btn-outline-secondary qty-increase" type="button">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </td>
+              <td class="text-end"><small class="text-muted">₱${parseFloat(item.price).toFixed(2)}</small></td>
+              <td class="text-end"><strong class="text-pink item-subtotal">₱${(item.quantity * item.price).toFixed(2)}</strong></td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm text-pink remove-item" title="Remove">
+                  <i class="fas fa-times"></i>
+                </button>
+              </td>
+            </tr>
+          `;
+          tbody.insertAdjacentHTML('beforeend', newRow);
+        }
+      }
+      attachEditEventListeners();
+      calculateEditTotal();
+      modal.hide();
+      document.getElementById('addItemModal').remove();
+    });
+
+    document.getElementById('addItemModal').addEventListener('hidden.bs.modal', () => {
+      document.getElementById('addItemModal').remove();
+    });
+  }
+
+  // Add wrapping
+  function addWrapping() {
+    const items = availableItems.wrapping || [];
+    if (items.length === 0) {
+      alert('No available wrapping options');
+      return;
+    }
+
+    let html = `
+      <div class="modal fade" id="addWrappingModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header gradient-pink">
+              <h5 class="modal-title text-white">Select Wrapping</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <select class="form-select" id="wrappingSelect">
+                <option value="">Choose...</option>
+                ${items.map(item => `<option value="${item.id}" data-name="${item.name}" data-price="${item.price}">${item.name} - ₱${parseFloat(item.price).toFixed(2)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-pink" id="confirmAddWrapping">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    document.body.appendChild(tempDiv.firstElementChild);
+
+    const modal = new bootstrap.Modal(document.getElementById('addWrappingModal'));
+    modal.show();
+
+    document.getElementById('confirmAddWrapping').addEventListener('click', () => {
+      const select = document.getElementById('wrappingSelect');
+      const option = select.selectedOptions[0];
+      if (!option || !option.value) {
+        alert('Please select wrapping');
+        return;
+      }
+
+      const wrapping = {
+        name: option.dataset.name,
+        price: parseFloat(option.dataset.price)
+      };
+
+      document.getElementById('wrappingContainer').innerHTML = renderWrapping(wrapping);
+      attachEditEventListeners();
+      calculateEditTotal();
+      modal.hide();
+      document.getElementById('addWrappingModal').remove();
+    });
+
+    document.getElementById('addWrappingModal').addEventListener('hidden.bs.modal', () => {
+      document.getElementById('addWrappingModal').remove();
+    });
+  }
+
+  // Add addon
+  function addAddon() {
+    const items = availableItems.addons || [];
+    if (items.length === 0) {
+      alert('No available add-ons');
+      return;
+    }
+
+    let html = `
+      <div class="modal fade" id="addAddonModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header gradient-pink">
+              <h5 class="modal-title text-white">Select Add-on</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <select class="form-select" id="addonSelect">
+                <option value="">Choose...</option>
+                ${items.map(item => `<option value="${item.id}" data-name="${item.name}" data-price="${item.price}">${item.name} - ₱${parseFloat(item.price).toFixed(2)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-pink" id="confirmAddAddon">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    document.body.appendChild(tempDiv.firstElementChild);
+
+    const modal = new bootstrap.Modal(document.getElementById('addAddonModal'));
+    modal.show();
+
+    document.getElementById('confirmAddAddon').addEventListener('click', () => {
+      const select = document.getElementById('addonSelect');
+      const option = select.selectedOptions[0];
+      if (!option || !option.value) {
+        alert('Please select an add-on');
+        return;
+      }
+
+      const addon = {
+        name: option.dataset.name,
+        price: parseFloat(option.dataset.price)
+      };
+
+      const container = document.getElementById('addonsContainer');
+      const existingText = container.querySelector('.text-muted');
+      if (existingText) existingText.remove();
+
+      container.innerHTML += renderAddons([addon]);
+      attachEditEventListeners();
+      calculateEditTotal();
+      modal.hide();
+      document.getElementById('addAddonModal').remove();
+    });
+
+    document.getElementById('addAddonModal').addEventListener('hidden.bs.modal', () => {
+      document.getElementById('addAddonModal').remove();
+    });
+  }
+
+  // Calculate total in edit modal
+  function calculateEditTotal() {
+    let total = 0;
+
+    // Sum all item subtotals
+    document.querySelectorAll('.item-subtotal').forEach(el => {
+      const amount = parseFloat(el.textContent.replace('₱', '')) || 0;
+      total += amount;
+    });
+
+    // Add wrapping
+    const wrappingRow = document.querySelector('[data-item-type="wrapping"]');
+    if (wrappingRow) {
+      const wrappingPrice = parseFloat(wrappingRow.dataset.wrappingPrice) || 0;
+      total += wrappingPrice;
+    }
+
+    // Add addons
+    document.querySelectorAll('[data-item-type="addons"]').forEach(row => {
+      const addonPrice = parseFloat(row.dataset.addonPrice) || 0;
+      total += addonPrice;
+    });
+
+    document.getElementById('editTotalFee').value = total.toFixed(2);
   }
 
   // Save edited order
   async function saveEdit() {
     const orderId = document.getElementById('editOrderId').value;
+    
+    // Collect stems data
+    const stems = [];
+    document.querySelectorAll('#stemsContainer [data-item-type="stems"]').forEach(row => {
+      const qtyInput = row.querySelector('.item-quantity');
+      if (qtyInput) {
+        const quantity = parseInt(qtyInput.value) || 0;
+        if (quantity > 0) {
+          stems.push({
+            name: qtyInput.dataset.name,
+            price: parseFloat(qtyInput.dataset.price),
+            quantity: quantity
+          });
+        }
+      }
+    });
+
+    // Collect fillers data
+    const fillers = [];
+    document.querySelectorAll('#fillersContainer [data-item-type="fillers"]').forEach(row => {
+      const qtyInput = row.querySelector('.item-quantity');
+      if (qtyInput) {
+        const quantity = parseInt(qtyInput.value) || 0;
+        if (quantity > 0) {
+          fillers.push({
+            name: qtyInput.dataset.name,
+            price: parseFloat(qtyInput.dataset.price),
+            quantity: quantity
+          });
+        }
+      }
+    });
+
+    // Collect wrapping data
+    let wrapping = null;
+    const wrappingRow = document.querySelector('#wrappingContainer [data-item-type="wrapping"]');
+    if (wrappingRow) {
+      wrapping = {
+        name: wrappingRow.dataset.wrappingName,
+        price: parseFloat(wrappingRow.dataset.wrappingPrice)
+      };
+    }
+
+    // Collect addons data
+    const addons = [];
+    document.querySelectorAll('#addonsContainer [data-item-type="addons"]').forEach(row => {
+      addons.push({
+        name: row.dataset.addonName,
+        price: parseFloat(row.dataset.addonPrice)
+      });
+    });
+
     const updatedData = {
       name: document.getElementById('editName').value,
       email: document.getElementById('editEmail').value,
       fb_link: document.getElementById('editFbLink').value,
       status: document.getElementById('editStatus').value,
       total_fee: parseFloat(document.getElementById('editTotalFee').value),
-      special_instructions: document.getElementById('editInstructions').value
+      special_instructions: document.getElementById('editInstructions').value,
+      stems: stems,
+      fillers: fillers,
+      wrapping: wrapping,
+      addons: addons
     };
 
     if (!orderId || !updatedData.name || !updatedData.email) {
@@ -624,7 +1207,10 @@
     viewItems,
     viewDetails,
     editOrder,
-    deleteOrder
+    deleteOrder,
+    addItemRow,
+    addWrapping,
+    addAddon
   };
 
   // Run on DOM ready
