@@ -22,7 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load all products from API
   async function loadProducts() {
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) throw new Error('Failed to fetch products');
       const products = await res.json();
       allProducts = products || [];

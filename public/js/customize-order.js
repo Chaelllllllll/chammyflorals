@@ -19,7 +19,13 @@
   // Load customization options from API
   async function loadCustomizationOptions() {
     try {
-      const res = await fetch(`${API_URL}/api/customization/options`);
+      const res = await fetch(`${API_URL}/api/customization/options`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (!res.ok) throw new Error('Failed to load options');
       
       customizationOptions = await res.json();

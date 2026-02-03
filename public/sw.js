@@ -1,5 +1,5 @@
 // Service Worker for Push Notifications
-const CACHE_NAME = 'chammy-florals-v1';
+const CACHE_NAME = 'chammy-florals-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -109,14 +109,37 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never cache API calls - always fetch fresh
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // Never cache JavaScript files - always fetch fresh to prevent stale code
+  if (url.pathname.endsWith('.js')) {
+    event.respondWith(fetch(req));
+    return;
+  }
+
+  // For HTML pages and other resources, use network-first strategy
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req);
+    fetch(req).then((response) => {
+      // Clone the response and cache it for offline use
+      if (response && response.ok) {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(req, responseToCache);
+        });
+      }
+      return response;
     }).catch(() => {
-      // Only fall back for navigations.
-      if (req.mode === 'navigate') return caches.match('/index.html');
-      return Response.error();
+      // Only fall back to cache when network fails
+      return caches.match(req).then((cached) => {
+        if (cached) return cached;
+        // Only fall back to index.html for navigation requests
+        if (req.mode === 'navigate') return caches.match('/index.html');
+        return Response.error();
+      });
     })
   );
 });
