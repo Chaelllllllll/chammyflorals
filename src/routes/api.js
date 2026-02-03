@@ -524,34 +524,6 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       console.error('Failed to send confirmation email:', mailErr);
     }
 
-  // Post a minimal notification to Discord (avoid leaking customer email)
-    try {
-      const embed = {
-        embeds: [{
-          title: 'New Inquiry Received! 💐',
-          color: 0xff69b4,
-          fields: [
-            { name: 'Order ID', value: orderId, inline: true },
-            { name: 'Name', value: user_name, inline: true },
-            { name: 'Facebook Link', value: fb_link || 'Not provided', inline: true },
-            { name: 'Flower Type', value: flower_type, inline: true },
-            { name: 'Quantity', value: quantity.toString(), inline: true },
-            { name: 'Add-ons', value: addons?.length ? addons.join(', ') : 'None', inline: false },
-            { name: 'Rush Order', value: rush, inline: true },
-            { name: 'Total Fee (₱)', value: totalFee.toString(), inline: true },
-          ],
-        }],
-      };
-
-      if (process.env.DISCORD_WEBHOOK_URL) {
-        await fetch(process.env.DISCORD_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(embed),
-        });
-      }
-    } catch (discordErr) {}
-
     // Notify admins via Facebook Messenger (if configured)
     try {
       const messenger = require('../lib/messenger');
@@ -2172,37 +2144,41 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
       console.error('Failed to send custom order confirmation email:', mailErr);
     }
     
-    // Send Discord notification (best effort)
+    // Notify admins via Facebook Messenger (if configured)
     try {
-      if (process.env.DISCORD_WEBHOOK_URL) {
-        const stemsList = stems?.map(s => `${s.name} x${s.quantity}`).join(', ') || 'None';
-        const fillersList = fillers?.map(f => `${f.name} x${f.quantity}`).join(', ') || 'None';
-        const wrappingName = wrapping?.name || 'None';
-        const addonsList = addons?.map(a => a.name).join(', ') || 'None';
-        
-        await fetch(process.env.DISCORD_WEBHOOK_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            embeds: [{
-              title: '🎨 New Custom Order Received!',
-              color: 0xff6f9b,
-              fields: [
-                { name: 'Order ID', value: orderId, inline: true },
-                { name: 'Customer', value: full_name, inline: true },
-                { name: 'Total', value: `₱${parseFloat(estimated_total || 0).toFixed(2)}`, inline: true },
-                { name: '🌹 Stems', value: stemsList, inline: false },
-                { name: '🌿 Fillers', value: fillersList, inline: false },
-                { name: '🎀 Wrapping', value: wrappingName, inline: true },
-                { name: '✨ Add-ons', value: addonsList, inline: true }
-              ],
-              timestamp: new Date().toISOString()
-            }]
-          })
-        });
+      const messenger = require('../lib/messenger');
+      
+      // Build custom order message for Messenger
+      const stemsList = stems?.map(s => `${s.name} x${s.quantity}`).join('; ') || 'None';
+      const fillersList = fillers?.map(f => `${f.name} x${f.quantity}`).join('; ') || 'None';
+      const wrappingName = wrapping?.name || 'None';
+      const addonsList = addons?.map(a => a.name).join('; ') || 'None';
+      
+      const lines = [];
+      lines.push('⋆˚✿˖° 𝐍𝐞𝐰 𝐂𝐮𝐬𝐭𝐨𝐦 𝐎𝐫𝐝𝐞𝐫! ⋆˚✿˖°');
+      lines.push('──────────୨ৎ──────────');
+      lines.push(`𝗢𝗿𝗱𝗲𝗿 𝗜𝗗: ${orderId}`);
+      lines.push(`𝗖𝘂𝘀𝘁𝗼𝗺𝗲𝗿: ${full_name}`);
+      if (fb_link) lines.push(`𝗙𝗮𝗰𝗲𝗯𝗼𝗼𝗸: ${fb_link}`);
+      lines.push(`🌹 𝗦𝘁𝗲𝗺𝘀: ${stemsList}`);
+      lines.push(`🌿 𝗙𝗶𝗹𝗹𝗲𝗿𝘀: ${fillersList}`);
+      lines.push(`🎀 𝗪𝗿𝗮𝗽𝗽𝗶𝗻𝗴: ${wrappingName}`);
+      lines.push(`✨ 𝗔𝗱𝗱-𝗼𝗻𝘀: ${addonsList}`);
+      if (special_instructions) lines.push(`💬 𝗡𝗼𝘁𝗲𝘀: ${special_instructions}`);
+      lines.push('──────────୨ৎ──────────');
+      lines.push(`𝗧𝗼𝘁𝗮𝗹: ₱${Number(estimated_total).toLocaleString()}`);
+      lines.push(`𝗦𝘁𝗮𝘁𝘂𝘀: Pending`);
+      
+      const customMessage = lines.join('\n');
+      const notifyResult = await messenger.notifyAdmins(customMessage);
+      
+      if (!notifyResult.ok) {
+        console.warn('Failed to notify admins via Messenger:', notifyResult.message || notifyResult.error);
+      } else {
+        console.log('Successfully notified admins via Messenger for custom order:', orderId);
       }
-    } catch (discordErr) {
-      console.error('Failed to send Discord notification:', discordErr);
+    } catch (messengerErr) {
+      console.error('Failed to send Messenger notification:', messengerErr);
     }
     
     return res.status(201).json({
