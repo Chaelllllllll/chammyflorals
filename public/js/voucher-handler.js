@@ -137,7 +137,6 @@ class VoucherHandler {
       }
 
     } catch (error) {
-      console.error('Error validating voucher:', error);
       this.showFeedback('Failed to validate voucher. Please try again.', 'danger');
     } finally {
       // Always re-enable the button after the operation

@@ -41,7 +41,6 @@
       
       renderOrdersTable();
     } catch (error) {
-      console.error('Error loading custom orders:', error);
       showError('Failed to load custom orders');
     }
   }
@@ -603,7 +602,6 @@
         availableItems = await response.json();
       }
     } catch (error) {
-      console.error('Error loading available items:', error);
     }
   }
 
@@ -1144,15 +1142,11 @@
   async function saveEdit() {
     const orderId = document.getElementById('editOrderId').value;
     
-    console.log('Starting saveEdit for order:', orderId);
-    
     // Collect stems data
     const stems = [];
     const stemsContainer = document.getElementById('stemsContainer');
-    console.log('Stems container:', stemsContainer);
     if (stemsContainer) {
       const stemInputs = stemsContainer.querySelectorAll('tr[data-item-type="stems"] .item-quantity');
-      console.log('Found stem inputs:', stemInputs.length);
       stemInputs.forEach(qtyInput => {
         const quantity = parseInt(qtyInput.value) || 0;
         if (quantity > 0) {
@@ -1164,15 +1158,12 @@
         }
       });
     }
-    console.log('Collected stems:', stems);
 
     // Collect fillers data
     const fillers = [];
     const fillersContainer = document.getElementById('fillersContainer');
-    console.log('Fillers container:', fillersContainer);
     if (fillersContainer) {
       const fillerInputs = fillersContainer.querySelectorAll('tr[data-item-type="fillers"] .item-quantity');
-      console.log('Found filler inputs:', fillerInputs.length);
       fillerInputs.forEach(qtyInput => {
         const quantity = parseInt(qtyInput.value) || 0;
         if (quantity > 0) {
@@ -1184,15 +1175,12 @@
         }
       });
     }
-    console.log('Collected fillers:', fillers);
 
     // Collect wrapping data
     let wrapping = null;
     const wrappingContainer = document.getElementById('wrappingContainer');
-    console.log('Wrapping container:', wrappingContainer);
     if (wrappingContainer) {
       const wrappingRow = wrappingContainer.querySelector('tr[data-item-type="wrapping"]');
-      console.log('Wrapping row:', wrappingRow);
       if (wrappingRow) {
         wrapping = {
           name: wrappingRow.dataset.wrappingName,
@@ -1200,15 +1188,12 @@
         };
       }
     }
-    console.log('Collected wrapping:', wrapping);
 
     // Collect addons data
     const addons = [];
     const addonsContainer = document.getElementById('addonsContainer');
-    console.log('Addons container:', addonsContainer);
     if (addonsContainer) {
       const addonRows = addonsContainer.querySelectorAll('tr[data-item-type="addons"]');
-      console.log('Found addon rows:', addonRows.length);
       addonRows.forEach(row => {
         addons.push({
           name: row.dataset.addonName,
@@ -1216,7 +1201,6 @@
         });
       });
     }
-    console.log('Collected addons:', addons);
 
     // Format delivery date properly (must be YYYY-MM-DD or null)
     let deliveryDate = document.getElementById('editDeliveryDate').value || null;
@@ -1231,7 +1215,6 @@
           deliveryDate = `${year}-${month}-${day}`;
         }
       } catch (e) {
-        console.error('Error formatting delivery date:', e);
         deliveryDate = null;
       }
     }
@@ -1264,8 +1247,6 @@
       addons: addons
     };
 
-    console.log('Final data to send:', updatedData);
-
     if (!orderId || !updatedData.name || !updatedData.email) {
       showError('Please fill in all required fields');
       return;
@@ -1273,7 +1254,6 @@
 
     try {
       const token = localStorage.getItem('adminToken');
-      console.log('Sending PUT request to:', `${API_URL}/api/admin/orders/custom/${orderId}`);
       const response = await fetch(`${API_URL}/api/admin/orders/custom/${orderId}`, {
         method: 'PUT',
         headers: {
@@ -1285,7 +1265,6 @@
       });
 
       const result = await response.json();
-      console.log('Server response:', result);
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to update order');
@@ -1298,7 +1277,6 @@
       showSuccess('Order updated successfully');
       await loadCustomOrders();
     } catch (error) {
-      console.error('Error updating order:', error);
       showError('Failed to update order: ' + error.message);
     }
   }
@@ -1332,7 +1310,6 @@
       showSuccess('Order deleted successfully');
       loadCustomOrders();
     } catch (error) {
-      console.error('Error deleting order:', error);
       showError('Failed to delete order');
     }
   }
@@ -1411,7 +1388,6 @@
       const data = await response.json();
       return data.rushFee || 50;
     } catch (error) {
-      console.error('Error fetching rush fee:', error);
       return 50; // Default fallback
     }
   }
@@ -1435,7 +1411,6 @@
       
       return true;
     } catch (error) {
-      console.error('Error saving rush fee:', error);
       showError('Failed to save rush fee setting');
       return false;
     }

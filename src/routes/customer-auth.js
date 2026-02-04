@@ -5,7 +5,12 @@ const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 const crypto = require('crypto');
 
-const JWT_SECRET = process.env.CUSTOMER_JWT_SECRET || 'customer-secret-key-change-in-production';
+// SECURITY: Validate CUSTOMER_JWT_SECRET
+const JWT_SECRET = process.env.CUSTOMER_JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('CUSTOMER_JWT_SECRET environment variable is required in production');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-customer-jwt-secret-change-in-production';
 const SALT_ROUNDS = 10;
 
 // Middleware to verify customer token
@@ -20,7 +25,7 @@ const authenticateCustomer = async (req, res, next) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET_SAFE);
     console.log('authenticateCustomer - Token decoded:', decoded);
     
     // Verify customer exists
@@ -105,7 +110,7 @@ router.post('/signup', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { customerId: customer.id, email: customer.email },
-      JWT_SECRET,
+      JWT_SECRET_SAFE,
       { expiresIn: '30d' }
     );
 
@@ -163,7 +168,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT token
     const token = jwt.sign(
       { customerId: customer.id, email: customer.email },
-      JWT_SECRET,
+      JWT_SECRET_SAFE,
       { expiresIn: '30d' }
     );
 

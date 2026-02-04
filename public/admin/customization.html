@@ -597,8 +597,6 @@
     async function uploadImage(file, type, itemId) {
       if (!file) return null;
       
-      console.log('Uploading image:', { fileName: file.name, type, itemId });
-      
       const progressBar = document.querySelector('#uploadProgress .progress-bar');
       document.getElementById('uploadProgress').style.display = 'block';
       progressBar.style.width = '30%';
@@ -608,11 +606,6 @@
         formData.append('image', file);
         formData.append('type', type);
         formData.append('itemId', itemId.toString());
-        
-        console.log('FormData entries:');
-        for (let pair of formData.entries()) {
-          console.log(pair[0] + ':', pair[1]);
-        }
         
         const token = localStorage.getItem('adminToken');
         const res = await fetch(`${API_URL}/api/admin/customization/upload`, {
@@ -625,18 +618,15 @@
         
         if (!res.ok) {
           const errorData = await res.json();
-          console.error('Upload error response:', errorData);
           throw new Error(errorData.error || 'Upload failed');
         }
         
         const data = await res.json();
-        console.log('Upload successful:', data);
         document.getElementById('uploadProgress').style.display = 'none';
         progressBar.style.width = '0%';
         
         return data.url;
       } catch (err) {
-        console.error('Upload error:', err);
         document.getElementById('uploadProgress').style.display = 'none';
         alertError('Failed to upload image');
         return null;
@@ -658,7 +648,6 @@
           body: JSON.stringify({ imageUrl })
         });
       } catch (err) {
-        console.error('Failed to delete image:', err);
       }
     }
 
@@ -761,7 +750,6 @@
         });
         
       } catch (err) {
-        console.error(`Error loading ${type}:`, err);
         container.innerHTML = `
           <div class="col-12 text-center py-5 text-danger">
             <i class="fa fa-exclamation-circle me-2"></i>Failed to load ${type}
@@ -828,7 +816,6 @@
         new bootstrap.Modal(document.getElementById('addOptionModal')).show();
         
       } catch (err) {
-        console.error('Error loading option:', err);
         alertError('Failed to load option details');
       }
     }
@@ -929,7 +916,6 @@
         loadOptions(type);
         
       } catch (err) {
-        console.error('Error saving option:', err);
         alertError('Failed to save option: ' + err.message);
       } finally {
         saveBtn.disabled = false;
@@ -980,7 +966,6 @@
         loadOptions(currentDeleteType);
         
       } catch (err) {
-        console.error('Error deleting option:', err);
         alertError('Failed to delete option');
       }
     });

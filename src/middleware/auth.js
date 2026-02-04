@@ -2,6 +2,14 @@ const crypto = require('crypto');
 const path = require('path');
 const supabase = require('../config/supabase');
 const { getSession } = require('../lib/sessionStore');
+const jwt = require('jsonwebtoken');
+
+// SECURITY: Validate JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable is required in production');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
 
 function safeEqual(a, b) {
   try {
@@ -54,23 +62,19 @@ module.exports = async (req, res, next) => {
 
   const token = authHeader.replace('Bearer ', '');
   const tokenStr = String(token || '').trim();
-  console.log('Auth middleware - Token length:', tokenStr.length);
 
   // 1) If an Authorization header is present and looks like a JWT, try to verify it first.
   try {
-    const jwt = require('jsonwebtoken');
     if (tokenStr && tokenStr.split('.').length === 3) {
       try {
-        const decodedJwt = jwt.verify(tokenStr, process.env.JWT_SECRET || 'your-secret-key');
+        const decodedJwt = jwt.verify(tokenStr, JWT_SECRET_SAFE);
         const adminId = decodedJwt.id || decodedJwt.adminId || decodedJwt.user_id || decodedJwt.userId;
         const adminEmail = decodedJwt.email || decodedJwt.user_email || decodedJwt.email_address || null;
         if (adminId) {
-          console.log('Auth middleware - JWT verified, admin authenticated');
           req.admin = { id: adminId, email: adminEmail };
           return next();
         }
       } catch (jwtErr) {
-        console.warn('Auth middleware - JWT verify failed:', jwtErr && jwtErr.message ? jwtErr.message : jwtErr);
         // fall through to other token types
       }
     }

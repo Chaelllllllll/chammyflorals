@@ -1,5 +1,9 @@
 // Announcement Notifications - Polls for new announcements and triggers notifications
 (function() {
+    const API_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3000' 
+        : '';
+    
     let lastAnnouncementId = localStorage.getItem('lastAnnouncementId');
     let checkInterval = null;
 

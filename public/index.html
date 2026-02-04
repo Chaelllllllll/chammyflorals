@@ -967,7 +967,7 @@
           const dateInput = document.getElementById('deliveryDatePicker');
           if (dateInput && !regularOrderCalendar) {
             regularOrderCalendar = new DeliveryCalendar('deliveryDatePicker', {
-              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d; })(),
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })(),
               onChange: (selectedDate, dateStr) => {
                 const input = document.getElementById('deliveryDatePicker');
                 input.value = dateStr;
@@ -1013,7 +1013,7 @@
           const dateInput = document.getElementById('customDeliveryDatePicker');
           if (dateInput && !customOrderCalendar) {
             customOrderCalendar = new DeliveryCalendar('customDeliveryDatePicker', {
-              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d; })(),
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })(),
               onChange: (selectedDate, dateStr) => {
                 const input = document.getElementById('customDeliveryDatePicker');
                 input.value = dateStr;
@@ -1500,7 +1500,6 @@
           }, 150);
         }
       } catch (error) {
-        console.error('Error loading announcements:', error);
       }
     }
 

@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const inquiryForm = document.getElementById('inquiryForm');
   if (!inquiryForm) {
-    console.error('Inquiry form not found');
     return;
   }
 
@@ -28,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
           emailInput.style.backgroundColor = '#f8f9fa';
         }
       } catch (error) {
-        console.error('Error pre-filling customer info:', error);
       }
     }
   }
@@ -120,7 +118,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     } catch (err) {
-      console.error('Failed loading products for inquiry select:', err);
     }
   }
 
@@ -217,7 +214,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch product info for inquiry:', err);
       try {
         if (addonsSection) addonsSection.style.display = 'none';
         else if (addonsWrapper) addonsWrapper.style.display = 'none';
@@ -674,11 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
               })
             });
           } catch (voucherErr) {
-            console.error('Failed to record voucher usage:', voucherErr);
+            // Ignore voucher errors
           }
         }
 
-        // hide the inquiry modal first so the placed modal appears above it
         try {
           const inquiryModalEl = document.getElementById('inquiryModal');
           if (inquiryModalEl) {
@@ -696,7 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `/order-success.html?orderId=${encodeURIComponent(orderId)}`;
             return;
           }
-        } catch (redirectErr) {alertSuccess(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
+        } catch (redirectErr) {
+          alertSuccess(`Inquiry sent successfully! Your Order ID is: ${result.orderId}`);
         }
       } else {
         // Handle errors
@@ -712,7 +708,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       alertError('Failed to send inquiry. Please try again.');
-      console.error('Error:', error);
     } finally {
       // restore button
       if (submitBtn) {
@@ -1061,7 +1056,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       }
     } catch (error) {
-      console.error('Error loading chat messages:', error);
       chatMessages.innerHTML = `
         <div class="text-center text-danger small">
           <i class="fa fa-exclamation-circle me-2"></i>Failed to load messages
@@ -1111,7 +1105,6 @@ document.addEventListener('DOMContentLoaded', () => {
         alertError(result.error || 'Failed to send message');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       alertError('Failed to send message. Please try again.');
     } finally {
       // Re-enable form

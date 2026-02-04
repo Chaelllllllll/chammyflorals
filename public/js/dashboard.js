@@ -259,10 +259,10 @@ window.showOrderDetails = async function(orderId) {
                 hasReview = reviews.some(r => r.order_id === currentOrderId);
             }
         } catch (error) {
-            console.error('Error checking reviews:', error);
+            // Ignore errors when checking reviews
         }
     }
-    
+
     modalTitle.innerHTML = `<i class="fa fa-receipt"></i>Order #${order.order_id || order.id}`;
     
     const date = new Date(order.created_at).toLocaleDateString('en-US', { 
@@ -596,8 +596,7 @@ window.submitReview = async function(orderId) {
             alertError(errorMsg);
         }
     } catch (error) {
-        console.error('Review submission error:', error);
-        alertError('Error submitting review: ' + (error.message || 'Unknown error'));
+        alertError('Failed to submit review. Please try again.');
     }
 }
 

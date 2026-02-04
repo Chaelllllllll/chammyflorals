@@ -16,7 +16,12 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { getSession } = require('../lib/sessionStore');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'chamflorals-secret-key-change-in-production';
+// SECURITY: Validate JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable is required in production');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
 
 // Flexible authentication middleware that accepts either customer or admin tokens
 const authenticateCustomerOrAdmin = async (req, res, next) => {
@@ -85,7 +90,7 @@ const authenticateCustomerOrAdmin = async (req, res, next) => {
 
   // Try customer JWT authentication
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET_SAFE);
     if (decoded && decoded.id) {
       req.user = decoded;
       req.userType = 'customer';
@@ -1763,7 +1768,7 @@ router.delete('/customer-chat/:id/delete', authenticateCustomer, async (req, res
 
 // Admin/Seller endpoints for customer messages
 // Get all customer conversations (for admin dashboard)
-router.get('/admin/customer-conversations', async (req, res) => {
+router.get('/admin/customer-conversations', adminAuth, async (req, res) => {
   try {
     // Get all customers who have sent messages
     const { data: conversations, error } = await supabase
@@ -1810,7 +1815,7 @@ router.get('/admin/customer-conversations', async (req, res) => {
 });
 
 // Get messages for a specific customer (for admin)
-router.get('/admin/customer-messages/:customerId', async (req, res) => {
+router.get('/admin/customer-messages/:customerId', adminAuth, async (req, res) => {
   try {
     const { customerId } = req.params;
     
@@ -1848,7 +1853,7 @@ router.get('/admin/customer-messages/:customerId', async (req, res) => {
 });
 
 // Send message as seller (admin) to customer
-router.post('/admin/customer-messages/send', upload.single('image'), async (req, res) => {
+router.post('/admin/customer-messages/send', adminAuth, upload.single('image'), async (req, res) => {
   try {
     const { customer_id, message, product_id, order_id } = req.body;
     
@@ -2311,36 +2316,36 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
       const messenger = require('../lib/messenger');
       
       const lines = [];
-      lines.push('New Custom Order!');
-      lines.push('----------------------------');
-      lines.push(`Order ID: ${orderId}`);
-      lines.push(`Customer: ${full_name}`);
-      if (facebook_link) lines.push(`Facebook: ${facebook_link}`);
-      lines.push('----------------------------');
-      lines.push('Items:');
+      lines.push('⋆˚✿˖°𝐍𝐞𝐰 𝐂𝐮𝐬𝐭𝐨𝐦 𝐎𝐫𝐝𝐞𝐫!⋆˚✿˖°');
+      lines.push('──────────୨ৎ──────────');
+      lines.push(`𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: ${orderId}`);
+      lines.push(`𝐂𝐮𝐬𝐭𝐨𝐦𝐞𝐫: ${full_name}`);
+      if (facebook_link) lines.push(`𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤: ${facebook_link}`);
+      lines.push('──────────୨ৎ──────────');
+      lines.push('𝐈𝐭𝐞𝐦𝐬:');
       if (stems && stems.length) {
-        stems.forEach(s => lines.push(`  Stems: ${s.name} x${s.quantity} - ₱${(s.price * s.quantity).toFixed(2)}`));
+        stems.forEach(s => lines.push(`  𝐒𝐭𝐞𝐦𝐬: ${s.name} x${s.quantity} - ₱${(s.price * s.quantity).toFixed(2)}`));
       }
       if (fillers && fillers.length) {
-        fillers.forEach(f => lines.push(`  Fillers: ${f.name} x${f.quantity} - ₱${(f.price * f.quantity).toFixed(2)}`));
+        fillers.forEach(f => lines.push(`  𝐅𝐢𝐥𝐥𝐞𝐫𝐬: ${f.name} x${f.quantity} - ₱${(f.price * f.quantity).toFixed(2)}`));
       }
       if (wrapping) {
-        lines.push(`  Wrapping: ${wrapping.name} - ₱${parseFloat(wrapping.price).toFixed(2)}`);
+        lines.push(`  𝐖𝐫𝐚𝐩𝐩𝐢𝐧𝐠: ${wrapping.name} - ₱${parseFloat(wrapping.price).toFixed(2)}`);
       }
       if (addons && addons.length) {
-        addons.forEach(a => lines.push(`  Add-on: ${a.name} - ₱${parseFloat(a.price).toFixed(2)}`));
+        addons.forEach(a => lines.push(`  𝐀𝐝𝐝-𝐨𝐧: ${a.name} - ₱${parseFloat(a.price).toFixed(2)}`));
       }
       if (special_instructions) {
-        lines.push(`Special Instructions: ${special_instructions}`);
+        lines.push(`𝐒𝐩𝐞𝐜𝐢𝐚𝐥 𝐈𝐧𝐬𝐭𝐫𝐮𝐜𝐭𝐢𝐨𝐧𝐬: ${special_instructions}`);
       }
-      lines.push('----------------------------');
+      lines.push('──────────୨ৎ──────────');
       if (req.body.voucher_code) {
-        lines.push(`Voucher: ${req.body.voucher_code}`);
-        lines.push(`Discount: -₱${parseFloat(req.body.voucher_discount || 0).toFixed(2)}`);
-        lines.push(`Original: ₱${Number(req.body.original_total || estimated_total).toLocaleString()}`);
+        lines.push(`𝐕𝐨𝐮𝐜𝐡𝐞𝐫: ${req.body.voucher_code}`);
+        lines.push(`𝐃𝐢𝐬𝐜𝐨𝐮𝐧𝐭: -₱${parseFloat(req.body.voucher_discount || 0).toFixed(2)}`);
+        lines.push(`𝐎𝐫𝐢𝐠𝐢𝐧𝐚𝐥: ₱${Number(req.body.original_total || estimated_total).toLocaleString()}`);
       }
-      lines.push(`Total: ₱${Number(customOrderData.total_fee).toLocaleString()}`);
-      lines.push(`Status: Pending`);
+      lines.push(`𝐓𝐨𝐭𝐚𝐥: ₱${Number(customOrderData.total_fee).toLocaleString()}`);
+      lines.push(`𝐒𝐭𝐚𝐭𝐮𝐬: Pending`);
       
       const customMessage = lines.join('\n');
       const notifyResult = await messenger.notifyAdmins(customMessage);

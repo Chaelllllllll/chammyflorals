@@ -763,7 +763,6 @@
         orderDates = data.dates || data || [];
         renderCalendar();
       } catch (error) {
-        console.error('Error fetching order dates:', error);
         if (!showError) {
           alert('Failed to load delivery dates');
         } else {
@@ -898,21 +897,16 @@
         const regularData = await regularResponse.json();
         const customData = await customResponse.json();
 
-        console.log('Raw regular data:', regularData);
-        console.log('Raw custom data:', customData);
-
         // regularData is already an array, not wrapped in {orders: []}
         const regularOrders = (Array.isArray(regularData) ? regularData : (regularData.orders || []))
           .filter(o => o.expected_delivery_date === dateStr)
           .map(o => {
-            console.log('Regular order:', o);
             return { ...o, type: 'Regular', displayId: o.order_id || o.orderId || `#${o.id.substring(0, 8)}` };
           });
 
         const customOrders = (Array.isArray(customData) ? customData : (customData.orders || []))
           .filter(o => o.expected_delivery_date === dateStr)
           .map(o => {
-            console.log('Custom order:', o);
             return { ...o, type: 'Custom', displayId: o.order_id || o.orderId || `#${o.id.substring(0, 8)}` };
           });
 
@@ -930,10 +924,6 @@
         });
         
         const allOrders = Array.from(orderMap.values());
-
-        console.log('Orders for date:', dateStr, allOrders);
-        console.log('Regular orders fetched:', Array.isArray(regularData) ? regularData.length : regularData.orders?.length || 0);
-        console.log('Custom orders fetched:', Array.isArray(customData) ? customData.length : customData.orders?.length || 0);
 
         ordersLoading.style.display = 'none';
 
@@ -959,7 +949,6 @@
           `).join('');
         }
       } catch (error) {
-        console.error('Error fetching orders:', error);
         if (!showError) {
           alert('Failed to load orders for this date');
         } else {

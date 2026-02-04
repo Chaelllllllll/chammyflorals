@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const webpush = require('web-push');
 const supabase = require('../config/supabase');
+const jwt = require('jsonwebtoken');
+
+// SECURITY: Validate JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable is required in production');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
 
 // VAPID keys for web push (should be stored in environment variables)
 // Generate with: npx web-push generate-vapid-keys
@@ -212,8 +220,7 @@ router.post('/unsubscribe', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, JWT_SECRET_SAFE);
     const userId = decoded.id;
 
     const tableName = userType === 'admin' 

@@ -14,7 +14,6 @@ async function loadOrders() {
     try {
       verifyResult = await verifyResponse.json();
     } catch (jsonError) {
-      console.error('JSON parse error on verify-token:', jsonError);
       throw new Error('Invalid server response');
     }
     if (!verifyResponse.ok) {
@@ -31,7 +30,6 @@ async function loadOrders() {
     try {
       orders = await response.json();
     } catch (jsonError) {
-      console.error('JSON parse error on orders:', jsonError);
       throw new Error('Invalid server response');
     }
 
@@ -80,7 +78,6 @@ async function loadOrders() {
       showErrorModal(orders.error || 'Failed to load orders');
     }
   } catch (error) {
-    console.error('Error loading orders:', error);
     showErrorModal(error.message || 'Error loading orders');
   }
 }
@@ -1306,7 +1303,6 @@ function openEditModal(orderId) {
           payload.expected_delivery_date = `${year}-${month}-${day}`;
         }
       } catch (e) {
-        console.error('Error formatting delivery date:', e);
         payload.expected_delivery_date = null;
       }
     }
@@ -1424,7 +1420,6 @@ async function changeStatus(orderId) {
     try {
       result = await response.json();
     } catch (jsonError) {
-      console.error('JSON parse error on patch:', jsonError);
       throw new Error('Invalid server response');
     }
 
@@ -1440,7 +1435,6 @@ async function changeStatus(orderId) {
       showErrorModal(result.error || `Failed to update status: ${response.status}`);
     }
   } catch (error) {
-    console.error('Error updating status:', error);
     showErrorModal(error.message || 'Error updating status');
   }
 }
@@ -1458,7 +1452,6 @@ async function deleteOrder(orderId) {
     try {
       result = await response.json();
     } catch (jsonError) {
-      console.error('JSON parse error on delete:', jsonError);
       throw new Error('Invalid server response');
     }
 
@@ -1474,7 +1467,6 @@ async function deleteOrder(orderId) {
       showErrorModal(result.error || `Failed to delete order: ${response.status}`);
     }
   } catch (error) {
-    console.error('Error deleting order:', error);
     showErrorModal(error.message || 'Error deleting order');
   }
 }
@@ -1635,7 +1627,6 @@ function showNotifToast(count, items) {
       _productsCache = products || [];
       return _productsCache;
     } catch (err) {
-      console.error('Failed loading products for manual order:', err);
       return [];
     }
   }
@@ -1744,7 +1735,6 @@ function showNotifToast(count, items) {
         colorSelect.appendChild(optEl);
       });
     } catch (err) {
-      console.error('Error populating color select:', err);
     }
   }
 
@@ -1804,7 +1794,6 @@ function showNotifToast(count, items) {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch product info:', err);
       if (manualAddonsSection) manualAddonsSection.style.display = 'none';
     }
   }
@@ -1838,7 +1827,6 @@ function showNotifToast(count, items) {
         }
       }
     } catch (err) {
-      console.error('Error computing rush fee:', err);
     }
   }
 
@@ -2037,7 +2025,6 @@ function showNotifToast(count, items) {
         showErrorModal(result.error || 'Failed to create manual order');
       }
     } catch (error) {
-      console.error('Error creating manual order:', error);
       showErrorModal(error.message || 'Error creating manual order');
     } finally {
       if (submitBtn) {
@@ -2100,7 +2087,6 @@ async function loadAdminChatMessages(orderId) {
       `;
     }
   } catch (error) {
-    console.error('Error loading admin chat messages:', error);
     chatMessages.innerHTML = `
       <div class="text-center text-danger small">
         <i class="fas fa-exclamation-circle me-2"></i>Failed to load messages
@@ -2153,7 +2139,6 @@ async function sendAdminChatMessage(orderId) {
       showErrorModal(result.error || 'Failed to send message');
     }
   } catch (error) {
-    console.error('Error sending admin message:', error);
     showErrorModal('Failed to send message. Please try again.');
   } finally {
     // Re-enable form
@@ -2295,7 +2280,6 @@ async function sendAdminChatMessage(orderId) {
         });
       }
     } catch (error) {
-      console.error('Error loading orders with messages:', error);
       messagesList.innerHTML = '<div class="alert alert-danger">Failed to load messages</div>';
     }
   }
@@ -2443,7 +2427,6 @@ async function sendAdminChatMessage(orderId) {
         }
       }
     } catch (error) {
-      console.error('Error loading floating chat messages:', error);
     }
   }
 
@@ -2508,7 +2491,6 @@ async function sendAdminChatMessage(orderId) {
         alertError(result.error || 'Failed to send message');
       }
     } catch (error) {
-      console.error('Error sending message:', error);
       alertError('Failed to send message. Please try again.');
     } finally {
       // remove pending bubble if present
@@ -2569,7 +2551,6 @@ async function sendAdminChatMessage(orderId) {
         }
       }
     } catch (error) {
-      console.error('Error loading chat conversation:', error);
     }
   }
 
@@ -2617,7 +2598,6 @@ async function sendAdminChatMessage(orderId) {
           alertError(result.error || 'Failed to send message');
         }
       } catch (error) {
-        console.error('Error sending message:', error);
         alertError('Failed to send message. Please try again.');
       } finally {
         if (submitBtn) {

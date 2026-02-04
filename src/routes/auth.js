@@ -8,7 +8,12 @@ const supabase = require('../config/supabase');
 const { sendMail } = require('../lib/mailer');
 const { emailVerificationTemplate, passwordResetTemplate } = require('../lib/email-templates');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'chamflorals-secret-key-change-in-production';
+// SECURITY: Validate JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET environment variable is required in production');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
 const OTP_EXPIRY_MINUTES = 10;
 
 // Rate limiting store (in-memory - use Redis in production)
@@ -411,7 +416,7 @@ router.post('/login', rateLimit(5, 15), async (req, res) => {
         email: customer.email,
         name: customer.name
       },
-      JWT_SECRET,
+      JWT_SECRET_SAFE,
       { expiresIn: '7d' }
     );
     
@@ -446,7 +451,7 @@ function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Access token required' });
   }
   
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET_SAFE, (err, user) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
@@ -531,17 +536,15 @@ router.post('/google', async (req, res) => {
     }
     
     // Generate JWT
-    console.log('Generating JWT token with secret:', JWT_SECRET.substring(0, 10) + '...');
     const token = jwt.sign(
       { 
         id: customer.id,
         email: customer.email,
         name: customer.name
       },
-      JWT_SECRET,
+      JWT_SECRET_SAFE,
       { expiresIn: '7d' }
     );
-    console.log('Token generated successfully');
     
     // Return user data
     const customerData = {

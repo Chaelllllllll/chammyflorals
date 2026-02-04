@@ -31,7 +31,6 @@
       customizationOptions = await res.json();
       renderAllOptions();
     } catch (err) {
-      console.error('Error loading customization options:', err);
       showError();
     }
   }
@@ -545,7 +544,6 @@
             })
           });
         } catch (voucherErr) {
-          console.error('Failed to record voucher usage:', voucherErr);
         }
       }
 
@@ -559,7 +557,6 @@
       resetForm();
       
     } catch (err) {
-      console.error('Error submitting custom order:', err);
       alertError('Failed to submit order: ' + err.message);
     } finally {
       submitBtn.disabled = false;
@@ -774,7 +771,6 @@
         emailInput.value = customer.email;
       }
     } catch (error) {
-      console.error('Error prefilling user info:', error);
     }
   }
 

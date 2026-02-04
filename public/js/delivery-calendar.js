@@ -3,7 +3,6 @@ class DeliveryCalendar {
   constructor(inputId, options = {}) {
     this.input = document.getElementById(inputId);
     if (!this.input) {
-      console.error(`Input element with id "${inputId}" not found`);
       return;
     }
     
@@ -50,7 +49,6 @@ class DeliveryCalendar {
   attachEventListeners() {
     // Show calendar when input is clicked
     this.input.addEventListener('click', (e) => {
-      console.log('Date input clicked');
       e.preventDefault();
       e.stopPropagation();
       this.show();
@@ -58,7 +56,6 @@ class DeliveryCalendar {
     
     // Also show on focus
     this.input.addEventListener('focus', (e) => {
-      console.log('Date input focused');
       e.preventDefault();
       this.show();
     });
@@ -76,7 +73,6 @@ class DeliveryCalendar {
         this.orderDates = await response.json();
       }
     } catch (error) {
-      console.error('Error fetching order dates:', error);
       this.orderDates = [];
     }
   }
@@ -96,7 +92,7 @@ class DeliveryCalendar {
   
   getMinimumDate() {
     const minDate = new Date();
-    minDate.setDate(minDate.getDate() + 2); // Add 2 days
+    minDate.setDate(minDate.getDate() + 1); // Add 1 day (tomorrow)
     minDate.setHours(0, 0, 0, 0);
     return minDate;
   }
@@ -172,18 +168,20 @@ class DeliveryCalendar {
       const isPast = date < minDate;
       const orderCount = this.getOrderCountForDate(date);
       const isRush = this.isRushOrder(date);
+      const isFull = orderCount >= 5;
       
       let classes = ['calendar-day'];
       if (isToday) classes.push('today');
       if (isSelected) classes.push('selected');
-      if (isPast) classes.push('disabled');
-      if (isRush && !isPast) classes.push('rush-date');
+      if (isPast || isFull) classes.push('disabled');
+      if (isRush && !isPast && !isFull) classes.push('rush-date');
       
       html += `
-        <div class="${classes.join(' ')}" data-date="${this.formatDate(date)}">
+        <div class="${classes.join(' ')}" data-date="${this.formatDate(date)}" data-full="${isFull}">
           <span class="day-number">${day}</span>
           ${orderCount > 0 ? `<span class="order-count">${orderCount}</span>` : ''}
-          ${isRush && !isPast ? '<span class="rush-indicator"><i class="fa fa-bolt"></i></span>' : ''}
+          ${isRush && !isPast && !isFull ? '<span class="rush-indicator"><i class="fa fa-bolt"></i></span>' : ''}
+          ${isFull && !isPast ? '<span class="full-indicator">FULL</span>' : ''}
         </div>
       `;
     }
@@ -231,9 +229,23 @@ class DeliveryCalendar {
     });
     
     // Day selection
-    this.calendar.querySelectorAll('.calendar-day:not(.disabled):not(.prev-month):not(.next-month)').forEach(day => {
+    this.calendar.querySelectorAll('.calendar-day:not(.prev-month):not(.next-month)').forEach(day => {
       day.addEventListener('click', (e) => {
         e.stopPropagation();
+        
+        // Check if date is full
+        if (day.dataset.full === 'true') {
+          if (window.alertWarning) {
+            window.alertWarning('This date is fully booked (maximum 5 orders). Please select another date.');
+          }
+          return;
+        }
+        
+        // Check if disabled (past date)
+        if (day.classList.contains('disabled')) {
+          return;
+        }
+        
         const dateStr = day.dataset.date;
         if (dateStr) {
           const [year, month, dayNum] = dateStr.split('-').map(Number);
@@ -301,12 +313,10 @@ class DeliveryCalendar {
   }
   
   show() {
-    console.log('Showing calendar, visible:', this.calendarVisible);
     if (this.calendarVisible) return;
     this.backdrop.style.display = 'block';
     this.calendar.style.display = 'block';
     this.calendarVisible = true;
-    console.log('Calendar elements:', this.backdrop, this.calendar);
     // Trigger animation
     setTimeout(() => {
       this.backdrop.classList.add('show');

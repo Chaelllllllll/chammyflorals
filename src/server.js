@@ -53,14 +53,23 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// SECURITY: Validate required environment variables
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable is required');
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+}
+
 // Session configuration for Passport
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'dev-session-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production', // true in production (HTTPS)
     httpOnly: true,
+    sameSite: 'lax', // SECURITY: Protect against CSRF
     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   }
 }));
