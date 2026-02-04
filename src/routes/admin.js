@@ -1088,7 +1088,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
     const { orderId } = req.params;
     const updates = {};
     // Allow updating common order fields safely
-  const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at'];
+  const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at','expected_delivery_date'];
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) {
         updates[k] = req.body[k];
@@ -2387,5 +2387,61 @@ router.delete('/customization/:type/:id', auth, async (req, res) => {
   } catch (err) {
     console.error(`Error deleting ${req.params.type}/${req.params.id}:`, err);
     return res.status(500).json({ error: 'Failed to delete option' });
+  }
+});
+// GET rush fee setting
+router.get('/settings/rush-fee', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'rush_fee')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    // Default to 50 if not found
+    const rushFee = data ? parseFloat(data.setting_value) : 50;
+    return res.json({ rushFee });
+  } catch (err) {
+    console.error('Error fetching rush fee:', err);
+    return res.status(500).json({ error: 'Failed to fetch rush fee setting' });
+  }
+});
+
+// PUT rush fee setting
+router.put('/settings/rush-fee', auth, async (req, res) => {
+  try {
+    const { rushFee } = req.body;
+    
+    if (rushFee === undefined || rushFee === null || isNaN(rushFee)) {
+      return res.status(400).json({ error: 'Invalid rush fee value' });
+    }
+    
+    const fee = parseFloat(rushFee);
+    if (fee < 0) {
+      return res.status(400).json({ error: 'Rush fee cannot be negative' });
+    }
+    
+    // Upsert the setting
+    const { error } = await supabase
+      .from('settings')
+      .upsert({
+        setting_key: 'rush_fee',
+        setting_value: fee.toString(),
+        description: 'Rush fee amount (in PHP) for orders with delivery dates within 2-3 days',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'setting_key'
+      });
+    
+    if (error) throw error;
+    
+    return res.json({ success: true, rushFee: fee });
+  } catch (err) {
+    console.error('Error updating rush fee:', err);
+    return res.status(500).json({ error: 'Failed to update rush fee setting' });
   }
 });

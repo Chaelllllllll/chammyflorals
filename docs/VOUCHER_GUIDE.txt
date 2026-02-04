@@ -1,0 +1,374 @@
+================================================================================
+                    CHAMMY FLORALS - VOUCHER SYSTEM GUIDE
+================================================================================
+
+This guide explains how to create and manage vouchers for your store.
+
+================================================================================
+1. VOUCHER CODE
+================================================================================
+
+What it is:
+  - The unique code customers will type to get the discount
+  - Examples: WELCOME10, SUMMER2024, FLASH50, VIP20
+
+Best Practices:
+  ✓ Keep it short (5-15 characters)
+  ✓ Use UPPERCASE letters, numbers, and underscores
+  ✓ Make it memorable and descriptive
+  ✓ Hint at the discount (e.g., 20OFF = 20% off)
+
+Examples:
+  - WELCOME10    → 10% off for new customers
+  - SUMMER2024   → Seasonal summer promotion
+  - FREESHIP     → Free shipping voucher
+  - VIP20        → 20% off for VIP customers
+
+================================================================================
+2. DISCOUNT TYPE & VALUE
+================================================================================
+
+Two Types of Discounts:
+
+A) PERCENTAGE (%)
+   - Discount is a percentage of the order total
+   - Example: 20% off
+   - If order is ₱1,000, discount is ₱200
+   - Setup: Type = "Percentage", Value = 20
+
+B) FIXED AMOUNT (₱)
+   - Discount is a specific peso amount
+   - Example: ₱100 off
+   - Deducts ₱100 from any qualifying order
+   - Setup: Type = "Fixed Amount", Value = 100
+
+================================================================================
+3. MAX DISCOUNT CAP (₱)
+================================================================================
+
+What it does:
+  - Limits the maximum discount for PERCENTAGE vouchers
+  - Prevents giving away too much on expensive orders
+
+Why use it:
+  - Without cap: 20% off ₱10,000 = ₱2,000 discount
+  - With ₱500 cap: 20% off ₱10,000 = ₱500 discount only
+
+Example:
+  Voucher: 20% off with ₱500 max discount
+  
+  Order ₱1,000  → 20% = ₱200 discount (under cap, full discount)
+  Order ₱5,000  → 20% = ₱1,000, but capped at ₱500
+  Order ₱10,000 → 20% = ₱2,000, but capped at ₱500
+
+When to use:
+  - High-value percentage discounts (15% or more)
+  - Protecting profit margins on expensive orders
+  - Not needed for fixed amount discounts
+
+Leave empty:
+  - If you want unlimited discount (no cap)
+  - For fixed amount vouchers (already has a limit)
+
+================================================================================
+4. MIN ORDER AMOUNT (₱)
+================================================================================
+
+What it does:
+  - Sets minimum order total required to use voucher
+  - Order must be at least this amount
+
+Why use it:
+  - Ensures customers spend enough before getting discount
+  - Example: "Spend ₱500, get 20% off"
+
+Examples:
+  Min Order ₱500:
+  - Order ₱400 → Cannot use voucher
+  - Order ₱600 → Can use voucher
+
+Common Values:
+  - ₱0     → No minimum, any order can use it
+  - ₱300   → Small orders excluded
+  - ₱500   → Medium minimum
+  - ₱1,000 → High-value orders only
+
+================================================================================
+5. MAX TOTAL USES
+================================================================================
+
+What it does:
+  - Total number of times voucher can be redeemed by ANYONE
+  - Counts across all customers
+
+Why use it:
+  - Create urgency ("First 100 customers only!")
+  - Control your marketing budget
+  - Limited-time promotions
+
+Examples:
+
+  Set to 100:
+  - First 100 customers can use it
+  - 101st customer gets "voucher expired" message
+  - Good for: Flash sales, grand opening
+
+  Set to 50:
+  - Only 50 redemptions total
+  - Creates scarcity and urgency
+  - Good for: Exclusive offers
+
+  Leave empty:
+  - UNLIMITED uses
+  - Anyone can use it anytime
+  - Good for: Ongoing promotions, permanent discounts
+
+Combined with "Uses Per Customer":
+  Max Total = 100, Per Customer = 1
+  → "First 100 people can use it once each"
+
+================================================================================
+6. USES PER CUSTOMER
+================================================================================
+
+What it does:
+  - How many times ONE PERSON can use this voucher
+  - Prevents abuse from same customer
+
+Why use it:
+  - Stop customers from using same voucher repeatedly
+  - Fair distribution of discounts
+  - Budget control
+
+Examples:
+
+  Set to 1:
+  - "One time use per customer"
+  - Most common setting
+  - Customer can only use it once, ever
+
+  Set to 2:
+  - Customer can use it twice
+  - Good for: "Buy twice, save twice"
+
+  Set to unlimited (very high number):
+  - Customer can use it every order
+  - Good for: Loyalty discounts, repeat customer rewards
+
+Common Combinations:
+  
+  Max Total = 100, Per Customer = 1
+  → First 100 people, one use each
+
+  Max Total = unlimited, Per Customer = 1
+  → Everyone can use once
+
+  Max Total = unlimited, Per Customer = unlimited
+  → Anyone can use anytime (rare)
+
+================================================================================
+7. ELIGIBLE CUSTOMERS
+================================================================================
+
+Three Options:
+
+A) ALL CUSTOMERS
+   - Anyone can use this voucher
+   - No restrictions
+   - Most common setting
+
+B) NEW CUSTOMERS ONLY
+   - Only customers with NO previous orders
+   - Great for: Welcome discounts, first-time buyer incentives
+   - Example: "WELCOME10" for 10% off first order
+
+C) RETURNING CUSTOMERS
+   - Only customers with at least 1 previous order
+   - Great for: Loyalty rewards, repeat buyer discounts
+   - Example: "THANKYOU15" for 15% off for loyal customers
+
+How it's checked:
+  - System counts completed orders for customer's email
+  - 0 orders = New customer
+  - 1+ orders = Returning customer
+
+================================================================================
+8. VALIDITY PERIOD (OPTIONAL)
+================================================================================
+
+Two Fields:
+
+A) VALID FROM
+   - When voucher becomes active
+   - Leave empty = active immediately
+   - Use for: Scheduled promotions
+
+B) VALID UNTIL
+   - When voucher expires
+   - Leave empty = never expires
+   - Use for: Limited-time offers
+
+Examples:
+
+  Flash Sale (24 hours):
+  Valid From: Feb 4, 2026 9:00 AM
+  Valid Until: Feb 5, 2026 9:00 AM
+
+  Seasonal Promotion:
+  Valid From: Dec 1, 2026
+  Valid Until: Dec 31, 2026
+
+  Permanent:
+  Valid From: (empty)
+  Valid Until: (empty)
+
+  Future Campaign:
+  Valid From: Mar 1, 2026 (scheduled to start)
+  Valid Until: Mar 15, 2026
+
+================================================================================
+9. VOUCHER STATUS
+================================================================================
+
+Two Options:
+
+A) ACTIVE
+   - Customers can see and use it
+   - Appears in validation checks
+   - Ready to redeem
+
+B) INACTIVE
+   - Hidden from customers
+   - Cannot be used
+   - Good for: Preparing campaigns, temporarily disabling
+
+When to set Inactive:
+  - While testing the voucher
+  - Preparing for scheduled launch
+  - Temporarily pausing a promotion
+  - Campaign ended but keeping record
+
+================================================================================
+10. REAL-WORLD EXAMPLES
+================================================================================
+
+Example 1: NEW CUSTOMER WELCOME
+  Code: WELCOME10
+  Type: Percentage
+  Value: 10
+  Max Discount: (empty)
+  Min Order: ₱0
+  Max Total Uses: (empty)
+  Per Customer: 1
+  Eligible: New Customers Only
+  Valid: (empty - always active)
+
+Example 2: FLASH SALE
+  Code: FLASH50
+  Type: Fixed Amount
+  Value: 50
+  Min Order: ₱500
+  Max Total Uses: 100
+  Per Customer: 1
+  Eligible: All Customers
+  Valid From: Today 9 AM
+  Valid Until: Today 11 PM
+
+Example 3: VIP LOYALTY
+  Code: VIP20
+  Type: Percentage
+  Value: 20
+  Max Discount: ₱500
+  Min Order: ₱1,000
+  Max Total Uses: (empty)
+  Per Customer: (empty - unlimited)
+  Eligible: Returning Customers
+  Valid: (empty - always active)
+
+Example 4: SEASONAL PROMOTION
+  Code: SUMMER2024
+  Type: Percentage
+  Value: 15
+  Max Discount: ₱300
+  Min Order: ₱500
+  Max Total Uses: 500
+  Per Customer: 1
+  Eligible: All Customers
+  Valid From: June 1, 2024
+  Valid Until: August 31, 2024
+
+Example 5: FREE SHIPPING
+  Code: FREESHIP
+  Type: Fixed Amount
+  Value: 100 (shipping cost)
+  Min Order: ₱300
+  Max Total Uses: (empty)
+  Per Customer: 1
+  Eligible: All Customers
+  Valid: (empty)
+
+================================================================================
+11. PRO TIPS
+================================================================================
+
+Creating Effective Vouchers:
+  ✓ Test before announcing to customers
+  ✓ Use descriptive codes (FLASH50 is better than XYZ123)
+  ✓ Create urgency with limited uses
+  ✓ Set inactive while preparing campaigns
+  ✓ Monitor usage regularly
+  ✓ Adjust limits based on performance
+
+Common Mistakes to Avoid:
+  ✗ Giving unlimited high-value discounts
+  ✗ No minimum order (losing money on small orders)
+  ✗ Confusing voucher codes
+  ✗ Forgetting to set expiry dates
+  ✗ Not capping percentage discounts
+
+Budget Protection:
+  - Always cap percentage discounts over 15%
+  - Set minimum order amounts
+  - Limit total uses for expensive promotions
+  - Use "per customer" limits to prevent abuse
+
+Creating Urgency:
+  - Limited total uses: "First 50 only!"
+  - Short validity periods: "Today only!"
+  - Seasonal codes: "Christmas Special"
+  - New customer exclusive: "Welcome gift"
+
+================================================================================
+12. TROUBLESHOOTING
+================================================================================
+
+"Voucher not working":
+  → Check if Status is Active
+  → Verify Valid From/Until dates
+  → Check if customer is eligible
+  → Ensure order meets minimum amount
+
+"Too many people using voucher":
+  → Set Max Total Uses
+  → Set Per Customer limit
+  → Add minimum order amount
+  → Make it customer-type specific
+
+"Losing too much money":
+  → Add Max Discount Cap
+  → Increase minimum order amount
+  → Reduce discount percentage
+  → Limit eligible customers
+
+"Customers confused":
+  → Use clear, descriptive codes
+  → Add good description
+  → Set appropriate expiry dates
+  → Test before launching
+
+================================================================================
+                              END OF GUIDE
+================================================================================
+
+For technical support, contact your web developer.
+Last updated: February 4, 2026

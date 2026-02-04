@@ -39,6 +39,9 @@ function buildMessageText(order) {
   const total = safeString(order.total_fee || order.total || '0');
   const status = safeString(order.status || 'Pending');
   const totalQty = (Array.isArray(order.items) && order.items.length) ? order.items.reduce((s,i)=>s+(Number(i.quantity||i.qty||1)||0),0) : (Array.isArray(order.quantity) ? order.quantity.reduce((s,q)=>s+Number(q||0),0) : (Number(order.quantity) || 0));
+  const voucherCode = safeString(order.voucher_code || '');
+  const voucherDiscount = order.voucher_discount ? Number(order.voucher_discount) : 0;
+  const originalTotal = order.original_total ? Number(order.original_total) : 0;
 
   const header = '⋆˚✿˖° 𝐍𝐞𝐰 𝐎𝐫𝐝𝐞𝐫 𝐑𝐞𝐜𝐞𝐢𝐯𝐞𝐝! ⋆˚✿˖°';
   const sep = '──────────୨ৎ──────────';
@@ -52,6 +55,11 @@ function buildMessageText(order) {
   if (totalQty) lines.push(`𝗤𝘂𝗮𝗻𝘁𝗶𝘁𝘆: ${totalQty}`);
   lines.push(`𝗦𝘁𝗮𝘁𝘂𝘀: ${status}`);
   lines.push(sep);
+  if (voucherCode) {
+    lines.push(`🎟️ 𝗩𝗼𝘂𝗰𝗵𝗲𝗿: ${voucherCode}`);
+    if (voucherDiscount > 0) lines.push(`💰 𝗗𝗶𝘀𝗰𝗼𝘂𝗻𝘁: -₱${voucherDiscount.toLocaleString()}`);
+    if (originalTotal > 0) lines.push(`📊 𝗢𝗿𝗶𝗴𝗶𝗻𝗮𝗹: ₱${originalTotal.toLocaleString()}`);
+  }
   if (total) lines.push(`𝗧𝗼𝘁𝗮𝗹: ₱${Number(total).toLocaleString()}`);
   return lines.join('\n');
 }

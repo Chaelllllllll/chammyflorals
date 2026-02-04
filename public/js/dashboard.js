@@ -367,6 +367,32 @@ window.showOrderDetails = async function(orderId) {
         </div>
         
         <div class="order-detail-section">
+            <h4><i class="fa fa-receipt"></i>Payment Summary</h4>
+            ${order.voucher_code ? `
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Voucher Applied</span>
+                    <span class="order-detail-value">
+                        <span class="badge bg-success px-3 py-2" style="font-size: 12px;">
+                            <i class="fa fa-ticket-alt me-1"></i>${order.voucher_code}
+                        </span>
+                    </span>
+                </div>
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Original Total</span>
+                    <span class="order-detail-value" style="text-decoration: line-through; color: #999;">₱${order.original_total || order.total_fee}</span>
+                </div>
+                <div class="order-detail-item">
+                    <span class="order-detail-label">Discount</span>
+                    <span class="order-detail-value" style="color: #28a745; font-weight: 600;">-₱${order.voucher_discount || '0.00'}</span>
+                </div>
+            ` : ''}
+            <div class="order-detail-item">
+                <span class="order-detail-label">Total ${order.voucher_code ? 'After Discount' : 'Fee'}</span>
+                <span class="order-detail-value highlight">₱${order.total_fee || '0.00'}</span>
+            </div>
+        </div>
+        
+        <div class="order-detail-section">
             <h4><i class="fa fa-user"></i>Contact Details</h4>
             <div class="order-detail-item">
                 <span class="order-detail-label">Name</span>
@@ -386,14 +412,6 @@ window.showOrderDetails = async function(orderId) {
             <h4><i class="fa fa-tasks"></i>Order Progress</h4>
             <div class="progress-tracker">
                 ${statusSteps}
-            </div>
-        </div>
-        
-        <div class="order-detail-section" style="background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%); border-color: #ffd6e0;">
-            <h4><i class="fa fa-credit-card"></i>Payment</h4>
-            <div class="order-detail-item" style="border: none;">
-                <span class="order-detail-label">Total Amount</span>
-                <span class="order-detail-value highlight">₱${order.total_fee || '0.00'}</span>
             </div>
         </div>
         

@@ -36,7 +36,8 @@ async function loadOrders() {
     }
 
     if (response.ok) {
-      const allOrders = orders || [];
+      // Filter out custom orders - they have their own management page
+      const allOrders = (orders || []).filter(o => o.order_type !== 'custom');
       
       // Check for new orders and trigger notification
       const storedOrderIds = localStorage.getItem('adminKnownOrderIds');
@@ -500,6 +501,14 @@ function viewDetails(orderId) {
   <p><strong>Add-ons:</strong> ${order.addons?.length ? escapeHtml(order.addons.join(', ')) : 'None'} ${hasAddonsAvailable ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-addons-btn" data-order-id="${order.order_id}">View</button>` : ''}</p>
     <p><strong>Message:</strong> ${escapeHtml(order.message || 'Not provided')}</p>
     <p><strong>Rush Order:</strong> ${escapeHtml(order.rush || '')}</p>
+    ${order.voucher_code ? `
+      <hr style="margin: 15px 0; border-top: 2px solid #e0e0e0;">
+      <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 10px;">
+        <p style="margin-bottom: 8px;"><strong><i class="fas fa-ticket-alt me-2"></i>Voucher Applied:</strong> <span class="badge bg-success">${escapeHtml(order.voucher_code)}</span></p>
+        <p style="margin-bottom: 5px;"><strong>Original Total:</strong> <span style="text-decoration: line-through; color: #999;">₱${escapeHtml(String(order.original_total || order.total_fee))}</span></p>
+        <p style="margin-bottom: 5px;"><strong>Discount:</strong> <span style="color: #28a745; font-weight: 600;">-₱${escapeHtml(String(order.voucher_discount || '0.00'))}</span></p>
+      </div>
+    ` : ''}
     <p><strong>Total Fee:</strong> ₱${escapeHtml(String(order.total_fee || '0'))}</p>
     <p><strong>Status:</strong> ${escapeHtml(order.status || '')}</p>
     <p><strong>Order Date:</strong> ${escapeHtml(formatDateTime(order.created_at || order.createdAt || Date.now()))}</p>
@@ -702,7 +711,23 @@ function openOrderItemsModal(order, editable = false) {
     } else {
   if (editable) {
         const rowsHtml = items.map((it, i) => makeRowEditable(it, i)).join('');
+        
+        // Display voucher info if present
+        let voucherNoticeHtml = '';
+        if (order && order.voucher_code) {
+          const discountAmt = parseFloat(order.voucher_discount) || 0;
+          voucherNoticeHtml = `
+            <div class="alert alert-info mb-3" style="font-size: 0.9rem;">
+              <strong><i class="bi bi-tag-fill me-1"></i>Voucher Applied:</strong> 
+              <span class="badge bg-success">${escapeHtml(order.voucher_code)}</span>
+              <br>
+              <small>Discount of ₱${discountAmt.toFixed(2)} will be automatically applied to the new total when you save items.</small>
+            </div>
+          `;
+        }
+        
         body.innerHTML = `
+          ${voucherNoticeHtml}
           <div class="table-responsive">
             <table class="table table-sm table-bordered" id="orderItemsEditTable">
               <thead class="table-light"><tr><th>Item</th><th style="width:110px;">Qty</th><th style="width:220px;">Color</th><th></th></tr></thead>
@@ -1120,7 +1145,16 @@ function openEditModal(orderId) {
       </div>
   <div class="mb-2"><label class="form-label">Message</label><textarea class="form-control" name="message">${order.message || ''}</textarea></div>
   <input type="hidden" id="editItemsJson" name="items_json" value='${escapeHtml(JSON.stringify(order.items || []))}'>
-      <div class="mb-2"><label class="form-label">Rush</label><select class="form-select" name="rush"><option ${order.rush==='No'?'selected':''}>No</option><option ${order.rush==='Yes'?'selected':''}>Yes</option></select></div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-6">
+          <label class="form-label">Expected Delivery Date</label>
+          <input type="text" class="form-control" id="adminEditDeliveryDate" name="expected_delivery_date" value="${order.expected_delivery_date || ''}" placeholder="Select date" readonly>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Rush</label>
+          <select class="form-select" name="rush"><option ${order.rush==='No'?'selected':''}>No</option><option ${order.rush==='Yes'?'selected':''}>Yes</option></select>
+        </div>
+      </div>
       <div class="mb-2"><label class="form-label">Total Fee</label><input type="number" step="0.01" class="form-control" name="total_fee" value="${order.total_fee || 0}"></div>
       <div class="mb-2"><label class="form-label">Status</label>
         <select class="form-select" name="status">
@@ -1260,6 +1294,23 @@ function openEditModal(orderId) {
     const formData = new FormData(editForm);
     const payload = {};
     formData.forEach((v,k)=>{ payload[k]=v; });
+    
+    // Format expected_delivery_date properly (must be YYYY-MM-DD or null)
+    if (payload.expected_delivery_date) {
+      try {
+        const dateObj = new Date(payload.expected_delivery_date);
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          payload.expected_delivery_date = `${year}-${month}-${day}`;
+        }
+      } catch (e) {
+        console.error('Error formatting delivery date:', e);
+        payload.expected_delivery_date = null;
+      }
+    }
+    
     // convert addons back to array
     if (payload.addons) payload.addons = payload.addons.split(',').map(s=>s.trim()).filter(Boolean);
     // include items if provided via the modal (items_json)
@@ -1309,6 +1360,49 @@ function openEditModal(orderId) {
 
   const detailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   detailsModal.show();
+  
+  // Initialize delivery calendar after modal is shown
+  setTimeout(() => {
+    if (document.getElementById('adminEditDeliveryDate') && typeof DeliveryCalendar !== 'undefined') {
+      // Destroy existing calendar instance if any
+      if (window.adminEditCalendar) {
+        try {
+          if (window.adminEditCalendar.backdrop && window.adminEditCalendar.backdrop.parentNode) {
+            window.adminEditCalendar.backdrop.parentNode.removeChild(window.adminEditCalendar.backdrop);
+          }
+          if (window.adminEditCalendar.calendar && window.adminEditCalendar.calendar.parentNode) {
+            window.adminEditCalendar.calendar.parentNode.removeChild(window.adminEditCalendar.calendar);
+          }
+        } catch (e) {}
+      }
+      
+      window.adminEditCalendar = new DeliveryCalendar('adminEditDeliveryDate', {
+        minDate: new Date(),
+        onChange: (dateStr) => {
+          document.getElementById('adminEditDeliveryDate').value = dateStr;
+          
+          // Auto-set rush based on selected date (2-3 days from today)
+          const selectedDate = new Date(dateStr);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          selectedDate.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
+          
+          const rushSelect = document.querySelector('#editOrderForm select[name="rush"]');
+          if (rushSelect) {
+            if (diffDays >= 0 && diffDays <= 3) {
+              rushSelect.value = 'Yes';
+            } else {
+              rushSelect.value = 'No';
+            }
+            
+            // Trigger change event to recalculate total if needed
+            rushSelect.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    }
+  }, 100);
 }
 
 async function changeStatus(orderId) {

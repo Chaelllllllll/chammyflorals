@@ -444,8 +444,103 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // recompute when quantity inputs change
   itemsContainer.addEventListener('input', (e) => {
-    if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) computeRushFee();
+    if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) {
+      computeRushFee();
+      calculateOrderTotal();
+    }
   });
+
+  // Calculate order total based on selected items and addons
+  function calculateOrderTotal() {
+    const inquiryForm = document.getElementById('inquiryForm');
+    if (!inquiryForm) return;
+    let total = 0;
+    
+    // Calculate items cost from selected products
+    const itemRows = itemsContainer.querySelectorAll('.order-item');
+    itemRows.forEach(row => {
+      const selectEl = row.querySelector('.item-flower');
+      const qtyInput = row.querySelector('.item-quantity');
+      const qty = parseInt(qtyInput?.value) || 0;
+      
+      if (!selectEl || !qty) return;
+      
+      const selectedOption = selectEl.selectedOptions && selectEl.selectedOptions[0];
+      if (!selectedOption || !selectedOption.value) return;
+      
+      // Extract price from option text (format: "Name - Set - ₱Price")
+      const optionText = selectedOption.textContent || '';
+      const priceMatch = optionText.match(/₱([\d,]+(?:\.\d{2})?)/);
+      
+      if (priceMatch) {
+        const price = parseFloat(priceMatch[1].replace(/,/g, ''));
+        total += price * qty;
+      }
+    });
+    
+    // Add addon prices
+    const addonCheckboxes = document.querySelectorAll('.addon-checkbox:checked');
+    addonCheckboxes.forEach(checkbox => {
+      const price = parseFloat(checkbox.dataset.price) || 0;
+      total += price;
+    });
+    
+    // Add rush fee if rush is Yes
+    const rushInput = inquiryForm.querySelector('input[name="rush"]');
+    if (rushInput && rushInput.value === 'Yes') {
+      // Calculate rush fee based on items
+      let rushFee = 0;
+      itemRows.forEach(row => {
+        const select = row.querySelector('.item-flower');
+        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+        const opt = select && select.selectedOptions && select.selectedOptions[0];
+        const productId = opt && opt.dataset && opt.dataset.productId;
+        if (!productId) return;
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const cat = prod && prod.category ? String(prod.category).trim() : '';
+        const key = String(cat || '').trim().toLowerCase();
+        const fee = _categoriesCache[key] || 0;
+        if (fee) rushFee += fee * qty;
+      });
+      total += rushFee;
+    }
+    
+    // Update total display using voucher handler if available
+    if (window.regularVoucherHandler) {
+      window.regularVoucherHandler.setCurrentTotal(total);
+    } else {
+      // Fallback: update display directly
+      const totalDisplay = document.getElementById('orderFinalTotal');
+      if (totalDisplay) {
+        totalDisplay.textContent = total.toFixed(2);
+      }
+    }
+  }
+
+  // Make calculateOrderTotal globally accessible
+  window.calculateOrderTotal = calculateOrderTotal;
+  
+  // Listen for addon changes to recalculate total
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('addon-checkbox')) {
+      calculateOrderTotal();
+    }
+  });
+  
+  // Listen for item flower selection changes to recalculate total
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('item-flower')) {
+      calculateOrderTotal();
+    }
+  });
+
+  // Initial calculation when modal opens
+  const inquiryModal = document.getElementById('inquiryModal');
+  if (inquiryModal) {
+    inquiryModal.addEventListener('shown.bs.modal', () => {
+      setTimeout(calculateOrderTotal, 100);
+    });
+  }
 
   // --- end auto-fetch logic ---
 
@@ -467,11 +562,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     } catch (valErr) { /* ignore validation errors and continue; we'll still validate required fields below */ }
+    
+    // Check if user has entered voucher code but hasn't applied it
+    const voucherInput = document.getElementById('voucherCodeInput');
+    const hasVoucherCode = voucherInput && voucherInput.value.trim() !== '';
+    const voucherApplied = window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher();
+    
+    if (hasVoucherCode && !voucherApplied) {
+      const proceed = await showVoucherWarningModal();
+      if (!proceed) {
+        return;
+      }
+    }
     data.user_name = form.querySelector('input[name="user_name"]').value;
     data.user_email = form.querySelector('input[name="user_email"]').value;
     data.fb_link = form.querySelector('input[name="fb_link"]').value;
     data.message = form.querySelector('textarea[name="message"]').value;
-    data.rush = form.querySelector('select[name="rush"]').value;
+    data.rush = form.querySelector('input[name="rush"]').value;
+    data.expected_delivery_date = form.querySelector('input[name="expected_delivery_date"]').value;
     data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
 
     // Collect items
@@ -512,6 +620,15 @@ document.addEventListener('DOMContentLoaded', () => {
       data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     } catch (e) { /* ignore */ }
 
+    // Add voucher information if applied
+    if (window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher()) {
+      const voucherData = window.regularVoucherHandler.getAppliedVoucher();
+      data.voucher_code = voucherData.voucher.code;
+      data.voucher_id = voucherData.voucher.id;
+      data.voucher_discount = voucherData.discountAmount;
+      data.original_total = voucherData.originalTotal;
+    }
+
     try {
       // show loading state
       if (submitBtn) {
@@ -542,6 +659,25 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = await response.json();
 
       if (response.ok) {
+        // Record voucher usage if voucher was applied
+        if (data.voucher_id && data.voucher_code) {
+          try {
+            await fetch('/api/vouchers/use', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                voucherId: data.voucher_id,
+                orderId: result.orderId || result.order_id,
+                customerEmail: data.user_email,
+                customerId: null,
+                discountAmount: data.voucher_discount
+              })
+            });
+          } catch (voucherErr) {
+            console.error('Failed to record voucher usage:', voucherErr);
+          }
+        }
+
         // hide the inquiry modal first so the placed modal appears above it
         try {
           const inquiryModalEl = document.getElementById('inquiryModal');

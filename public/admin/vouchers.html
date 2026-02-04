@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chammy Florals - Vouchers</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body { overflow-x: hidden; }
+    .card { border-radius: 12px !important; transition: all 0.3s ease; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important; }
+    .btn-pink { background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); border: none; color: white; }
+    .btn-pink:hover { background: linear-gradient(135deg, #ff6f9b 0%, #ff4d88 100%); color: white; }
+    .badge-active { background-color: #28a745; }
+    .badge-inactive { background-color: #6c757d; }
+    .voucher-card { border-left: 4px solid #ff6f9b; }
+    .info-icon {
+      cursor: pointer;
+      color: #6c757d;
+      transition: all 0.3s ease;
+      margin-left: 8px;
+    }
+    .info-icon:hover {
+      color: #ff6f9b;
+      transform: scale(1.1);
+    }
+    .help-section {
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .help-section h6 {
+      color: #ff6f9b;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body class="admin-page">
+  <button class="sidebar-toggle" id="sidebarToggle">
+    <i class="fas fa-chevron-right"></i>
+  </button>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/admin/dashboard.html" class="sidebar-brand">
+        <i class="fas fa-flower"></i>
+        <span>Chammy Florals</span>
+      </a>
+    </div>
+    
+    <ul class="sidebar-nav">
+      <li class="sidebar-nav-item">
+        <a href="/admin/dashboard.html" class="sidebar-nav-link">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-section-label">Orders</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/to-deliver.html" class="sidebar-nav-link">
+          <i class="fas fa-truck"></i>
+          <span>To Deliver</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/todo.html" class="sidebar-nav-link">
+          <i class="fas fa-tasks"></i>
+          <span>To Do</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/custom-orders.html" class="sidebar-nav-link">
+          <i class="fas fa-palette"></i>
+          <span>Customized Orders</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-section-label">Store</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/products.html" class="sidebar-nav-link">
+          <i class="fas fa-box-open"></i>
+          <span>Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/customization.html" class="sidebar-nav-link">
+          <i class="fas fa-swatchbook"></i>
+          <span>Customized Products</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reviews.html" class="sidebar-nav-link">
+          <i class="fas fa-star"></i>
+          <span>Reviews</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/vouchers.html" class="sidebar-nav-link active">
+          <i class="fas fa-ticket-alt"></i>
+          <span>Vouchers</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-section-label">Communication</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/messages.html" class="sidebar-nav-link">
+          <i class="fas fa-comments"></i>
+          <span>Messages</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/announcements.html" class="sidebar-nav-link">
+          <i class="fas fa-bullhorn"></i>
+          <span>Announcements</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-section-label">Analytics</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/reports.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-line"></i>
+          <span>Transactions</span>
+        </a>
+      </li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/analytics.html" class="sidebar-nav-link">
+          <i class="fas fa-chart-area"></i>
+          <span>Analytics</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-section-label">Settings</li>
+      <li class="sidebar-nav-item">
+        <a href="/admin/admins.html" class="sidebar-nav-link">
+          <i class="fas fa-user-shield"></i>
+          <span>Admins</span>
+        </a>
+      </li>
+      
+      <li class="sidebar-nav-item">
+        <button class="btn btn-pink w-100" id="logoutButton">
+          <i class="fas fa-sign-out-alt me-2"></i>Logout
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <main class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="mb-0">
+            <i class="fas fa-ticket-alt text-pink me-2"></i>Vouchers
+          </h2>
+          <p class="text-muted mb-0">Create and manage discount vouchers</p>
+        </div>
+        <button class="btn btn-pink" data-bs-toggle="modal" data-bs-target="#voucherModal" id="createVoucherBtn">
+          <i class="fas fa-plus me-2"></i>Create Voucher
+        </button>
+      </div>
+
+      <div class="row g-4" id="vouchersContainer">
+        <div class="col-12 text-center py-5">
+          <div class="spinner-border text-pink" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Voucher Modal -->
+  <div class="modal fade" id="voucherModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);">
+          <h5 class="modal-title text-white" id="voucherModalTitle">
+            Create Voucher
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="voucherForm">
+            <input type="hidden" id="voucherId">
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Voucher Code *</label>
+                <input type="text" class="form-control" id="voucherCode" required style="text-transform: uppercase;" placeholder="ex: CHAMMY2025">
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Status</label>
+                <select class="form-select" id="voucherActive">
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">Description</label>
+              <textarea class="form-control" id="voucherDescription" rows="2" placeholder="Optional"></textarea>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Discount Type *</label>
+                <select class="form-select" id="voucherDiscountType" required>
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (₱)</option>
+                </select>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Discount Value *</label>
+                <input type="number" class="form-control" id="voucherDiscountValue" step="0.01" min="0" required placeholder="ex: 20">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Max Discount Amount (₱)</label>
+                <input type="number" class="form-control" id="voucherMaxDiscount" step="0.01" min="0" placeholder="Optional">
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Min Order Amount (₱)</label>
+                <input type="number" class="form-control" id="voucherMinOrder" step="0.01" min="0" value="0">
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label class="form-label fw-bold">Max Total Uses</label>
+                <input type="number" class="form-control" id="voucherMaxUses" min="1" placeholder="">
+              </div>
+              
+              <div class="col-md-4 mb-3">
+                <label class="form-label fw-bold">Uses Per Customer</label>
+                <input type="number" class="form-control" id="voucherUsesPerCustomer" min="1" value="1">
+              </div>
+              
+              <div class="col-md-4 mb-3">
+                <label class="form-label fw-bold">Eligible Customers</label>
+                <select class="form-select" id="voucherEligibleType">
+                  <option value="all">All Customers</option>
+                  <option value="new">New Customers Only</option>
+                  <option value="returning">Returning Customers</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Valid From</label>
+                <input type="datetime-local" class="form-control" id="voucherValidFrom">
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">Valid Until</label>
+                <input type="datetime-local" class="form-control" id="voucherValidUntil">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-pink" id="saveVoucherBtn">
+            <i class="fas fa-save me-2"></i>Save Voucher
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/alert.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/admin-vouchers.js"></script>
+</body>
+</html>

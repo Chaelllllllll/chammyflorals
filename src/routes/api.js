@@ -407,8 +407,18 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       addons: Array.isArray(addons) ? addons.map(a => stripTags(a)) : [],
       message: sanitizedMessage || stripTags(message) || 'Not provided',
       rush,
+      expected_delivery_date: req.body.expected_delivery_date || null,
       total_fee: totalFee,
     };
+    
+    // Add voucher information if provided
+    if (req.body.voucher_code) {
+      orderData.voucher_code = String(req.body.voucher_code).trim().toUpperCase();
+      orderData.voucher_discount = parseFloat(req.body.voucher_discount) || 0;
+      orderData.original_total = parseFloat(req.body.original_total) || totalFee;
+      // Adjust total_fee to include discount
+      orderData.total_fee = orderData.original_total - orderData.voucher_discount;
+    }
     
     // Set status to Delivered for manual orders (from admin dashboard)
     const isManualOrder = req.body.manual_order === true || req.body.manual_order === 'true';
@@ -911,7 +921,21 @@ router.get('/recompute-total/:orderId', async (req, res) => {
       }
     } catch (rfErr) {}
 
-    return res.json({ orderId: order.order_id, original_total_fee: order.total_fee, recomputed_total: recomputed, details });
+    // Apply voucher discount if present
+    let finalTotal = recomputed;
+    if (order.voucher_code && order.voucher_discount) {
+      const voucherDiscount = parseFloat(order.voucher_discount) || 0;
+      finalTotal = Math.max(0, recomputed - voucherDiscount);
+    }
+
+    return res.json({ 
+      orderId: order.order_id, 
+      original_total_fee: order.total_fee, 
+      recomputed_total: finalTotal,
+      voucher_applied: order.voucher_code ? true : false,
+      voucher_discount: order.voucher_discount || 0,
+      details 
+    });
   } catch (err) {
     console.error('recompute-total error:', err && err.message ? err.message : err);
     return res.status(500).json({ error: 'Failed to recompute total' });
@@ -2146,23 +2170,37 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     // Generate order ID using the same secure method as regular products
     const orderId = generateOrderId();
     
+    // Prepare order data
+    const customOrderData = {
+      order_id: orderId,
+      customer_id: customer_id,
+      name: full_name.trim(),
+      email: email.trim(),
+      fb_link: facebook_link || null,
+      stems: stems || [],
+      fillers: fillers || [],
+      wrapping: wrapping || null,
+      addons: addons || [],
+      special_instructions: special_instructions || null,
+      expected_delivery_date: req.body.expected_delivery_date || null,
+      rush: req.body.rush || 'No',
+      total_fee: estimated_total || 0,
+      status: 'Pending'
+    };
+    
+    // Add voucher information if provided
+    if (req.body.voucher_code) {
+      customOrderData.voucher_code = String(req.body.voucher_code).trim().toUpperCase();
+      customOrderData.voucher_discount = parseFloat(req.body.voucher_discount) || 0;
+      customOrderData.original_total = parseFloat(req.body.original_total) || estimated_total;
+      // Adjust total_fee to include discount
+      customOrderData.total_fee = customOrderData.original_total - customOrderData.voucher_discount;
+    }
+    
     // Create order in custom_orders table
     const { data: order, error } = await supabase
       .from('custom_orders')
-      .insert({
-        order_id: orderId,
-        customer_id: customer_id,
-        name: full_name.trim(),
-        email: email.trim(),
-        fb_link: facebook_link || null,
-        stems: stems || [],
-        fillers: fillers || [],
-        wrapping: wrapping || null,
-        addons: addons || [],
-        special_instructions: special_instructions || null,
-        total_fee: estimated_total || 0,
-        status: 'Pending'
-      })
+      .insert(customOrderData)
       .select()
       .single();
     
@@ -2222,9 +2260,21 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
                     <td style="padding: 10px 0; color: #ff6f9b; text-align: right; font-weight: 600;">₱${parseFloat(a.price).toFixed(2)}</td>
                   </tr>
                 `).join('') : ''}
+                ${req.body.voucher_code ? `
+                  <tr style="border-top: 2px solid #e0e0e0;">
+                    <td colspan="2" style="padding: 12px 0; color: #999; font-size: 14px;">Original Total</td>
+                    <td style="padding: 12px 0; color: #999; text-align: right; font-size: 14px; text-decoration: line-through;">₱${parseFloat(req.body.original_total || estimated_total).toLocaleString()}</td>
+                  </tr>
+                  <tr style="background: #e8f5e9;">
+                    <td colspan="2" style="padding: 12px 15px; color: #28a745; font-size: 14px;">
+                      <strong><i style="font-style: normal;"></i> Voucher (${req.body.voucher_code})</strong>
+                    </td>
+                    <td style="padding: 12px 15px; color: #28a745; text-align: right; font-size: 14px; font-weight: 600;">-₱${parseFloat(req.body.voucher_discount || 0).toFixed(2)}</td>
+                  </tr>
+                ` : ''}
                 <tr style="border-top: 2px solid #ff6f9b;">
-                  <td colspan="2" style="padding: 15px 0; color: #333; font-size: 16px; font-weight: 700;">Total</td>
-                  <td style="padding: 15px 0; color: #ff6f9b; text-align: right; font-size: 20px; font-weight: 700;">₱${parseFloat(estimated_total || 0).toLocaleString()}</td>
+                  <td colspan="2" style="padding: 15px 0; color: #333; font-size: 16px; font-weight: 700;">${req.body.voucher_code ? 'Final Total' : 'Total'}</td>
+                  <td style="padding: 15px 0; color: #ff6f9b; text-align: right; font-size: 20px; font-weight: 700;">₱${parseFloat(customOrderData.total_fee || 0).toLocaleString()}</td>
                 </tr>
               </table>
               ${special_instructions ? `
@@ -2284,7 +2334,12 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
         lines.push(`Special Instructions: ${special_instructions}`);
       }
       lines.push('----------------------------');
-      lines.push(`Total: ₱${Number(estimated_total).toLocaleString()}`);
+      if (req.body.voucher_code) {
+        lines.push(`Voucher: ${req.body.voucher_code}`);
+        lines.push(`Discount: -₱${parseFloat(req.body.voucher_discount || 0).toFixed(2)}`);
+        lines.push(`Original: ₱${Number(req.body.original_total || estimated_total).toLocaleString()}`);
+      }
+      lines.push(`Total: ₱${Number(customOrderData.total_fee).toLocaleString()}`);
       lines.push(`Status: Pending`);
       
       const customMessage = lines.join('\n');
@@ -2315,7 +2370,7 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
 router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { name, email, fb_link, status, total_fee, special_instructions, stems, fillers, wrapping, addons } = req.body;
+    const { name, email, fb_link, status, total_fee, special_instructions, stems, fillers, wrapping, addons, expected_delivery_date, rush } = req.body;
 
     console.log('Updating custom order:', orderId, 'with data:', req.body);
 
@@ -2339,6 +2394,8 @@ router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (total_fee !== undefined) updateData.total_fee = parseFloat(total_fee);
     if (special_instructions !== undefined) updateData.special_instructions = special_instructions;
+    if (expected_delivery_date !== undefined) updateData.expected_delivery_date = expected_delivery_date || null;
+    if (rush !== undefined) updateData.rush = rush || 'No';
     if (stems !== undefined) updateData.stems = stems;
     if (fillers !== undefined) updateData.fillers = fillers;
     if (wrapping !== undefined) updateData.wrapping = wrapping;
@@ -2434,6 +2491,47 @@ router.delete('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
   } catch (err) {
     console.error('Error deleting custom order:', err);
     return res.status(500).json({ error: 'Failed to delete order' });
+  }
+});
+
+// Get delivery dates with order counts for calendar display
+router.get('/orders/delivery-dates', async (req, res) => {
+  try {
+    // Fetch all orders with expected delivery dates
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('expected_delivery_date')
+      .not('expected_delivery_date', 'is', null);
+    
+    const { data: customOrders, error: customOrdersError } = await supabase
+      .from('custom_orders')
+      .select('expected_delivery_date')
+      .not('expected_delivery_date', 'is', null);
+    
+    if (ordersError || customOrdersError) {
+      throw new Error(ordersError?.message || customOrdersError?.message);
+    }
+    
+    // Combine and count orders by date
+    const allDates = [
+      ...(orders || []).map(o => o.expected_delivery_date),
+      ...(customOrders || []).map(o => o.expected_delivery_date)
+    ].filter(Boolean);
+    
+    const dateCounts = {};
+    allDates.forEach(date => {
+      dateCounts[date] = (dateCounts[date] || 0) + 1;
+    });
+    
+    const result = Object.keys(dateCounts).map(date => ({
+      date,
+      count: dateCounts[date]
+    }));
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching delivery dates:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery dates' });
   }
 });
 

@@ -41,6 +41,23 @@
   // small HTML-escape helper
   function escapeHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 
+  // Helper to safely parse JSONB fields that might be strings or already objects
+  function safeParseArray(field) {
+    if (!field) return [];
+    if (Array.isArray(field)) return field;
+    if (typeof field === 'string') {
+      try {
+        const parsed = JSON.parse(field);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.warn('Failed to parse field:', field, e);
+        return [];
+      }
+    }
+    if (typeof field === 'object') return [field];
+    return [];
+  }
+
   // Robust datetime formatter: accepts numbers (seconds or ms) or ISO strings
   function formatDateTime(v) {
     if (v == null) return '';
@@ -138,7 +155,16 @@
         const encoded = ev.currentTarget.dataset.id;
         const decodedId = encoded ? decodeURIComponent(encoded) : '';
         try {
-          const r = await fetch(`/api/admin/orders/${encodeURIComponent(decodedId)}`, { headers: { Authorization: `Bearer ${token}` } });
+          // Find the order to check if it's a custom order
+          const order = todos.find(o => (o.orderId || o.order_id || o.id) === decodedId);
+          const isCustom = order && order.order_type === 'custom';
+          
+          // Use appropriate endpoint based on order type
+          const endpoint = isCustom 
+            ? `/api/admin/orders/custom/${encodeURIComponent(decodedId)}`
+            : `/api/admin/orders/${encodeURIComponent(decodedId)}`;
+          
+          const r = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
           if (!r.ok) throw new Error('Failed to load order');
           const ord = await r.json();
           showOrderDetails(ord);
@@ -161,21 +187,142 @@
     const email = escapeHtml(ord.email || ord.user_email || '');
     const date = escapeHtml(new Date(ord.created_at || ord.createdAt || Date.now()).toLocaleString());
     const status = escapeHtml(ord.status || '');
-    const itemsHtml = (ord.items && ord.items.length) ? (ord.items.map(it => {
-      const nm = escapeHtml(it.name || it.flower_type || 'Item');
-      const color = escapeHtml(formatColor(it.color || it.color_name || ''));
-      return `<div>${nm}${color ? ' ('+color+')' : ''} ${it.quantity ? ('<small class="text-muted">×'+escapeHtml(String(it.quantity))+'</small>') : ''}</div>`;
-    }).join('')) : escapeHtml(String(ord.flower_type || ''));
+    const total = String(ord.total_fee || ord.total || '0');
+    
+    // Check if this is a custom order (either has order_type or has stems/fillers/wrapping fields)
+    const isCustom = ord.order_type === 'custom' || ord.stems || ord.fillers || ord.wrapping;
+    
+    let itemsHtml = '';
+    
+    if (isCustom) {
+      // Handle custom orders with stems, fillers, wrapping, addons
+      // Use safeParseArray to handle both string and object formats
+      const stems = safeParseArray(ord.stems);
+      const fillers = safeParseArray(ord.fillers);
+      const wrapping = safeParseArray(ord.wrapping);
+      const addons = safeParseArray(ord.addons);
+      
+      itemsHtml = '<div class="custom-order-items">';
+      
+      if (stems.length > 0) {
+        itemsHtml += '<div class="item-category mb-3"><div class="category-title"><i class="fas fa-seedling me-2"></i>Stems</div>';
+        stems.forEach(s => {
+          const qty = s.quantity ? ` <span class="item-qty">×${escapeHtml(String(s.quantity))}</span>` : '';
+          itemsHtml += `<div class="item-row"><span class="item-name">${escapeHtml(s.name || 'Stem')}${qty}</span><span class="item-price">₱${escapeHtml(String(s.price || 0))}</span></div>`;
+        });
+        itemsHtml += '</div>';
+      }
+      
+      if (fillers.length > 0) {
+        itemsHtml += '<div class="item-category mb-3"><div class="category-title"><i class="fas fa-leaf me-2"></i>Fillers</div>';
+        fillers.forEach(f => {
+          const qty = f.quantity ? ` <span class="item-qty">×${escapeHtml(String(f.quantity))}</span>` : '';
+          itemsHtml += `<div class="item-row"><span class="item-name">${escapeHtml(f.name || 'Filler')}${qty}</span><span class="item-price">₱${escapeHtml(String(f.price || 0))}</span></div>`;
+        });
+        itemsHtml += '</div>';
+      }
+      
+      if (wrapping.length > 0) {
+        itemsHtml += '<div class="item-category mb-3"><div class="category-title"><i class="fas fa-gift me-2"></i>Wrapping</div>';
+        wrapping.forEach(w => {
+          itemsHtml += `<div class="item-row"><span class="item-name">${escapeHtml(w.name || 'Wrapping')}</span><span class="item-price">₱${escapeHtml(String(w.price || 0))}</span></div>`;
+        });
+        itemsHtml += '</div>';
+      }
+      
+      if (addons.length > 0) {
+        itemsHtml += '<div class="item-category mb-3"><div class="category-title"><i class="fas fa-plus-circle me-2"></i>Add-ons</div>';
+        addons.forEach(a => {
+          itemsHtml += `<div class="item-row"><span class="item-name">${escapeHtml(a.name || 'Add-on')}</span><span class="item-price">₱${escapeHtml(String(a.price || 0))}</span></div>`;
+        });
+        itemsHtml += '</div>';
+      }
+      
+      itemsHtml += '</div>';
+      
+      if (!stems.length && !fillers.length && !wrapping.length && !addons.length) {
+        itemsHtml = '<div class="text-muted fst-italic">No items specified</div>';
+      }
+    } else {
+      // Handle regular orders
+      if (ord.items && ord.items.length) {
+        itemsHtml = '<div class="regular-order-items">';
+        ord.items.forEach(it => {
+          const nm = escapeHtml(it.name || it.flower_type || 'Item');
+          const color = escapeHtml(formatColor(it.color || it.color_name || ''));
+          const qty = it.quantity ? `<span class="item-qty">×${escapeHtml(String(it.quantity))}</span>` : '';
+          itemsHtml += `<div class="item-row"><span class="item-name">${nm}${color ? ` <span class="item-color">(${color})</span>` : ''}</span>${qty}</div>`;
+        });
+        itemsHtml += '</div>';
+      } else {
+        itemsHtml = '<div class="text-muted fst-italic">' + escapeHtml(String(ord.flower_type || 'No items')) + '</div>';
+      }
+    }
 
     orderDetailsContent.innerHTML = `
-      <div class="mb-2"><strong>Order ID:</strong> ${id}</div>
-      <div class="mb-2"><strong>Customer:</strong> ${name}${email ? (' — ' + email) : ''}</div>
-      <div class="mb-3"><strong>Items</strong><div class="mt-1">${itemsHtml}</div></div>
-      <div class="row">
-        <div class="col-sm-6"><strong>Status:</strong> <span class="badge ${statusBadgeClass(status)}">${status}</span></div>
-        <div class="col-sm-6"><strong>Placed:</strong> ${date}</div>
+      <div class="order-details-professional">
+        <div class="detail-header mb-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <div class="order-id-label">Order ID</div>
+              <div class="order-id-value">#${id}</div>
+            </div>
+            <span class="badge ${statusBadgeClass(status)} status-badge-large">${status}</span>
+          </div>
+          ${isCustom ? '<div class="alert alert-info mb-0 py-2 px-3"><i class="fas fa-palette me-2"></i><small><strong>Custom Bouquet Order</strong></small></div>' : ''}
+        </div>
+        
+        <div class="detail-section mb-4">
+          <div class="section-title"><i class="fas fa-user me-2"></i>Customer Information</div>
+          <div class="section-content">
+            <div class="info-row">
+              <span class="info-label">Name:</span>
+              <span class="info-value">${name}</span>
+            </div>
+            ${email ? `<div class="info-row"><span class="info-label">Email:</span><span class="info-value">${email}</span></div>` : ''}
+            <div class="info-row">
+              <span class="info-label">Order Date:</span>
+              <span class="info-value">${date}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section mb-4">
+          <div class="section-title"><i class="fas fa-box me-2"></i>Order Items</div>
+          <div class="section-content">
+            ${itemsHtml}
+          </div>
+        </div>
+        
+        <div class="detail-footer">
+          ${ord.voucher_code ? `
+            <div style="margin-bottom: 15px; padding: 15px; background: #e8f5e9; border-radius: 10px; border-left: 4px solid #28a745;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 600; color: #2e7d32;">
+                  <i class="fas fa-ticket-alt me-2"></i>Voucher Applied
+                </span>
+                <span class="badge bg-success" style="font-size: 14px; padding: 6px 12px;">
+                  ${escapeHtml(ord.voucher_code)}
+                </span>
+              </div>
+              <div style="font-size: 14px; color: #555;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                  <span>Original Total:</span>
+                  <span style="text-decoration: line-through; color: #999;">₱${escapeHtml(String(ord.original_total || total))}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: 600; color: #28a745;">
+                  <span>Discount:</span>
+                  <span>-₱${escapeHtml(String(ord.voucher_discount || '0.00'))}</span>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+          <div class="total-row">
+            <span class="total-label">${ord.voucher_code ? 'Final' : 'Total'} Amount:</span>
+            <span class="total-value">₱${total}</span>
+          </div>
+        </div>
       </div>
-      <div class="mt-2"><strong>Total:</strong> ${escapeHtml(String(ord.total_fee || ord.total || ''))}</div>
     `;
     detailsModal?.show();
   }

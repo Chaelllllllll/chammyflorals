@@ -10,6 +10,7 @@ const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const announcementsRoutes = require('./routes/announcements');
+const vouchersRoutes = require('./routes/vouchers');
 
 const app = express();
 
@@ -97,8 +98,11 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 
 // Register routes
+console.log('Registering routes...');
 app.use('/api/auth', authRoutes); // Customer authentication routes
 app.use('/api/announcements', announcementsRoutes); // Announcements routes
+app.use('/api/vouchers', vouchersRoutes); // Voucher routes (public validation + admin management)
+console.log('✅ Voucher routes registered at /api/vouchers');
 // Expose admin routes under /api/admin before the general /api router
 app.use('/api/admin', adminRoutes);
 app.use('/api', apiRoutes);

@@ -29,7 +29,7 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const session = require('express-session');
 
 // Try to load routes with error handling
-let passport, apiRoutes, adminRoutes, messengerRoutes, authRoutes, announcementsRoutes;
+let passport, apiRoutes, adminRoutes, messengerRoutes, authRoutes, announcementsRoutes, vouchersRoutes;
 
 try {
   passport = require('../src/config/passport');
@@ -71,6 +71,13 @@ try {
   console.log('✓ Announcements routes loaded');
 } catch (err) {
   console.error('✗ Failed to load announcements routes:', err.message);
+}
+
+try {
+  vouchersRoutes = require('../src/routes/vouchers');
+  console.log('✓ Vouchers routes loaded');
+} catch (err) {
+  console.error('✗ Failed to load vouchers routes:', err.message);
 }
 
 // Push notification routes removed per cleanup: push functionality disabled
@@ -235,6 +242,7 @@ app.get('/api/health', (req, res) => {
       api: !!apiRoutes,
       admin: !!adminRoutes,
       announcements: !!announcementsRoutes,
+      vouchers: !!vouchersRoutes,
       messenger: !!messengerRoutes
     },
     note: 'Google/Facebook OAuth removed'
@@ -252,6 +260,11 @@ if (authRoutes) {
 if (announcementsRoutes) {
   app.use('/api/announcements', announcementsRoutes);
   console.log('✓ Announcements routes registered at /api/announcements');
+}
+
+if (vouchersRoutes) {
+  app.use('/api/vouchers', vouchersRoutes);
+  console.log('✓ Vouchers routes registered at /api/vouchers');
 }
 
 // Push routes intentionally not registered (functionality removed)

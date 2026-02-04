@@ -341,7 +341,19 @@
           
           <!-- Total & Status -->
           <div class="border-top pt-3 mt-3 text-center">
-            <small class="text-muted d-block mb-2">Total Amount</small>
+            ${order.voucher_code ? `
+              <div class="alert alert-success py-2 mb-3" style="background: #e8f5e9; border: 1px solid #28a745;">
+                <small class="d-block mb-1 text-muted">Voucher Applied</small>
+                <span class="badge bg-success px-3 py-2" style="font-size: 14px;">
+                  <i class="fas fa-ticket-alt me-1"></i>${order.voucher_code}
+                </span>
+                <div class="mt-2 small">
+                  <div class="text-muted">Original: <span style="text-decoration: line-through;">₱${parseFloat(order.original_total || order.total_fee).toFixed(2)}</span></div>
+                  <div class="text-success fw-bold">Discount: -₱${parseFloat(order.voucher_discount || 0).toFixed(2)}</div>
+                </div>
+              </div>
+            ` : ''}
+            <small class="text-muted d-block mb-2">${order.voucher_code ? 'Final Amount' : 'Total Amount'}</small>
             <h3 class="text-pink fw-bold mb-2">₱${parseFloat(order.total_fee || 0).toFixed(2)}</h3>
             <span class="badge ${getStatusClass(order.status)} px-3 py-2">${order.status}</span>
           </div>
@@ -492,6 +504,9 @@
     const order = allOrders.find(o => o.order_id === orderId);
     if (!order) return;
 
+    // Store order reference globally for rush calculations
+    window.currentEditOrder = order;
+
     // Load available items first
     await loadAvailableItems();
 
@@ -499,16 +514,79 @@
     document.getElementById('editName').value = order.name || '';
     document.getElementById('editEmail').value = order.email || '';
     document.getElementById('editFbLink').value = order.fb_link || '';
+    document.getElementById('editDeliveryDate').value = order.expected_delivery_date || '';
     document.getElementById('editStatus').value = order.status || 'Pending';
     document.getElementById('editInstructions').value = order.special_instructions || '';
+
+    // Store voucher info for recalculation
+    window.currentEditVoucher = {
+      code: order.voucher_code || null,
+      discount_type: null,
+      discount_value: null,
+      max_discount: null,
+      original_discount: parseFloat(order.voucher_discount) || 0
+    };
 
     // Populate items
     populateEditItems(order);
     
-    // Calculate and set total
-    calculateEditTotal();
+    // Calculate and set total (check if current date makes it a rush order)
+    const isRush = order.rush === 'Yes' || (order.expected_delivery_date && (() => {
+      const deliveryDate = new Date(order.expected_delivery_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      deliveryDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 3;
+    })());
+    calculateEditTotal(isRush);
 
     new bootstrap.Modal(document.getElementById('editOrderModal')).show();
+    
+    // Initialize delivery calendar after modal is shown
+    setTimeout(() => {
+      if (document.getElementById('editDeliveryDate') && typeof DeliveryCalendar !== 'undefined') {
+        // Destroy existing calendar instance if any
+        if (window.customOrderEditCalendar) {
+          try {
+            if (window.customOrderEditCalendar.backdrop && window.customOrderEditCalendar.backdrop.parentNode) {
+              window.customOrderEditCalendar.backdrop.parentNode.removeChild(window.customOrderEditCalendar.backdrop);
+            }
+            if (window.customOrderEditCalendar.calendar && window.customOrderEditCalendar.calendar.parentNode) {
+              window.customOrderEditCalendar.calendar.parentNode.removeChild(window.customOrderEditCalendar.calendar);
+            }
+          } catch (e) {}
+        }
+        
+        window.customOrderEditCalendar = new DeliveryCalendar('editDeliveryDate', {
+          minDate: new Date(),
+          onChange: (dateStr) => {
+            document.getElementById('editDeliveryDate').value = dateStr;
+            
+            // Auto-set rush based on selected date (2-3 days from today)
+            const selectedDate = new Date(dateStr);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            selectedDate.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
+            
+            // Update rush status (stored in order object)
+            if (diffDays >= 0 && diffDays <= 3) {
+              // Set rush to Yes and recalculate total with rush fee
+              if (window.currentEditOrder) {
+                window.currentEditOrder.rush = 'Yes';
+              }
+              calculateEditTotal(true); // Pass true to indicate rush order
+            } else {
+              if (window.currentEditOrder) {
+                window.currentEditOrder.rush = 'No';
+              }
+              calculateEditTotal(false);
+            }
+          }
+        });
+      }
+    }, 100);
   }
 
   // Populate items in edit modal
@@ -533,6 +611,27 @@
     editOrderData = JSON.parse(JSON.stringify(order)); // Deep clone
     const container = document.getElementById('editItemsContainer');
     let html = '';
+    
+    // Show voucher information if present
+    if (order.voucher_code) {
+      html += `
+        <div class="alert alert-success mb-3" style="background: #e8f5e9; border: 1px solid #28a745;">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <i class="fas fa-ticket-alt fa-2x text-success"></i>
+            </div>
+            <div class="col">
+              <div class="fw-bold text-success mb-1">Voucher Applied: ${order.voucher_code}</div>
+              <small class="text-muted">
+                Original Total: <span style="text-decoration: line-through;">₱${parseFloat(order.original_total || 0).toFixed(2)}</span>
+                <span class="mx-2">•</span>
+                Discount: <span class="text-success fw-bold">-₱${parseFloat(order.voucher_discount || 0).toFixed(2)}</span>
+              </small>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     // Stems
     html += `
@@ -1003,7 +1102,7 @@
   }
 
   // Calculate total in edit modal
-  function calculateEditTotal() {
+  async function calculateEditTotal(isRushOrder = false) {
     let total = 0;
 
     // Sum all item subtotals
@@ -1024,6 +1123,19 @@
       const addonPrice = parseFloat(row.dataset.addonPrice) || 0;
       total += addonPrice;
     });
+
+    // Add rush fee if applicable (get from database)
+    if (isRushOrder) {
+      const rushFee = await getRushFee();
+      total += rushFee;
+    }
+
+    // Apply voucher discount if present
+    if (window.currentEditVoucher && window.currentEditVoucher.code && window.currentEditVoucher.original_discount > 0) {
+      // Calculate discount proportionally based on original
+      const discount = window.currentEditVoucher.original_discount;
+      total = Math.max(0, total - discount);
+    }
 
     document.getElementById('editTotalFee').value = total.toFixed(2);
   }
@@ -1106,10 +1218,43 @@
     }
     console.log('Collected addons:', addons);
 
+    // Format delivery date properly (must be YYYY-MM-DD or null)
+    let deliveryDate = document.getElementById('editDeliveryDate').value || null;
+    if (deliveryDate) {
+      // Ensure it's in YYYY-MM-DD format
+      try {
+        const dateObj = new Date(deliveryDate);
+        if (!isNaN(dateObj.getTime())) {
+          const year = dateObj.getFullYear();
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          deliveryDate = `${year}-${month}-${day}`;
+        }
+      } catch (e) {
+        console.error('Error formatting delivery date:', e);
+        deliveryDate = null;
+      }
+    }
+
+    // Determine rush status based on delivery date
+    let isRush = 'No';
+    if (deliveryDate) {
+      const selectedDate = new Date(deliveryDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= 3) {
+        isRush = 'Yes';
+      }
+    }
+
     const updatedData = {
       name: document.getElementById('editName').value,
       email: document.getElementById('editEmail').value,
       fb_link: document.getElementById('editFbLink').value,
+      expected_delivery_date: deliveryDate,
+      rush: isRush,
       status: document.getElementById('editStatus').value,
       total_fee: parseFloat(document.getElementById('editTotalFee').value),
       special_instructions: document.getElementById('editInstructions').value,
@@ -1248,10 +1393,108 @@
     addAddon
   };
 
+  // Rush Fee Settings
+  async function getRushFee() {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/settings/rush-fee`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch rush fee');
+      }
+      
+      const data = await response.json();
+      return data.rushFee || 50;
+    } catch (error) {
+      console.error('Error fetching rush fee:', error);
+      return 50; // Default fallback
+    }
+  }
+
+  async function saveRushFee(amount) {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_URL}/api/admin/settings/rush-fee`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ rushFee: amount })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save rush fee');
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving rush fee:', error);
+      showError('Failed to save rush fee setting');
+      return false;
+    }
+  }
+
+  function initRushFeeSettings() {
+    const rushFeeBtn = document.getElementById('rushFeeSettingsBtn');
+    const saveRushFeeBtn = document.getElementById('saveRushFeeBtn');
+    const rushFeeInput = document.getElementById('rushFeeAmount');
+
+    if (rushFeeBtn) {
+      rushFeeBtn.addEventListener('click', async () => {
+        // Load current fee when opening modal
+        const currentFee = await getRushFee();
+        rushFeeInput.value = currentFee;
+        const modal = new bootstrap.Modal(document.getElementById('rushFeeModal'));
+        modal.show();
+      });
+    }
+
+    if (saveRushFeeBtn) {
+      saveRushFeeBtn.addEventListener('click', async () => {
+        const fee = parseFloat(rushFeeInput.value) || 50;
+        const success = await saveRushFee(fee);
+        
+        if (success) {
+          // Close modal
+          const modal = bootstrap.Modal.getInstance(document.getElementById('rushFeeModal'));
+          modal.hide();
+          
+          // Show success message
+          showSuccess('Rush fee updated successfully!');
+          
+          // Recalculate total if edit modal is open
+          if (window.currentEditOrder) {
+            const deliveryDateInput = document.getElementById('editDeliveryDate');
+            if (deliveryDateInput && deliveryDateInput.value) {
+              const deliveryDate = new Date(deliveryDateInput.value);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              deliveryDate.setHours(0, 0, 0, 0);
+              const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
+              const isRush = diffDays >= 0 && diffDays <= 3;
+              await calculateEditTotal(isRush);
+            }
+          }
+        }
+      });
+    }
+  }
+
   // Run on DOM ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+      init();
+      initRushFeeSettings();
+    });
   } else {
     init();
+    initRushFeeSettings();
   }
 })();

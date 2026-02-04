@@ -19,6 +19,9 @@ function orderConfirmationTemplate(order) {
         <li><strong>Flower Type:</strong> ${escapeHtml(order.flower_type)}</li>
         <li><strong>Quantity:</strong> ${escapeHtml(String(order.quantity))}</li>
         <li><strong>Add-ons:</strong> ${escapeHtml(addons)}</li>
+        ${order.voucher_code ? `<li><strong>Voucher Applied:</strong> <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: bold;">${escapeHtml(order.voucher_code)}</span></li>` : ''}
+        ${order.voucher_discount ? `<li><strong>Discount:</strong> <span style="color: #28a745; font-weight: bold;">-₱${escapeHtml(String(order.voucher_discount))}</span></li>` : ''}
+        ${order.original_total && order.voucher_discount ? `<li><strong>Original Total:</strong> <span style="text-decoration: line-through; color: #999;">₱${escapeHtml(String(order.original_total))}</span></li>` : ''}
         <li><strong>Total Fee:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
         <li><strong>Status:</strong> ${escapeHtml(order.status || 'pending')}</li>
       </ul>
@@ -40,6 +43,7 @@ function statusUpdateTemplate(order, previousStatus) {
       <p><strong>Previous status:</strong> ${escapeHtml(previousStatus || 'N/A')}<br/>
       <strong>Current status:</strong> ${escapeHtml(order.status || 'updated')}</p>
       <p><strong>Flower Type:</strong> ${escapeHtml(order.flower_type)}<br/>
+      ${order.voucher_code ? `<strong>Voucher Applied:</strong> <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: bold;">${escapeHtml(order.voucher_code)}</span> (Saved ₱${escapeHtml(String(order.voucher_discount || '0'))})<br/>` : ''}
       <strong>Total Fee:</strong> ₱${escapeHtml(String(order.total_fee || '0'))}</p>
       <p>If you have any questions, please reply to this email.</p>
       <hr />
@@ -61,6 +65,9 @@ function deliveredTemplate(order) {
         <li><strong>Flower Type:</strong> ${escapeHtml(order.flower_type)}</li>
         <li><strong>Quantity:</strong> ${escapeHtml(String(order.quantity))}</li>
         <li><strong>Add-ons:</strong> ${escapeHtml(addons)}</li>
+        ${order.voucher_code ? `<li><strong>Voucher Applied:</strong> <span style="background: #28a745; color: white; padding: 4px 12px; border-radius: 6px; font-weight: bold;">${escapeHtml(order.voucher_code)}</span></li>` : ''}
+        ${order.voucher_discount ? `<li><strong>Discount:</strong> <span style="color: #28a745; font-weight: bold;">-₱${escapeHtml(String(order.voucher_discount))}</span></li>` : ''}
+        ${order.original_total && order.voucher_discount ? `<li><strong>Original Total:</strong> <span style="text-decoration: line-through; color: #999;">₱${escapeHtml(String(order.original_total))}</span></li>` : ''}
         <li><strong>Total:</strong> ₱${escapeHtml(String(order.total_fee))}</li>
       </ul>
       ${order.receiver_name || typeof order.payment_received !== 'undefined' || order.delivered_by ? `

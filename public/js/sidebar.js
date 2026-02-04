@@ -41,7 +41,9 @@ function toggleSidebar() {
   } else {
     // Mobile behavior
     sidebar.classList.toggle('show');
-    sidebarOverlay.classList.toggle('show');
+    if (sidebarOverlay) {
+      sidebarOverlay.classList.toggle('show');
+    }
     sidebarToggle.classList.toggle('sidebar-open');
     document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
   }
@@ -67,7 +69,9 @@ sidebarLinks.forEach(link => {
       if (window.innerWidth <= 992) {
         // Mobile only: close overlay
         sidebar.classList.remove('show');
-        sidebarOverlay.classList.remove('show');
+        if (sidebarOverlay) {
+          sidebarOverlay.classList.remove('show');
+        }
         document.body.style.overflow = '';
       }
       // Desktop: keep sidebar open, don't auto-collapse
@@ -79,7 +83,9 @@ sidebarLinks.forEach(link => {
 window.addEventListener('resize', () => {
   if (window.innerWidth > 992) {
     sidebar.classList.remove('show');
-    sidebarOverlay.classList.remove('show');
+    if (sidebarOverlay) {
+      sidebarOverlay.classList.remove('show');
+    }
     document.body.style.overflow = '';
   }
 });

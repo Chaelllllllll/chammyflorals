@@ -350,8 +350,25 @@
       total += item.price;
     });
     
-    totalEl.textContent = `₱${total.toFixed(2)}`;
+    // Add rush fee if applicable
+    const rushInput = document.querySelector('input[name="custom_rush"]');
+    if (rushInput && rushInput.value === 'Yes') {
+      // Get rush fee from settings (default 50)
+      const rushFee = window._customRushFee || 50;
+      total += rushFee;
+    }
+    
+    // Update via voucher handler if available (handles discount display)
+    if (window.customVoucherHandler) {
+      window.customVoucherHandler.setCurrentTotal(total);
+    } else {
+      // Fallback: update display directly
+      totalEl.textContent = `₱${total.toFixed(2)}`;
+    }
   }
+  
+  // Make updateOrderSummary globally accessible for rush date changes
+  window.calculateCustomOrderTotal = updateOrderSummary;
 
   // Reset form
   function resetForm() {
@@ -396,6 +413,18 @@
       return;
     }
     
+    // Check if user has entered voucher code but hasn't applied it
+    const voucherInput = document.getElementById('customVoucherCodeInput');
+    const hasVoucherCode = voucherInput && voucherInput.value.trim() !== '';
+    const voucherApplied = window.customVoucherHandler && window.customVoucherHandler.hasVoucher();
+    
+    if (hasVoucherCode && !voucherApplied) {
+      const proceed = await showVoucherWarningModal();
+      if (!proceed) {
+        return;
+      }
+    }
+    
     // Validate required items (stems, fillers, wrapping)
     if (selectedItems.stems.length === 0) {
       alertWarning('Please select at least one stem for your custom order.');
@@ -432,9 +461,16 @@
     const email = formData.get('custom_user_email')?.trim();
     const facebookLink = formData.get('custom_fb_link')?.trim();
     const specialInstructions = formData.get('custom_message')?.trim();
+    const expectedDeliveryDate = formData.get('custom_expected_delivery_date')?.trim();
+    const rush = formData.get('custom_rush')?.trim() || 'No';
     
     if (!fullName || !email || !facebookLink) {
       alertWarning('Please fill in your name, email, and Facebook profile link.');
+      return;
+    }
+
+    if (!expectedDeliveryDate) {
+      alertWarning('Please select an expected delivery date.');
       return;
     }
     
@@ -458,20 +494,34 @@
         headers['Authorization'] = `Bearer ${token}`;
       }
       
+      // Prepare order data
+      const orderData = {
+        full_name: fullName,
+        email: email,
+        facebook_link: facebookLink || null,
+        stems: selectedItems.stems,
+        fillers: selectedItems.fillers,
+        wrapping: selectedItems.wrapping,
+        addons: selectedItems.addons,
+        special_instructions: specialInstructions || null,
+        expected_delivery_date: expectedDeliveryDate,
+        rush: rush,
+        estimated_total: total
+      };
+
+      // Add voucher information if applied
+      if (window.customVoucherHandler && window.customVoucherHandler.hasVoucher()) {
+        const voucherData = window.customVoucherHandler.getAppliedVoucher();
+        orderData.voucher_code = voucherData.voucher.code;
+        orderData.voucher_id = voucherData.voucher.id;
+        orderData.voucher_discount = voucherData.discountAmount;
+        orderData.original_total = voucherData.originalTotal;
+      }
+
       const res = await fetch(`${API_URL}/api/orders/custom`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({
-          full_name: fullName,
-          email: email,
-          facebook_link: facebookLink || null,
-          stems: selectedItems.stems,
-          fillers: selectedItems.fillers,
-          wrapping: selectedItems.wrapping,
-          addons: selectedItems.addons,
-          special_instructions: specialInstructions || null,
-          estimated_total: total
-        })
+        body: JSON.stringify(orderData)
       });
       
       const data = await res.json();
@@ -480,6 +530,25 @@
         throw new Error(data.error || 'Failed to submit order');
       }
       
+      // Record voucher usage if voucher was applied
+      if (orderData.voucher_id && orderData.voucher_code) {
+        try {
+          await fetch(`${API_URL}/api/vouchers/use`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              voucherId: orderData.voucher_id,
+              orderId: data.order_number || data.orderId,
+              customerEmail: email,
+              customerId: null,
+              discountAmount: orderData.voucher_discount
+            })
+          });
+        } catch (voucherErr) {
+          console.error('Failed to record voucher usage:', voucherErr);
+        }
+      }
+
       // Success!
       bootstrap.Modal.getInstance(document.getElementById('customizeOrderModal'))?.hide();
       

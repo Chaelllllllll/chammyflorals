@@ -12,6 +12,7 @@
   <link rel="shortcut icon" href="https://chammyflorals.vercel.app/flowers/cherry-blossom.png" type="image/x-icon">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="/css/delivery-calendar.css">
     <style>
     body { overflow-x: hidden; }
 
@@ -573,6 +574,43 @@
           <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
               <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">4</div>
+              <h6 class="mb-0 fw-bold">Discount Voucher</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-lg-8 col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-ticket text-pink me-2"></i>Voucher Code
+                </label>
+                <div class="input-group">
+                  <input type="text" id="voucherCodeInput" class="form-control" placeholder="Enter voucher code" style="text-transform: uppercase;">
+                  <button type="button" class="btn btn-outline-pink" id="applyVoucherBtn">
+                    <i class="fa fa-check me-2"></i>Apply
+                  </button>
+                </div>
+                <div id="voucherFeedback" class="mt-2"></div>
+              </div>
+              <div class="col-lg-4 col-12">
+                <label class="form-label fw-semibold">Order Total</label>
+                <div class="card bg-light border-0">
+                  <div class="card-body p-2">
+                    <div id="orderOriginalTotal" class="text-muted small" style="display: none;">
+                      <del>₱<span id="originalTotalAmount">0</span></del>
+                    </div>
+                    <div class="h4 mb-0 text-pink">
+                      ₱<span id="orderFinalTotal">0</span>
+                    </div>
+                    <div id="orderDiscountBadge" class="badge bg-success mt-1" style="display: none;">
+                      <i class="fa fa-tag me-1"></i><span id="orderDiscountAmount">0</span> OFF
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">5</div>
               <h6 class="mb-0 fw-bold">Additional Details</h6>
             </div>
             <div class="row g-3">
@@ -584,12 +622,15 @@
               </div>
               <div class="col-lg-4 col-12">
                 <label class="form-label fw-semibold">
-                  <i class="fa fa-bolt text-pink me-2"></i>Rush Order?
+                  <i class="fa fa-calendar text-pink me-2"></i>Expected Delivery Date
                 </label>
-                <select name="rush" class="form-select" required>
-                  <option value="No">No - Standard Processing</option>
-                  <option value="Yes">Yes - Rush Order (additional fee may apply)</option>
-                </select>
+                <input type="text" id="deliveryDatePicker" name="expected_delivery_date" class="form-control" placeholder="Select delivery date" required>
+                <input type="hidden" name="rush" value="No">
+                <div id="rushNotification" class="mt-2" style="display: none;">
+                  <div class="alert alert-warning alert-sm py-2 px-3">
+                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 2-3 days</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -616,6 +657,30 @@
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="voucherWarningModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" style="z-index: 1060;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header border-0" style="background: linear-gradient(135deg, #fff4f7 0%, #ffe9f0 100%);">
+        <h5 class="modal-title fw-bold" style="color: #ff6f9b;">
+          <i class="fa fa-exclamation-triangle me-2"></i>Voucher Not Applied
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="mb-0">You have entered a voucher code but haven't applied it yet. Do you want to proceed without the discount?</p>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary" id="voucherWarningProceed">
+          <i class="fa fa-forward me-2"></i>Proceed Without Discount
+        </button>
+        <button type="button" class="btn btn-pink" data-bs-dismiss="modal">
+          <i class="fa fa-arrow-left me-2"></i>Go Back to Apply
+        </button>
       </div>
     </div>
   </div>
@@ -770,14 +835,48 @@
 
           </div>
 
-          <!-- Section 6: Special Instructions -->
+          <!-- Section 6: Voucher -->
           <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
               <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">6</div>
-              <h6 class="mb-0 fw-bold">Additional Details</h6>
+              <h6 class="mb-0 fw-bold">Discount Voucher</h6>
             </div>
             <div class="row g-3">
               <div class="col-12">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-ticket me-2" style="color: #ff6f9b;"></i>Voucher Code
+                </label>
+                <div class="input-group">
+                  <input type="text" id="customVoucherCodeInput" class="form-control" placeholder="Enter voucher code" style="text-transform: uppercase;">
+                  <button type="button" class="btn" id="applyCustomVoucherBtn" style="background: #ff6f9b; color: white;">
+                    <i class="fa fa-check me-2"></i>Apply
+                  </button>
+                </div>
+                <div id="customVoucherFeedback" class="mt-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 7: Delivery Date & Additional Details -->
+          <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">7</div>
+              <h6 class="mb-0 fw-bold">Delivery Date & Additional Details</h6>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                  <i class="fa fa-calendar me-2" style="color: #ff6f9b;"></i>Expected Delivery Date
+                </label>
+                <input type="text" id="customDeliveryDatePicker" name="custom_expected_delivery_date" class="form-control" placeholder="Select delivery date" required>
+                <input type="hidden" name="custom_rush" value="No">
+                <div id="customRushNotification" class="mt-2" style="display: none;">
+                  <div class="alert alert-warning alert-sm py-2 px-3">
+                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 2-3 days</small>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
                 <label class="form-label fw-semibold">
                   <i class="fa fa-comment me-2" style="color: #ff6f9b;"></i>Special Message or Instructions
                 </label>
@@ -788,11 +887,21 @@
 
           <!-- Order Summary -->
           <div class="mb-4 p-3 rounded-3" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center mb-2">
               <h6 class="mb-0 fw-bold" style="color: #ff6f9b;">
                 <i class="fa fa-receipt me-2"></i>Estimated Total
               </h6>
-              <span class="fs-4 fw-bold" style="color: #ff6f9b;" id="customOrderTotal">₱0.00</span>
+              <div class="text-end">
+                <div id="customOrderOriginalTotal" class="text-muted small" style="display: none;">
+                  <del>₱<span id="customOriginalTotalAmount">0</span></del>
+                </div>
+                <span class="fs-4 fw-bold" style="color: #ff6f9b;" id="customOrderTotal">₱0.00</span>
+              </div>
+            </div>
+            <div id="customOrderDiscountBadge" class="text-end" style="display: none;">
+              <span class="badge bg-success">
+                <i class="fa fa-tag me-1"></i>₱<span id="customOrderDiscountAmount">0</span> Discount Applied
+              </span>
             </div>
           </div>
 
@@ -824,10 +933,126 @@
 </div>
 
   <script src="/js/alert.js"></script>
+  <script src="/js/voucher-handler.js"></script>
+  <script src="/js/delivery-calendar.js"></script>
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
   <script src="/js/auth.js"></script>
+  <script>
+    // Initialize custom delivery date calendars
+    let regularOrderCalendar = null;
+    let customOrderCalendar = null;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Prevent manual typing in date inputs
+      const deliveryDatePicker = document.getElementById('deliveryDatePicker');
+      if (deliveryDatePicker) {
+        deliveryDatePicker.addEventListener('keydown', (e) => {
+          e.preventDefault();
+        });
+      }
+      
+      const customDeliveryDatePicker = document.getElementById('customDeliveryDatePicker');
+      if (customDeliveryDatePicker) {
+        customDeliveryDatePicker.addEventListener('keydown', (e) => {
+          e.preventDefault();
+        });
+      }
+      
+      // Initialize regular order date picker when modal is shown
+      const orderModal = document.getElementById('inquiryModal');
+      if (orderModal) {
+        orderModal.addEventListener('shown.bs.modal', function() {
+          const dateInput = document.getElementById('deliveryDatePicker');
+          if (dateInput && !regularOrderCalendar) {
+            regularOrderCalendar = new DeliveryCalendar('deliveryDatePicker', {
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d; })(),
+              onChange: (selectedDate, dateStr) => {
+                const input = document.getElementById('deliveryDatePicker');
+                input.value = dateStr;
+                
+                const rushInput = document.querySelector('input[name="rush"]');
+                const rushNotif = document.getElementById('rushNotification');
+                
+                if (!dateStr) {
+                  rushInput.value = 'No';
+                  rushNotif.style.display = 'none';
+                  return;
+                }
+                
+                const date = new Date(dateStr);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 3 && diffDays >= 0) {
+                  rushInput.value = 'Yes';
+                  rushNotif.style.display = 'block';
+                } else {
+                  rushInput.value = 'No';
+                  rushNotif.style.display = 'none';
+                }
+                
+                // Trigger total recalculation
+                if (window.calculateOrderTotal) {
+                  window.calculateOrderTotal();
+                }
+              }
+            });
+          } else if (regularOrderCalendar) {
+            regularOrderCalendar.refresh();
+          }
+        });
+      }
+      
+      // Initialize custom order date picker when modal is shown
+      const customOrderModal = document.getElementById('customizeOrderModal');
+      if (customOrderModal) {
+        customOrderModal.addEventListener('shown.bs.modal', function() {
+          const dateInput = document.getElementById('customDeliveryDatePicker');
+          if (dateInput && !customOrderCalendar) {
+            customOrderCalendar = new DeliveryCalendar('customDeliveryDatePicker', {
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d; })(),
+              onChange: (selectedDate, dateStr) => {
+                const input = document.getElementById('customDeliveryDatePicker');
+                input.value = dateStr;
+                
+                const rushInput = document.querySelector('input[name="custom_rush"]');
+                const rushNotif = document.getElementById('customRushNotification');
+                
+                if (!dateStr) {
+                  rushInput.value = 'No';
+                  rushNotif.style.display = 'none';
+                  return;
+                }
+                
+                const date = new Date(dateStr);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 3 && diffDays >= 0) {
+                  rushInput.value = 'Yes';
+                  rushNotif.style.display = 'block';
+                } else {
+                  rushInput.value = 'No';
+                  rushNotif.style.display = 'none';
+                }
+                
+                // Trigger total recalculation for custom order
+                if (window.calculateCustomOrderTotal) {
+                  window.calculateCustomOrderTotal();
+                }
+              }
+            });
+          } else if (customOrderCalendar) {
+            customOrderCalendar.refresh();
+          }
+        });
+      }
+    });
+  </script>
   <style>
     /* Announcements Section */
     .announcements-section {
