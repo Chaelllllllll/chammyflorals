@@ -290,7 +290,173 @@
 /* Responsive adjustments */
 @media (max-width: 576px) {
   .delivery-calendar {
-    width: 100%;
-    max-width: 320px;
+    width: calc(100vw - 32px);
+    max-width: 100%;
+    padding: 16px;
+    border-radius: 8px;
+  }
+  
+  .delivery-calendar-modal {
+    width: calc(100vw - 32px);
+    max-width: 100%;
+  }
+  
+  .calendar-header {
+    padding: 6px;
+    margin-bottom: 12px;
+  }
+  
+  .calendar-month-year {
+    font-size: 14px;
+  }
+  
+  .calendar-nav-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .calendar-weekdays {
+    padding: 6px 4px;
+    gap: 2px;
+  }
+  
+  .calendar-weekdays > div {
+    font-size: 11px;
+  }
+  
+  .calendar-days {
+    gap: 4px;
+  }
+  
+  .calendar-day {
+    min-height: 42px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+  
+  .calendar-day .day-number {
+    font-size: 14px;
+  }
+  
+  .calendar-day .order-count {
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+    bottom: 2px;
+    right: 2px;
+  }
+  
+  .calendar-day .rush-indicator {
+    font-size: 9px;
+    top: 2px;
+    left: 2px;
+  }
+  
+  .calendar-footer {
+    padding: 6px 0;
+    gap: 6px;
+  }
+  
+  .calendar-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .calendar-legend {
+    padding: 8px;
+    gap: 8px;
+  }
+  
+  .legend-icon {
+    width: 14px;
+    height: 14px;
+  }
+  
+  .legend-text {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 400px) {
+  .delivery-calendar {
+    width: calc(100vw - 24px);
+    padding: 12px;
+  }
+  
+  .delivery-calendar-modal {
+    width: calc(100vw - 24px);
+  }
+  
+  .calendar-header {
+    padding: 4px;
+    margin-bottom: 10px;
+  }
+  
+  .calendar-month-year {
+    font-size: 13px;
+  }
+  
+  .calendar-nav-btn {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+  
+  .calendar-weekdays {
+    padding: 4px 2px;
+  }
+  
+  .calendar-weekdays > div {
+    font-size: 10px;
+  }
+  
+  .calendar-days {
+    gap: 3px;
+  }
+  
+  .calendar-day {
+    min-height: 38px;
+    font-size: 13px;
+    border-radius: 4px;
+  }
+  
+  .calendar-day .day-number {
+    font-size: 13px;
+  }
+  
+  .calendar-day .order-count {
+    width: 16px;
+    height: 16px;
+    font-size: 8px;
+  }
+  
+  .calendar-day .rush-indicator {
+    font-size: 8px;
+  }
+  
+  .calendar-footer {
+    padding: 4px 0;
+    gap: 4px;
+  }
+  
+  .calendar-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  
+  .calendar-legend {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .legend-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 8px;
+  }
+  
+  .legend-text {
+    font-size: 9px;
   }
 }
