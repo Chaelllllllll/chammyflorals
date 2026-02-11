@@ -1149,6 +1149,28 @@ router.get('/categories', cacheMiddleware(600), async (req, res) => {
   }
 });
 
+// GET public rush fee setting
+router.get('/settings/rush-fee', cacheMiddleware(600), async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'rush_fee')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching rush fee setting:', error);
+    }
+    
+    // Default to 50 if not found
+    const rushFee = data ? parseFloat(data.setting_value) : 50;
+    res.json({ rushFee });
+  } catch (err) {
+    console.error('Unexpected error fetching rush fee:', err);
+    res.json({ rushFee: 50 }); // Return default on error
+  }
+});
+
 // Reviews endpoints (public)
 // GET /reviews - list recent reviews
 // Cache for 5 minutes (reviews change less frequently)
@@ -2502,16 +2524,18 @@ router.delete('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
 // Get delivery dates with order counts for calendar display
 router.get('/orders/delivery-dates', async (req, res) => {
   try {
-    // Fetch all orders with expected delivery dates
+    // Fetch all orders with expected delivery dates (excluding delivered orders)
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('expected_delivery_date')
-      .not('expected_delivery_date', 'is', null);
+      .not('expected_delivery_date', 'is', null)
+      .neq('status', 'Delivered');
     
     const { data: customOrders, error: customOrdersError } = await supabase
       .from('custom_orders')
       .select('expected_delivery_date')
-      .not('expected_delivery_date', 'is', null);
+      .not('expected_delivery_date', 'is', null)
+      .neq('status', 'Delivered');
     
     if (ordersError || customOrdersError) {
       throw new Error(ordersError?.message || customOrdersError?.message);

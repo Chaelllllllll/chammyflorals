@@ -1377,7 +1377,7 @@ function openEditModal(orderId) {
         onChange: (dateStr) => {
           document.getElementById('adminEditDeliveryDate').value = dateStr;
           
-          // Auto-set rush based on selected date (2-3 days from today)
+          // Auto-set rush based on selected date (3 days from today)
           const selectedDate = new Date(dateStr);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -1386,7 +1386,7 @@ function openEditModal(orderId) {
           
           const rushSelect = document.querySelector('#editOrderForm select[name="rush"]');
           if (rushSelect) {
-            if (diffDays >= 0 && diffDays <= 3) {
+            if (diffDays >= 1 && diffDays <= 3) {
               rushSelect.value = 'Yes';
             } else {
               rushSelect.value = 'No';

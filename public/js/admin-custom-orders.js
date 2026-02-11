@@ -536,7 +536,7 @@
       today.setHours(0, 0, 0, 0);
       deliveryDate.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 && diffDays <= 3;
+      return diffDays >= 1 && diffDays <= 3;
     })());
     calculateEditTotal(isRush);
 
@@ -562,7 +562,7 @@
           onChange: (dateStr) => {
             document.getElementById('editDeliveryDate').value = dateStr;
             
-            // Auto-set rush based on selected date (2-3 days from today)
+            // Auto-set rush based on selected date (3 days from today)
             const selectedDate = new Date(dateStr);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -570,7 +570,7 @@
             const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
             
             // Update rush status (stored in order object)
-            if (diffDays >= 0 && diffDays <= 3) {
+            if (diffDays >= 0 && diffDays <== 3) {
               // Set rush to Yes and recalculate total with rush fee
               if (window.currentEditOrder) {
                 window.currentEditOrder.rush = 'Yes';
@@ -1227,7 +1227,7 @@
       today.setHours(0, 0, 0, 0);
       selectedDate.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
-      if (diffDays >= 0 && diffDays <= 3) {
+      if (diffDays >= 1 && diffDays <= 3) {
         isRush = 'Yes';
       }
     }
@@ -1453,7 +1453,7 @@
               today.setHours(0, 0, 0, 0);
               deliveryDate.setHours(0, 0, 0, 0);
               const diffDays = Math.ceil((deliveryDate - today) / (1000 * 60 * 60 * 24));
-              const isRush = diffDays >= 0 && diffDays <= 3;
+              const isRush = diffDays >= 1 && diffDays <= 3;
               await calculateEditTotal(isRush);
             }
           }

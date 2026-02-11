@@ -2431,7 +2431,7 @@ router.put('/settings/rush-fee', auth, async (req, res) => {
       .upsert({
         setting_key: 'rush_fee',
         setting_value: fee.toString(),
-        description: 'Rush fee amount (in PHP) for orders with delivery dates within 2-3 days',
+        description: 'Rush fee amount (in PHP) for orders with delivery dates within 3 days',
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'setting_key'

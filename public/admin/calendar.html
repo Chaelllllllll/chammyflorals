@@ -899,13 +899,13 @@
 
         // regularData is already an array, not wrapped in {orders: []}
         const regularOrders = (Array.isArray(regularData) ? regularData : (regularData.orders || []))
-          .filter(o => o.expected_delivery_date === dateStr)
+          .filter(o => o.expected_delivery_date === dateStr && o.status !== 'Delivered')
           .map(o => {
             return { ...o, type: 'Regular', displayId: o.order_id || o.orderId || `#${o.id.substring(0, 8)}` };
           });
 
         const customOrders = (Array.isArray(customData) ? customData : (customData.orders || []))
-          .filter(o => o.expected_delivery_date === dateStr)
+          .filter(o => o.expected_delivery_date === dateStr && o.status !== 'Delivered')
           .map(o => {
             return { ...o, type: 'Custom', displayId: o.order_id || o.orderId || `#${o.id.substring(0, 8)}` };
           });

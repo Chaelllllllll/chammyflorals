@@ -16,6 +16,19 @@
     addons: []      // { id, name, price }
   };
 
+  // Load rush fee setting from API
+  async function loadRushFeeSetting() {
+    try {
+      const res = await fetch(`${API_URL}/api/settings/rush-fee`);
+      if (!res.ok) throw new Error('Failed to load rush fee');
+      const data = await res.json();
+      window._customRushFee = data.rushFee || 50;
+    } catch (err) {
+      console.error('Failed to load rush fee setting:', err);
+      window._customRushFee = 50; // Default fallback
+    }
+  }
+
   // Load customization options from API
   async function loadCustomizationOptions() {
     try {
@@ -737,6 +750,7 @@
       }
       
       loadCustomizationOptions();
+      loadRushFeeSetting();
       prefillUserInfo();
     });
     

@@ -104,7 +104,7 @@ class DeliveryCalendar {
     
     const diffTime = date - today;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 3;
+    return diffDays >= 1 && diffDays <= 3;
   }
   
   renderCalendar() {
@@ -204,7 +204,7 @@ class DeliveryCalendar {
       <div class="calendar-legend">
         <div class="legend-item">
           <span class="legend-icon rush-icon"><i class="fa fa-bolt"></i></span>
-          <span class="legend-text">Rush (2-3 days)</span>
+          <span class="legend-text">Rush (3 days)</span>
         </div>
       </div>
     `;

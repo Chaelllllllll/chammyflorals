@@ -628,7 +628,7 @@
                 <input type="hidden" name="rush" value="No">
                 <div id="rushNotification" class="mt-2" style="display: none;">
                   <div class="alert alert-warning alert-sm py-2 px-3">
-                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 2-3 days</small>
+                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 3 days</small>
                   </div>
                 </div>
               </div>
@@ -872,7 +872,7 @@
                 <input type="hidden" name="custom_rush" value="No">
                 <div id="customRushNotification" class="mt-2" style="display: none;">
                   <div class="alert alert-warning alert-sm py-2 px-3">
-                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 2-3 days</small>
+                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 3 days</small>
                   </div>
                 </div>
               </div>
@@ -982,11 +982,12 @@
                 }
                 
                 const date = new Date(dateStr);
+                date.setHours(0, 0, 0, 0);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
                 
-                if (diffDays <= 3 && diffDays >= 0) {
+                if (diffDays >= 1 && diffDays <= 3) {
                   rushInput.value = 'Yes';
                   rushNotif.style.display = 'block';
                 } else {
@@ -1028,11 +1029,12 @@
                 }
                 
                 const date = new Date(dateStr);
+                date.setHours(0, 0, 0, 0);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
                 
-                if (diffDays <= 3 && diffDays >= 0) {
+                if (diffDays >= 1 && diffDays <= 3) {
                   rushInput.value = 'Yes';
                   rushNotif.style.display = 'block';
                 } else {

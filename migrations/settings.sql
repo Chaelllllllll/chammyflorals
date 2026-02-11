@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS settings (
 
 -- Insert default rush fee setting
 INSERT INTO settings (setting_key, setting_value, description)
-VALUES ('rush_fee', '50', 'Rush fee amount (in PHP) for orders with delivery dates within 2-3 days')
+VALUES ('rush_fee', '50', 'Rush fee amount (in PHP) for orders with delivery dates within 3 days')
 ON CONFLICT (setting_key) DO NOTHING;
 
 -- Create index for faster lookups
