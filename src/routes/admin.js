@@ -8,6 +8,7 @@ const { ipKeyGenerator } = require('express-rate-limit');
 // Push notifications disabled. Stub function kept so existing callers remain safe.
 const push = require('../lib/push-notifications');
 const mailer = require('../lib/mailer');
+const emailTemplates = require('../lib/email-templates');
 
 function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 const storage = multer.memoryStorage();
@@ -1086,6 +1087,8 @@ router.delete('/categories/:id', auth, async (req, res) => {
 router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
   try {
     const { orderId } = req.params;
+    console.log('PATCH /orders/:orderId called with orderId:', orderId, 'body:', JSON.stringify(req.body));
+    
     const updates = {};
     // Allow updating common order fields safely
   const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at','expected_delivery_date'];
@@ -1095,15 +1098,48 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
       }
     }
 
+    console.log('Updates to apply:', updates);
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ error: 'No editable fields provided' });
     }
 
-    // Fetch existing order for side-effects (emails) and to compute previous status
-    const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
-    if (fetchErr && fetchErr.code !== 'PGRST116') {
-      console.error('Failed to fetch order before update:', fetchErr);
+    // Validate and coerce numeric fields
+    if (updates.quantity !== undefined) {
+      const qty = Number(updates.quantity);
+      if (isNaN(qty) || qty < 0) {
+        return res.status(400).json({ error: 'Invalid quantity value' });
+      }
+      updates.quantity = qty;
     }
+
+    if (updates.total_fee !== undefined) {
+      const fee = Number(updates.total_fee);
+      if (isNaN(fee) || fee < 0) {
+        return res.status(400).json({ error: 'Invalid total_fee value' });
+      }
+      updates.total_fee = fee;
+    }
+
+    // Validate status if provided
+    if (updates.status !== undefined) {
+      const validStatuses = ['Pending', 'Processing', 'To Receive', 'Delivered', 'Cancelled'];
+      if (!validStatuses.includes(updates.status)) {
+        return res.status(400).json({ error: 'Invalid status value', validStatuses });
+      }
+    }
+
+    // Fetch existing order for side-effects (emails) and to compute previous status
+    console.log('Fetching existing order...');
+    const { data: existing, error: fetchErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+    if (fetchErr) {
+      console.error('Failed to fetch order before update:', fetchErr);
+      if (fetchErr.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+      return res.status(500).json({ error: 'Failed to fetch order' });
+    }
+    console.log('Existing order fetched:', existing ? 'found' : 'not found');
     const previousStatus = existing ? existing.status : null;
 
     // If admin provided created_at, store it as-provided (we prefer saving the admin/client local datetime string)
@@ -1114,12 +1150,32 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
       } catch (e) { /* ignore */ }
     }
 
+    console.log('Updating order in database...');
     const { data: updatedRows, error } = await supabase
       .from('orders')
       .update(updates)
       .eq('order_id', orderId)
       .select();
-    if (error) throw error;
+    
+    if (error) {
+      console.error('Supabase update error:', error);
+      console.error('Error details:', { code: error.code, message: error.message, details: error.details });
+      
+      // Provide more specific error messages
+      if (error.code === '23514') {
+        return res.status(400).json({ error: 'Invalid data: constraint violation' });
+      }
+      if (error.code === '23502') {
+        return res.status(400).json({ error: 'Missing required field' });
+      }
+      if (error.message && error.message.includes('violates')) {
+        return res.status(400).json({ error: 'Data validation failed: ' + error.message });
+      }
+      
+      return res.status(500).json({ error: 'Failed to update order', details: error.message });
+    }
+    
+    console.log('Order updated successfully, rows:', updatedRows ? updatedRows.length : 0);
     
       // Audit log: record the update
       try {
@@ -1152,12 +1208,10 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
 
         // Send email notification (best-effort, don't let it block messenger)
         try {
-          const templates = require('../lib/email-templates');
-          const mailer = require('../lib/mailer');
           // If the new status is Delivered, send a friendly delivered/thank-you email
           if (String(updated.status || '').toLowerCase() === 'delivered') {
             console.log('Sending delivered email...');
-            const mail = templates.deliveredTemplate(updated);
+            const mail = emailTemplates.deliveredTemplate(updated);
             await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
             console.log('Delivered email sent successfully');
             
@@ -1178,7 +1232,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
             }
           } else {
             console.log('Sending status update email...');
-            const mail = templates.statusUpdateTemplate(updated, previousStatus);
+            const mail = emailTemplates.statusUpdateTemplate(updated, previousStatus);
             await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
             console.log('Status update email sent successfully');
           }
@@ -1217,10 +1271,12 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
       console.error('Unexpected error in notification flow:', outerErr);
     }
 
+    console.log('Sending success response for order update');
     res.json({ message: 'Order updated successfully', updated: (updatedRows && updatedRows[0]) || null });
   } catch (error) {
-    console.error('Error updating order:', error);
-    res.status(500).json({ error: 'Failed to update order' });
+    console.error('Error updating order (caught in outer try-catch):', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Failed to update order', details: error.message });
   }
 });
 
