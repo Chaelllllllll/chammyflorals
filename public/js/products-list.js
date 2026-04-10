@@ -19,6 +19,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLoading = false;
   let hasMore = true;
 
+  // Accept both array payloads and common wrapped API formats.
+  function normalizeProductsResponse(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.data)) return payload.data;
+    if (payload && Array.isArray(payload.products)) return payload.products;
+    if (payload && typeof payload === 'object') {
+      console.warn('Unexpected /api/products payload shape:', Object.keys(payload));
+    }
+    return [];
+  }
+
   // Load all products from API
   async function loadProducts() {
     try {
@@ -31,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (!res.ok) throw new Error('Failed to fetch products');
       const products = await res.json();
-      allProducts = products || [];
+      allProducts = normalizeProductsResponse(products);
       
       // Render categories
       renderCategories();
@@ -87,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render category cards; when `query` is provided, only show categories/products matching query
   function renderCategories(query = '') {
-    let baseProducts = allProducts;
+    let baseProducts = Array.isArray(allProducts) ? allProducts : [];
     if (query && String(query).trim()) {
       const q = String(query).trim().toLowerCase();
       baseProducts = allProducts.filter(p => {
