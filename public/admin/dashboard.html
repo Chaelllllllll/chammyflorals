@@ -98,7 +98,7 @@
 <body class="admin-page">
   <!-- Sidebar Toggle Button -->
   <button class="sidebar-toggle" id="sidebarToggle">
-    <i class="fas fa-chevron-right"></i>
+    <i class="fas fa-bars"></i>
   </button>
 
   <!-- Sidebar Overlay (Mobile) -->
@@ -300,14 +300,14 @@
             </div>
 
             <!-- Desktop: Status filter buttons (hidden on mobile) -->
-            <div id="statusBadges" class="d-none d-md-flex gap-1 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
-              <button type="button" class="btn btn-secondary btn-sm status-badge" data-status="" aria-pressed="true">
+            <div id="statusBadges" class="d-none d-md-flex gap-2 flex-wrap align-items-center" role="toolbar" aria-label="Order status filters">
+              <button type="button" class="status-badge" data-status="" aria-pressed="true">
                 <i class="fas fa-th-large"></i> All
               </button>
-              <button type="button" class="btn btn-warning btn-sm status-badge" data-status="Pending" aria-pressed="false">
+              <button type="button" class="status-badge" data-status="Pending" aria-pressed="false">
                 <i class="fas fa-clock"></i> Pending <span class="status-count" id="countPending" data-bs-toggle="tooltip" title="0">0</span>
               </button>
-              <button type="button" class="btn btn-primary btn-sm status-badge" data-status="Processing" aria-pressed="false">
+              <button type="button" class="status-badge" data-status="Processing" aria-pressed="false">
                 <i class="fas fa-cog"></i> Processing <span class="status-count" id="countProcessing" data-bs-toggle="tooltip" title="0">0</span>
               </button>
             </div>
@@ -355,21 +355,21 @@
   <!-- Details Modal -->
   <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-labelledby="orderDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-      <div class="modal-content rounded-4 border-0 shadow-lg">
-        <div class="modal-header gradient-pink border-0">
-          <div class="d-flex align-items-center gap-2">
-            <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-              <i class="fas fa-info-circle text-pink"></i>
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="d-flex align-items-center gap-2.5">
+            <div class="bg-rose-500 text-white rounded-xl p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-info-circle text-white"></i>
             </div>
-            <h5 class="modal-title mb-0 fw-bold" id="orderDetailsModalLabel">Order Details</h5>
+            <h5 class="modal-title mb-0 font-display font-bold text-slate-900" id="orderDetailsModalLabel">Order Details</h5>
           </div>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body p-4" id="orderDetailsContent">
           <!-- Order details will be populated here -->
         </div>
-        <div class="modal-footer border-0 bg-light">
-          <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-pink" data-bs-dismiss="modal">
             <i class="fas fa-times me-2"></i>Close
           </button>
         </div>

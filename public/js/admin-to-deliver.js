@@ -2,7 +2,7 @@
 async function loadDeliveryOrders() {
   const token = localStorage.getItem('adminToken');
   if (!token) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
     return;
   }
 
@@ -14,7 +14,7 @@ async function loadDeliveryOrders() {
     
     if (!verifyResponse.ok) {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login.html';
+      window.location.href = '/customer-login.html';
       return;
     }
 
@@ -604,7 +604,7 @@ function escapeHtml(text) {
 // Logout functionality
 document.getElementById('logoutButton')?.addEventListener('click', () => {
   localStorage.removeItem('adminToken');
-  window.location.href = '/admin/login.html';
+  window.location.href = '/customer-login.html';
 });
 
 // Initialize

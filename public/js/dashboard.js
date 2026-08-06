@@ -15,34 +15,43 @@ async function checkAuth() {
     }
 
     try {
-        const customerData = localStorage.getItem('customer');
+        const customerData = localStorage.getItem('customer') || localStorage.getItem('customer_user') || localStorage.getItem('user');
         if (customerData) {
             currentCustomer = JSON.parse(customerData);
             
+            // Update welcome header dynamically with first name
+            const welcomeHeader = document.getElementById('welcomeMessage');
+            if (welcomeHeader && currentCustomer.name) {
+                const firstName = currentCustomer.name.split(' ')[0];
+                welcomeHeader.textContent = `Hi! ${firstName}`;
+            }
+            
+            const initial = (currentCustomer.name || currentCustomer.email || 'U').charAt(0).toUpperCase();
+            const avatarImg = currentCustomer.profile_picture 
+              ? `<img src="${currentCustomer.profile_picture}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full object-cover shrink-0" alt="Profile" onerror="this.onerror=null; this.classList.add('hidden'); if(this.nextElementSibling) this.nextElementSibling.classList.remove('hidden');">`
+              : '';
+              
+            const avatarFallback = `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm ${currentCustomer.profile_picture ? 'hidden' : ''}">${initial}</div>`;
+
             // Update auth section with profile icon
             if (authSection) {
                 const profileHTML = `
-                    <div class="dropdown">
-                        <button class="btn p-0 border-0" type="button" data-bs-toggle="dropdown" style="background: none;">
-                            <div style="width: 42px; height: 42px; border-radius: 50%; border: 3px solid #ff6f9b; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); cursor: pointer; box-shadow: 0 3px 10px rgba(255, 111, 155, 0.3);">
-                                <i class="fa fa-user" style="color: white; font-size: 20px;"></i>
-                            </div>
+                    <div class="dropdown relative">
+                        <button class="p-0.5 rounded-full border-2 border-rose-500/40 hover:border-rose-600 active:scale-95 transition-all flex items-center justify-center bg-white shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="${currentCustomer.name || 'Account'}">
+                            ${avatarImg}
+                            ${avatarFallback}
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end" style="min-width: 280px; border-radius: 15px; border: 2px solid #ffe9f5; box-shadow: 0 10px 30px rgba(255, 111, 155, 0.2);">
-                            <li class="px-3 py-3" style="border-bottom: 2px solid #ffe9f5;">
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <div style="width: 55px; height: 55px; border-radius: 50%; border: 3px solid #ff6f9b; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); box-shadow: 0 3px 10px rgba(255, 111, 155, 0.3);">
-                                        <i class="fa fa-user" style="color: white; font-size: 26px;"></i>
-                                    </div>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <div style="font-weight: 700; color: #3a2b33; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${currentCustomer.name || 'User'}</div>
-                                        <div style="font-size: 13px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${currentCustomer.email}</div>
-                                    </div>
-                                </div>
+                        <ul class="dropdown-menu dropdown-menu-end p-2 rounded-2xl border border-slate-200/80 shadow-xl min-w-[220px] mt-2">
+                            <li class="px-3 py-2 border-b border-slate-100">
+                                <p class="font-bold text-sm text-slate-900 mb-0 truncate">${currentCustomer.name || 'Customer'}</p>
+                                <p class="text-xs text-slate-500 mb-0 truncate">${currentCustomer.email || ''}</p>
                             </li>
-                            <li><a class="dropdown-item py-2 profileBtnLink" href="#" style="font-weight: 600; color: #5b4952;"><i class="fa fa-user-circle me-2" style="color: #ff6f9b;"></i>My Profile</a></li>
-                            <li><hr class="dropdown-divider" style="border-color: #ffe9f5;"></li>
-                            <li><a class="dropdown-item py-2 text-danger logoutBtnLink" href="#" style="font-weight: 600;"><i class="fa fa-sign-out-alt me-2"></i>Logout</a></li>
+                            <li><hr class="dropdown-divider my-1 border-slate-100"></li>
+                            <li>
+                                <a class="dropdown-item flex items-center gap-2 py-2 px-3 text-xs sm:text-sm font-semibold rounded-xl text-rose-600 hover:bg-rose-50 logoutBtnLink" href="#">
+                                    <i class="fa-solid fa-right-from-bracket me-1"></i>Logout
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 `;
@@ -87,11 +96,29 @@ async function checkAuth() {
 }
 
 // Logout function
-function logout() {
+async function logout() {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('customer');
+    localStorage.removeItem('customer_user');
+    localStorage.removeItem('user');
+
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+        }
+    });
+    Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+            sessionStorage.removeItem(key);
+        }
+    });
+
+    if (window.supabaseClient && typeof window.supabaseClient.auth?.signOut === 'function') {
+        try { await window.supabaseClient.auth.signOut(); } catch (e) {}
+    }
+
     currentCustomer = null;
-    window.location.href = 'index.html';
+    window.location.href = 'customer-login.html';
 }
 
 // Load orders data
@@ -132,9 +159,17 @@ function displayAllOrders(orders, append = false) {
     
     if (!orders || orders.length === 0) {
         allOrdersList.innerHTML = `
-            <div class="empty-state">
-                <i class="fa fa-box-open"></i>
-                <p>No orders yet. <a href="index.html" style="color: #667eea;">Place your first order!</a></p>
+            <div class="d-flex justify-content-center">
+                <div class="text-center py-16 px-4 text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                    <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-rose-50 dark:bg-rose-900/30 mb-4">
+                        <i class="fa fa-box-open text-3xl text-rose-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">No orders yet</h3>
+                    <p class="text-sm mb-4">Looks like you haven't placed any orders. When you do, they'll appear here for easy tracking.</p>
+                    <a href="index.html" class="btn-shadcn-primary px-4 py-2 inline-flex items-center justify-center">
+                        <i class="fa fa-shopping-bag me-2"></i>Place your first order
+                    </a>
+                </div>
             </div>
         `;
         return;

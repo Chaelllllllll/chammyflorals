@@ -272,47 +272,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get price preview (first pricing item)
     let pricePreview = '';
     if (product.pricing && Array.isArray(product.pricing) && product.pricing.length && product.pricing[0].price) {
-      pricePreview = `<div class="small text-muted mb-2">Starting at <span class="fw-bold text-pink">₱${product.pricing[0].price}</span></div>`;
+      pricePreview = `<div class="text-xs text-slate-500 mb-3 font-medium">Starting at <span class="font-bold text-rose-600 text-sm">₱${product.pricing[0].price}</span></div>`;
     }
 
     // Create modern card with hover effects
     const card = document.createElement('div');
-    card.className = 'card h-100 border-0 shadow-sm product-card';
-    card.style.cssText = 'transition: all 0.3s ease; cursor: pointer; overflow: hidden;';
+    card.className = 'product-card h-full';
     card.innerHTML = `
-      <div class="position-relative overflow-hidden" style="height: 220px;">
-        <img src="${imgSrc}" alt="${escapeHtml(product.name)}" class="card-img-top" loading="lazy" style="height: 100%; object-fit: cover; transition: transform 0.3s ease;">
-        <div class="position-absolute top-0 end-0 m-2">
-          <span class="badge bg-white text-pink shadow-sm px-3 py-2">
-            <i class="fa fa-flower"></i>
-          </span>
-        </div>
+      <div class="relative overflow-hidden h-52 sm:h-60 bg-slate-100">
+        <img src="${imgSrc}" alt="${escapeHtml(product.name)}" class="card-img-top w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
       </div>
-      <div class="card-body text-center d-flex flex-column">
-        <h5 class="card-title fw-bold mb-2" style="color: #333; font-size: 1.1rem;">${escapeHtml(product.name)}</h5>
+      <div class="p-4 sm:p-5 text-center flex flex-col flex-grow bg-white">
+        <h5 class="font-bold text-slate-900 text-base sm:text-lg mb-1 line-clamp-1">${escapeHtml(product.name)}</h5>
         ${pricePreview}
-        <div class="mt-auto">
-          <button class="btn btn-pink w-100 view-price-btn">
-            <i class="fa fa-eye me-2"></i>View Details
+        <div class="mt-auto pt-2">
+          <button type="button" class="btn-shadcn-primary w-full py-2.5 px-4 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 group/btn shadow-md hover:shadow-lg hover:shadow-rose-500/25 active:scale-[0.98] transition-all view-price-btn">
+            <i class="fa-solid fa-eye text-xs group-hover/btn:scale-110 transition-transform"></i>
+            <span>View</span>
           </button>
         </div>
       </div>
     `;
 
-    // Add hover effect
-    card.addEventListener('mouseenter', () => {
-      card.style.transform = 'translateY(-8px)';
-      card.style.boxShadow = '0 8px 24px rgba(255, 111, 155, 0.2)';
-      const img = card.querySelector('img');
-      if (img) img.style.transform = 'scale(1.1)';
-    });
-
-    card.addEventListener('mouseleave', () => {
-      card.style.transform = 'translateY(0)';
-      card.style.boxShadow = '';
-      const img = card.querySelector('img');
-      if (img) img.style.transform = 'scale(1)';
-    });
+    // Hover effects handled via Tailwind CSS classes on product-card
 
     const btn = card.querySelector('.view-price-btn');
     if (btn) btn.addEventListener('click', (e) => {
@@ -430,21 +412,25 @@ document.addEventListener('DOMContentLoaded', () => {
       modalEl.id = 'productPriceModal';
       modalEl.tabIndex = -1;
       modalEl.innerHTML = `
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content rounded-4 border-0 shadow-lg">
-            <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
-              <div class="w-100">
-                <div class="d-flex align-items-center gap-3 mb-2">
-                  <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-                    <i class="fa fa-flower text-pink" style="font-size: 1.5rem;"></i>
-                  </div>
-                  <h5 class="modal-title text-white mb-0 fw-bold" id="productPriceModalLabel" style="font-size: 1.5rem;"></h5>
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+          <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl rounded-3xl">
+            <!-- Compact Header (Same as Order Now Modal) -->
+            <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+                  <i class="fa-solid fa-spa"></i>
                 </div>
-                <p class="text-white mb-0 opacity-75 small">View pricing details and available options</p>
+                <div class="pr-6">
+                  <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight" id="productPriceModalLabel"></h5>
+                  <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">View details, pricing options, and available colors</p>
+                </div>
               </div>
-              <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+              <button type="button" class="btn-close btn-close-white absolute z-50 top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4" id="productPriceModalBody">
+            <!-- Body (Matching slate background with white step cards) -->
+            <div class="modal-body p-3.5 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/50" id="productPriceModalBody">
+            </div>
+            <div class="modal-footer border-t border-slate-200/80 bg-white/90 p-3.5 sm:p-4 rounded-b-3xl">
             </div>
           </div>
         </div>
@@ -454,10 +440,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const titleEl = modalEl.querySelector('#productPriceModalLabel');
     const bodyEl = modalEl.querySelector('#productPriceModalBody');
-    titleEl.textContent = product.name || 'Product';
+    if (titleEl) titleEl.textContent = product.name || 'Product Details';
 
-    // build pricing tables if present
-    // build gallery (if images array present) and then pricing/html
+    // Build Gallery Section
     let galleryHtml = '';
     try {
       const imgs = Array.isArray(product.images) ? product.images : (product.gallery && Array.isArray(product.gallery) ? product.gallery : []);
@@ -468,11 +453,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const indicators = allImgs.map((u,i)=> `<button type="button" data-bs-target="#${carouselId}" data-bs-slide-to="${i}" ${i===0? 'class="active" aria-current="true"':''} aria-label="Slide ${i+1}"></button>`).join('');
         const items = allImgs.map((u,i)=> `
           <div class="carousel-item ${i===0? 'active':''}">
-            <img src="${escapeHtml(u)}" class="d-block w-100" style="height:320px;object-fit:cover;border-radius:8px;" onerror="this.style.opacity=0.6;this.style.filter='grayscale(60%)';">
+            <img src="${escapeHtml(u)}" class="d-block w-100" style="height:320px;object-fit:cover;border-radius:12px;" onerror="this.style.opacity=0.6;this.style.filter='grayscale(60%)';">
           </div>
         `).join('');
         galleryHtml = `
-          <div class="mb-4">
+          <div class="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-4 shadow-sm overflow-hidden">
             <div id="${carouselId}" class="carousel slide" data-bs-ride="false">
               <div class="carousel-inner">${items}</div>
               <div class="carousel-indicators mt-2">${indicators}</div>
@@ -485,75 +470,83 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) { galleryHtml = ''; }
 
     let html = '';
+    // Pricing Options Card Section
     if (product.pricing && Array.isArray(product.pricing) && product.pricing.length) {
       html += `
-        <div class="mb-4">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <i class="fa fa-tags text-pink"></i>
-            <h6 class="mb-0 fw-bold text-dark">Pricing Options</h6>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+          <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-tags text-xs"></i>
+            </span>
+            <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Pricing Options</h6>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" style="border-radius: 8px; overflow: hidden;">
-              <thead style="background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);">
+          <div class="table-responsive rounded-xl border border-slate-200/60 overflow-hidden">
+            <table class="table table-hover align-middle mb-0 text-xs sm:text-sm">
+              <thead class="bg-rose-50/70 border-b border-rose-100">
                 <tr>
-                  <th class="border-0 text-pink fw-semibold">Flower Type</th>
-                  <th class="border-0 text-pink fw-semibold">Set</th>
-                  <th class="border-0 text-pink fw-semibold text-end">Price</th>
+                  <th class="border-0 text-rose-700 font-bold py-2.5">Photo</th>
+                  <th class="border-0 text-rose-700 font-bold py-2.5">Flower Type</th>
+                  <th class="border-0 text-rose-700 font-bold py-2.5">Set</th>
+                  <th class="border-0 text-rose-700 font-bold text-end py-2.5">Price</th>
                 </tr>
               </thead>
               <tbody>
       `;
       product.pricing.forEach((r, idx) => {
-        const bgClass = idx % 2 === 0 ? 'bg-white' : 'bg-light';
+        const bgClass = idx % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+        const pImg = (r.image_url || '').trim();
         html += `
           <tr class="${bgClass}">
-            <td class="border-0 fw-semibold">${escapeHtml(r.label||'')}</td>
-            <td class="border-0 text-muted">${escapeHtml(r.set||'')}</td>
-            <td class="border-0 text-end"><span class="badge bg-pink text-white px-3 py-2">₱${escapeHtml(r.price||'')}</span></td>
+            <td class="border-0">${pImg ? `<img src="${escapeHtml(pImg)}" alt="${escapeHtml(r.label||'')}" class="pricing-img-zoom" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;" onerror="this.style.display='none';">` : `<span class="text-slate-300"><i class="fa-regular fa-image"></i></span>`}</td>
+            <td class="border-0 font-semibold text-slate-800">${escapeHtml(r.label||'')}</td>
+            <td class="border-0 text-slate-500">${escapeHtml(r.set||'')}</td>
+            <td class="border-0 text-end"><span class="badge bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">₱${escapeHtml(r.price||'')}</span></td>
           </tr>
         `;
       });
       html += '</tbody></table></div></div>';
     }
 
+    // Available Add-ons Card Section
     if (product.addons && Array.isArray(product.addons) && product.addons.length) {
       html += `
-        <div class="mb-4">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <i class="fa fa-plus-circle text-pink"></i>
-            <h6 class="mb-0 fw-bold text-dark">Available Add-ons</h6>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+          <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-circle-plus text-xs"></i>
+            </span>
+            <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Available Add-ons</h6>
           </div>
-          <div class="row g-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       `;
       product.addons.forEach(a => {
         html += `
-          <div class="col-md-6">
-            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded-3 border">
-              <div class="d-flex align-items-center gap-2">
-                <i class="fa fa-gift text-pink"></i>
-                <span class="fw-semibold">${escapeHtml(a.label||'')}</span>
-              </div>
-              <span class="badge bg-pink text-white">₱${escapeHtml(a.price||'')}</span>
+          <div class="flex items-center justify-between p-3 bg-slate-50/90 rounded-xl border border-slate-200/80">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-gift text-rose-500 text-sm"></i>
+              <span class="font-semibold text-xs sm:text-sm text-slate-800">${escapeHtml(a.label||'')}</span>
             </div>
+            <span class="badge bg-rose-600 text-white text-xs px-2.5 py-1.5 rounded-lg font-bold">₱${escapeHtml(a.price||'')}</span>
           </div>
         `;
       });
       html += '</div></div>';
     }
 
-    // Available colors: render as color swatches
+    // Available Colors Swatches Card Section
     if (product.colors && Array.isArray(product.colors) && product.colors.length) {
       html += `
-        <div class="mb-4">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <i class="fa fa-palette text-pink"></i>
-            <h6 class="mb-0 fw-bold text-dark">Available Colors</h6>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+          <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+            <span class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-palette text-xs"></i>
+            </span>
+            <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Available Colors</h6>
           </div>
-          <div class="row g-3">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
       `;
       product.colors.forEach(c => {
         let value = c.value || c.hex || c.color || '';
-        // normalize rgb(...) to hex for display
         if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
           const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
           if (m) {
@@ -567,37 +560,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeValue = escapeHtml(value);
         const safeName = escapeHtml(name);
         const swatch = value ? `
-          <div class="text-center p-3 bg-white rounded-3 border shadow-sm h-100">
-            <div class="mx-auto mb-2 rounded-circle shadow-sm" style="width: 50px; height: 50px; background: ${safeValue}; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"></div>
-            <div class="small fw-semibold">${safeName}</div>
+          <div class="text-center p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 shadow-sm h-100">
+            <div class="mx-auto mb-2 rounded-full shadow-sm" style="width: 44px; height: 44px; background: ${safeValue}; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.12);"></div>
+            <div class="text-xs font-semibold text-slate-700">${safeName}</div>
           </div>
-        ` : `<div class="text-center p-3 bg-light rounded-3"><span class="text-muted">—</span></div>`;
-        html += `<div class="col-6 col-md-4 col-lg-3">${swatch}</div>`;
+        ` : `<div class="text-center p-3 bg-slate-50 rounded-xl"><span class="text-slate-400 text-xs">—</span></div>`;
+        html += swatch;
       });
       html += '</div></div>';
     }
 
-    // fallback to single price (use first pricing row if present) or show contact message
+    // Fallback starting price card
     if (!html) {
       if (product.pricing && Array.isArray(product.pricing) && product.pricing.length && typeof product.pricing[0].price !== 'undefined') {
         html = `
-          <div class="text-center py-4">
-            <div class="display-4 text-pink fw-bold mb-2">₱${Number(product.pricing[0].price).toLocaleString()}</div>
-            <p class="text-muted">Starting price</p>
+          <div class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-center">
+            <div class="text-3xl sm:text-4xl font-bold text-rose-600 mb-1">₱${Number(product.pricing[0].price).toLocaleString()}</div>
+            <p class="text-slate-500 text-xs sm:text-sm font-medium mb-0">Starting Price</p>
           </div>
         `;
       } else {
         html = `
-          <div class="text-center py-4">
-            <i class="fa fa-envelope text-pink mb-3" style="font-size: 3rem;"></i>
-            <h6 class="text-muted">Contact us for pricing details</h6>
+          <div class="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-center">
+            <i class="fa-solid fa-envelope text-rose-500 text-3xl mb-2 block"></i>
+            <h6 class="text-slate-700 font-bold text-sm mb-0">Contact us for custom pricing details</h6>
           </div>
         `;
       }
     }
 
-    // Insert gallery first (if present) then the rest of the content
-    bodyEl.innerHTML = (galleryHtml || '') + html;
+    // Insert gallery & content into modal body
+    if (bodyEl) bodyEl.innerHTML = (galleryHtml || '') + html;
 
     // Wire click on any gallery image to open a full-view modal
     try {
@@ -607,7 +600,6 @@ document.addEventListener('DOMContentLoaded', () => {
         img.addEventListener('click', (e) => {
           const src = e.currentTarget && e.currentTarget.src ? e.currentTarget.src : null;
           if (!src) return;
-          // create full-image modal
           const fullId = `productImageFullModal-${Date.now()}-${Math.floor(Math.random()*10000)}`;
           const full = document.createElement('div');
           full.className = 'modal fade';
@@ -617,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="modal-dialog modal-dialog-centered modal-xl">
               <div class="modal-content bg-transparent border-0">
                 <div class="modal-body p-0 text-center" style="background:transparent">
-                  <img src="${escapeHtml(src)}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;" alt="">
+                  <img src="${escapeHtml(src)}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px;" alt="">
                 </div>
                 <div class="modal-footer border-0 justify-content-center bg-transparent">
                   <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
@@ -631,25 +623,58 @@ document.addEventListener('DOMContentLoaded', () => {
           full.addEventListener('hidden.bs.modal', () => { try { full.remove(); } catch (e) {} }, { once: true });
         });
       });
-    } catch (e) { /* ignore if modal not present or bootstrap missing */ }
+    } catch (e) { /* ignore */ }
 
-    // add a footer with an Order button and Ask Seller button
+    // Wire click on any pricing option image to open a full-view modal
+    try {
+      const pImgs = modalEl.querySelectorAll('.pricing-img-zoom');
+      pImgs.forEach(img => {
+        img.addEventListener('click', (e) => {
+          const src = e.currentTarget && e.currentTarget.src ? e.currentTarget.src : null;
+          if (!src) return;
+          const fullId = `pricingImageFullModal-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+          const full = document.createElement('div');
+          full.className = 'modal fade';
+          full.id = fullId;
+          full.tabIndex = -1;
+          full.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 rounded-3xl overflow-hidden shadow-xl">
+                <div class="modal-body p-0 text-center">
+                  <img src="${escapeHtml(src)}" style="width:100%;max-height:70vh;object-fit:contain;background:#fff;" alt="">
+                </div>
+                <div class="modal-footer border-t border-slate-200/80 justify-content-center bg-white p-3">
+                  <button type="button" class="btn btn-dark px-4 rounded-lg" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(full);
+          const inst = new bootstrap.Modal(full, { backdrop: 'static', keyboard: false });
+          inst.show();
+          full.addEventListener('hidden.bs.modal', () => { try { full.remove(); } catch (e) {} }, { once: true });
+        });
+      });
+    } catch (e) { /* ignore */ }
+
+    // Add footer buttons matching Order Now modal layout
     let footer = modalEl.querySelector('.modal-footer');
     if (!footer) {
       footer = document.createElement('div');
-      footer.className = 'modal-footer border-0 bg-light';
-      modalEl.querySelector('.modal-content').appendChild(footer);
+      const modalContent = modalEl.querySelector('.modal-content');
+      if (modalContent) modalContent.appendChild(footer);
     }
+    footer.className = 'modal-footer border-t border-slate-200/80 bg-white/90 p-3.5 sm:p-4 rounded-b-3xl';
     footer.innerHTML = `
-      <div class="w-100 d-flex gap-2">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-          <i class="fa fa-times me-2"></i>Close
+      <div class="w-full flex flex-col sm:flex-row gap-2">
+        <button type="button" id="productAskSellerBtn" class="btn-shadcn-outline flex-1 py-2.5 text-xs sm:text-sm font-semibold border-rose-200 text-rose-600 hover:bg-rose-50">
+          <i class="fa-solid fa-comments me-1.5"></i>Ask Seller
         </button>
-        <button type="button" id="productAskSellerBtn" class="btn btn-outline-pink flex-fill">
-          <i class="fa fa-comments me-2"></i>Ask Seller
+        <button type="button" id="productOrderBtn" class="btn-shadcn-primary flex-1 py-2.5 text-xs sm:text-sm font-semibold shadow-md">
+          <i class="fa-solid fa-shopping-bag me-1.5"></i>Order Now
         </button>
-        <button type="button" id="productOrderBtn" class="btn btn-pink flex-fill">
-          <i class="fa fa-shopping-bag me-2"></i>Order Now
+        <button type="button" class="btn-shadcn-outline sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold" data-bs-dismiss="modal">
+          <i class="fa-solid fa-xmark me-1.5"></i>Close
         </button>
       </div>
     `;

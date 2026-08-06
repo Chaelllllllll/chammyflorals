@@ -28,8 +28,9 @@
 
     .orders-list-header {
       padding: 20px;
-      background: linear-gradient(135deg, #ffb3d9 0%, #ff85c1 100%);
-      color: #fff;
+      background: #ffffff;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
       position: sticky;
       top: 0;
       z-index: 10;
@@ -54,8 +55,8 @@
 
     .order-item.active,
     .conversation-item.active {
-      background: #fff3f9;
-      border-left: 4px solid #ff85c1;
+      background: #fff5f8;
+      border-left: 4px solid #ff6f9b;
     }
 
     .conversation-item {
@@ -264,17 +265,18 @@
       display: inline-block;
     }
     .chat-bubble.customer {
-      background: linear-gradient(135deg, #ffb3d9, #ff85c1);
+      background: linear-gradient(135deg, #ff6b9d 0%, #ff99bb 100%);
       color: #fff;
       border-radius: 18px 18px 4px 18px;
       align-self: flex-end;
     }
     .chat-bubble.seller {
-      background: #e4e6eb;
-      border: none;
-      color: #050505;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      color: #1e293b;
       border-radius: 18px 18px 18px 4px;
       align-self: flex-start;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 
     /* Broadcast attachments (announcements / new products) */
@@ -604,7 +606,7 @@
 <body class="admin-page">
   <!-- Sidebar Toggle Button -->
   <button class="sidebar-toggle" id="sidebarToggle">
-    <i class="fas fa-chevron-right"></i>
+    <i class="fas fa-bars"></i>
   </button>
 
   <!-- Sidebar Overlay (Mobile) -->

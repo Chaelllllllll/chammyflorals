@@ -655,7 +655,7 @@
     async function checkAuth() {
       const token = localStorage.getItem('adminToken');
       if (!token) {
-        window.location.href = '/admin/login.html';
+        window.location.href = '/customer-login.html';
         return false;
       }
       return true;
@@ -666,7 +666,7 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('adminToken');
-        window.location.href = '/admin/login.html';
+        window.location.href = '/customer-login.html';
       });
     }
 

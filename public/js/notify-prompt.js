@@ -124,7 +124,7 @@
       const btn = document.createElement('button');
       btn.className = 'btn btn-save';
       btn.textContent = 'Go to Admin Login';
-      btn.onclick = () => { window.location.href = '/admin/login.html' };
+      btn.onclick = () => { window.location.href = '/customer-login.html' };
       btn.style.marginRight = '8px';
 
       const btnClose = document.createElement('button');

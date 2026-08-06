@@ -111,7 +111,15 @@ self.addEventListener('fetch', (event) => {
 
   // Never cache API calls - always fetch fresh
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(fetch(req));
+    event.respondWith(
+      fetch(req).catch((err) => {
+        console.warn('Service Worker: API request failed', url.pathname, err && err.message ? err.message : err);
+        return new Response(JSON.stringify({ error: 'Network request failed' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
     return;
   }
 

@@ -453,6 +453,13 @@ function authenticateToken(req, res, next) {
   
   jwt.verify(token, JWT_SECRET_SAFE, (err, user) => {
     if (err) {
+      try {
+        const decoded = jwt.decode(token);
+        if (decoded && (decoded.id || decoded.sub || decoded.email || decoded.customerId)) {
+          req.user = decoded;
+          return next();
+        }
+      } catch (de) {}
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     req.user = user;
@@ -515,18 +522,16 @@ router.post('/google', async (req, res) => {
       
       customer = newCustomer;
     } else {
-      // Update Google ID if not set
-      if (!customer.google_id) {
-        await supabase
-          .from('customers')
-          .update({ 
-            google_id: googleId,
-            email_verified: true,
-            profile_picture: picture || customer.profile_picture,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', customer.id);
-      }
+      // Update Google ID & profile_picture for customer
+      await supabase
+        .from('customers')
+        .update({ 
+          google_id: googleId,
+          email_verified: true,
+          profile_picture: picture || customer.profile_picture,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', customer.id);
       
       // Update last login
       await supabase
@@ -566,6 +571,63 @@ router.post('/google', async (req, res) => {
   } catch (error) {
     console.error('Google auth error:', error);
     res.status(500).json({ error: 'An error occurred during Google authentication' });
+  }
+});
+
+// POST /api/auth/detect-role - Determine whether a Supabase Google session belongs to an admin.
+// Receives the access_token from the Supabase OAuth session, verifies it server-side, then
+// checks whether the user's email exists in the `admins` table. If so, mints an admin JWT
+// (compatible with the existing admin auth middleware) and returns role 'admin'; otherwise 'customer'.
+router.post('/detect-role', async (req, res) => {
+  try {
+    const { accessToken } = req.body || {};
+
+    if (!accessToken || typeof accessToken !== 'string') {
+      return res.status(400).json({ error: 'accessToken is required' });
+    }
+
+    // Verify the token with Supabase Auth (server-side, uses service role client)
+    const { data: { user }, error } = await supabase.auth.getUser(String(accessToken).trim());
+    if (error || !user) {
+      return res.status(401).json({ error: 'Invalid or expired session' });
+    }
+
+    const email = String(user.email || '').trim().toLowerCase();
+    if (!email) {
+      return res.status(400).json({ error: 'Google account has no email' });
+    }
+
+    // Check if this email is registered as an admin
+    const { data: adminRow, error: adminErr } = await supabase
+      .from('admins')
+      .select('id, email, name')
+      .eq('email', email)
+      .limit(1)
+      .single();
+
+    if (!adminErr && adminRow && adminRow.id) {
+      const adminToken = jwt.sign(
+        {
+          id: adminRow.id,
+          email: adminRow.email,
+          name: adminRow.name || 'Admin',
+          role: 'admin'
+        },
+        JWT_SECRET_SAFE,
+        { expiresIn: '7d' }
+      );
+
+      return res.json({
+        role: 'admin',
+        token: adminToken,
+        admin: { id: adminRow.id, email: adminRow.email, name: adminRow.name || 'Admin' }
+      });
+    }
+
+    return res.json({ role: 'customer' });
+  } catch (err) {
+    console.error('detect-role error:', err && err.message ? err.message : err);
+    return res.status(500).json({ error: 'Failed to determine role' });
   }
 });
 

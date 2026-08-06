@@ -59,27 +59,34 @@ async function renderPreview() {
   const reviews = await fetchReviewsFromServer();
   const top = (reviews || []).slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)).slice(0,3);
   if (!top.length) {
-    container.innerHTML = '<div class="col-12 text-center text-muted">No reviews yet.</div>';
+    container.innerHTML = '<div class="col-12 text-center text-slate-500 py-4 text-xs">No reviews yet.</div>';
     return;
   }
   container.innerHTML = top.map(r => `
     <div class="col-12 col-md-4">
-      <div class="card h-100" style="border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; overflow: hidden; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+      <div class="glass-card h-full flex flex-col rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group hover:-translate-y-1">
         ${r.image_url ? `
-          <div style="position: relative; width: 100%; height: 180px; overflow: hidden; background: #f5f5f5;">
-            <img src="${escapeHtml(r.image_url)}" class="review-thumb" data-url="${escapeHtml(r.image_url)}" alt="Review image" loading="lazy"
-                 style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s ease;"
-                 onmouseover="this.style.transform='scale(1.05)'"
-                 onmouseout="this.style.transform='scale(1)'"
-                 onerror="this.closest('div').style.display='none'" />
+          <div class="relative w-full h-36 sm:h-40 overflow-hidden bg-slate-100 shrink-0">
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer" data-url="${escapeHtml(r.image_url)}" alt="Review photo" loading="lazy" onerror="this.closest('div').style.display='none'" />
           </div>
         ` : ''}
-        <div class="card-body p-3">
-          <div class="mb-2">
-            <div class="fw-semibold mb-1" style="color: #2d2d2d;">${escapeHtml(r.name)}</div>
-            <div style="color: #ffc107; font-size: 0.9rem;">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
+        <div class="p-3.5 sm:p-4 flex flex-col flex-grow justify-between bg-white">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-500 to-rose-400 text-white font-bold text-[11px] flex items-center justify-center shadow-sm uppercase shrink-0">
+                ${escapeHtml((r.name || 'C').charAt(0))}
+              </div>
+              <h6 class="font-bold text-slate-900 text-xs sm:text-sm leading-tight mb-0 line-clamp-1">${escapeHtml(r.name)}</h6>
+            </div>
+
+            <div class="flex items-center gap-1 text-amber-400 text-[11px] mb-2">
+              ${Array.from({length: 5}, (_, i) => `<i class="fa-solid fa-star ${i < (r.stars || 5) ? 'text-amber-400' : 'text-slate-200'}"></i>`).join('')}
+            </div>
+
+            <p class="text-xs text-slate-600 leading-normal line-clamp-3 mb-0 italic">
+              "${escapeHtml(r.message)}"
+            </p>
           </div>
-          <p class="mb-0 small" style="color: #666; line-height: 1.5;">${escapeHtml(r.message)}</p>
         </div>
       </div>
     </div>
@@ -134,11 +141,17 @@ async function validateOrderId(orderId) {
   return data; // contains name etc.
 }
 
-  // image click -> modal (delegated)
+  // image click -> lightbox modal (delegated, works on index.html & reviews.html)
   document.addEventListener('click', (e) => {
     const img = e.target && e.target.closest && e.target.closest('.review-thumb');
     if (!img) return;
     const url = img.dataset && img.dataset.url ? img.dataset.url : img.src;
+    // Prefer the shared custom lightbox when available
+    if (typeof window.openImageModal === 'function') {
+      window.openImageModal(url || '');
+      return;
+    }
+    // Fallback: Bootstrap modal (legacy)
     const modalImg = document.getElementById('reviewImageModalImg');
     if (modalImg) modalImg.src = url || '';
     const modalEl = document.getElementById('reviewImageModal');

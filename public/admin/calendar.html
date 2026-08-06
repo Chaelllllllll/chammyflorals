@@ -12,13 +12,6 @@
   <style>
     body { 
       overflow-x: hidden;
-      font-family: 'Poppins', sans-serif;
-    }
-
-    .main-content {
-      padding: 2rem 1rem;
-    }
-
     .content-header {
       margin-bottom: 2rem;
     }
@@ -628,8 +621,8 @@
   </div>
 
   <!-- Main Content -->
-  <div class="main-content">
-    <div class="container-fluid" style="max-width: 1200px;">
+  <div class="main-content" id="mainContent">
+    <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1200px;">
       <div class="content-header mb-4">
         <h1 class="mb-2 fs-2 fw-bold">
           <i class="fas fa-calendar-alt me-2 text-pink"></i>Delivery Calendar
@@ -733,7 +726,7 @@
     // Check authentication
     const token = localStorage.getItem('adminToken');
     if (!token) {
-      window.location.href = 'login.html';
+      window.location.href = '/customer-login.html';
     }
 
     // Logout handler
@@ -741,7 +734,7 @@
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('adminToken');
-        window.location.href = 'login.html';
+        window.location.href = '/customer-login.html';
       });
     }
 

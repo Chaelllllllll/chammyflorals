@@ -163,7 +163,7 @@
 
   // Wire logout (clear admin token and redirect to login)
   const logoutBtn = document.getElementById('logoutButton');
-  if (logoutBtn) logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
+  if (logoutBtn) logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 
   // initial load
   load();

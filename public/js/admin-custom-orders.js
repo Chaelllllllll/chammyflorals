@@ -12,7 +12,7 @@
     try {
       const token = localStorage.getItem('adminToken');
       if (!token) {
-        window.location.href = 'login.html';
+        window.location.href = '/customer-login.html';
         return;
       }
 
@@ -26,7 +26,7 @@
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           localStorage.removeItem('adminToken');
-          window.location.href = 'login.html';
+          window.location.href = '/customer-login.html';
           return;
         }
         throw new Error('Failed to load custom orders');

@@ -4,7 +4,7 @@
 async function loadReviews() {
   const token = localStorage.getItem('adminToken');
   if (!token) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
     return;
   }
 
@@ -84,7 +84,7 @@ function renderTable(items) {
 
 async function deleteReview(id) {
   const token = localStorage.getItem('adminToken');
-  if (!token) { window.location.href = '/admin/login.html'; return; }
+  if (!token) { window.location.href = '/customer-login.html'; return; }
   try {
     const resp = await fetch(`/api/admin/reviews/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -134,7 +134,7 @@ document.getElementById('confirmDeleteButton').addEventListener('click', (e) => 
 
 // logout handling (same as admin-dashboard.js)
 const logoutBtn = document.getElementById('logoutButton');
-if (logoutBtn) logoutBtn.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
+if (logoutBtn) logoutBtn.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 
 // initialize
 document.addEventListener('DOMContentLoaded', () => {

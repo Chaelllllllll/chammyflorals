@@ -1,969 +1,889 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="google-site-verification" content="gDRBjnwkFOK980B_LQep4WDRmI2YA_Kdu4nZ51J1ixM" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Chammy Florals</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <title>Chammy Florals 💐 - Artisanal Handcrafted Bouquets & Gifts</title>
+
   <link rel="shortcut icon" href="https://chammyflorals.vercel.app/flowers/cherry-blossom.png" type="image/x-icon">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Bootstrap 5 JS & Styles for dynamic components -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    crossorigin="anonymous" />
   <link rel="stylesheet" href="/css/delivery-calendar.css">
-    <style>
-    body { overflow-x: hidden; }
+  <link rel="stylesheet" href="styles.css">
 
-    .hero {
-      background: linear-gradient(135deg, rgba(255,233,241,0.8) 0%, rgba(255,255,255,0.9) 100%);
-      position: relative;
-    }
-    .hero .hero-inner { padding: 1rem; }
-    .hero .hero-card {
-      padding: 2rem 1rem;
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(10px);
-    }
-    @media (min-width: 768px) {
-      .hero .hero-inner { padding: 2rem; }
-      .hero .hero-card { padding: 3rem 2rem; }
-    }
-
-    .product-card {
-      border-radius: 12px !important;
-      overflow: hidden;
-    }
-    .product-card .card-img-top {
-      height: 220px;
-      object-fit: cover;
-      transition: transform 0.3s ease;
-    }
-    .product-card:hover .card-img-top {
-      transform: scale(1.1);
-    }
-    .product-card .card-body {
-      padding: 1.25rem;
-    }
-    .product-card .card-title {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #333;
-    }
-    .product-cta {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-    }
-
-    #productPriceModal .table {
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    #productPriceModal .table thead {
-      background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
-    }
-
-    .btn-outline-pink {
-      color: #ff6f9b;
-      border-color: #ff6f9b;
-    }
-    .btn-outline-pink:hover {
-      background-color: #ff6f9b;
-      border-color: #ff6f9b;
-      color: white;
-    }
-
-    .bg-pink {
-      background-color: #ff6f9b !important;
-    }
-
-    .btn, .card, .badge {
-      transition: all 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-    }
-
-    #inquiryModal .order-item {
-      transition: all 0.2s ease;
-    }
-
-    #inquiryModal .order-item > div {
-      transition: all 0.2s ease;
-    }
-
-    #inquiryModal .order-item:hover > div {
-      background: #fff !important;
-      box-shadow: 0 2px 8px rgba(255, 111, 155, 0.15);
-    }
-
-    #inquiryModal .order-item .badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    #inquiryModal .order-item .form-select-sm,
-    #inquiryModal .order-item .form-control-sm {
-      font-size: 0.875rem;
-      padding: 0.375rem 0.5rem;
-    }
-
-    #itemsContainer {
-      width: 100%;
-    }
-
-    #inquiryModal .order-item {
-      width: 100%;
-    }
-
-    @media (max-width: 767px) {
-      #inquiryModal .order-item > div {
-        flex-direction: column;
-        align-items: stretch !important;
-        gap: 0.5rem !important;
-        width: 100% !important;
-      }
-
-      #inquiryModal .order-item .badge {
-        width: 100% !important;
-        flex: none !important;
-        text-align: center;
-      }
-
-      #inquiryModal .order-item .item-flower {
-        width: 100% !important;
-        flex: none !important;
-      }
-
-      #inquiryModal .order-item .item-color {
-        width: 100% !important;
-        flex: none !important;
-      }
-
-      #inquiryModal .order-item .item-quantity {
-        width: 100% !important;
-        flex: none !important;
-      }
-
-      #inquiryModal .order-item .remove-item {
-        width: 100% !important;
-        flex: none !important;
-        height: auto !important;
-        padding: 0.5rem !important;
-      }
-    }
-
-    #inquiryModal .form-control:focus,
-    #inquiryModal .form-select:focus {
-      border-color: #ff99bb;
-      box-shadow: 0 0 0 0.2rem rgba(255, 111, 155, 0.15);
-    }
-
-    #inquiryModal .invalid-feedback {
-      display: none;
-      font-size: 0.875rem;
-      color: #dc3545;
-    }
-
-    #inquiryModal .form-control.is-invalid,
-    #inquiryModal .form-select.is-invalid {
-      border-color: #dc3545;
-    }
-
-    #inquiryModal .form-control.is-invalid ~ .invalid-feedback,
-    #inquiryModal .form-select.is-invalid ~ .invalid-feedback {
-      display: block;
-    }
-
-    #inquiryModal .bg-pink {
-      background-color: #ff6f9b !important;
-    }
-
-    #addItemBtn:hover {
-      background-color: transparent;
-      color: #ff6f9b;
-      border-color: #ff6f9b;
-    }
-
-    @media (min-width: 1400px) {
-      #inquiryModal .modal-dialog {
-        max-width: 900px !important;
-      }
-    }
-
-    @media (min-width: 1200px) and (max-width: 1399px) {
-      #inquiryModal .modal-dialog {
-        max-width: 850px !important;
-      }
-    }
-
-    @media (min-width: 992px) and (max-width: 1199px) {
-      #inquiryModal .modal-dialog {
-        max-width: 800px !important;
-      }
-    }
-
-    @media (min-width: 768px) and (max-width: 991px) {
-      #inquiryModal .modal-dialog {
-        max-width: 720px !important;
-      }
-    }
-
-    @media (max-width: 767px) {
-      #inquiryModal .modal-dialog {
-        max-width: 100% !important;
-        margin: 0.5rem !important;
-      }
-    }
-    </style>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Force Light Mode for Homepage -->
+  <script>
+    document.documentElement.classList.remove('dark');
+  </script>
 
   <meta property="og:title" content="Chammy Florals 💐 - Beautiful Handmade Bouquets & Keychains" />
-  <meta property="og:description" content="Make every moment special with handcrafted floral arrangements and keepsakes. Perfect for gifts, celebrations, or just because! Order now!" />
+  <meta property="og:description"
+    content="Make every moment special with handcrafted floral arrangements and keepsakes. Perfect for gifts, celebrations, or just because! Order now!" />
   <meta property="og:image" content="https://chammyflorals.vercel.app/flowers/bouquetwithglitter.jfif" />
-  <meta property="og:image:alt" content="Handmade Bouquet with Glitters" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
   <meta property="og:url" content="https://chammyflorals.vercel.app" />
   <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Chammy Florals" />
-  <meta property="og:locale" content="en_US" />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Chammy Florals 💐 - Beautiful Handmade Bouquets & Keychains" />
-  <meta name="twitter:description" content="Make every moment special with handcrafted floral arrangements and keepsakes. Perfect for gifts, celebrations, or just because!" />
+  <meta name="twitter:title" content="Chammy Florals 💐 - Handcrafted Bouquets & Keychains" />
+  <meta name="twitter:description"
+    content="Make every moment special with handcrafted floral arrangements and keepsakes." />
   <meta name="twitter:image" content="https://chammyflorals.vercel.app/flowers/bouquetwithglitter.jfif" />
-  <meta name="twitter:site" content="@ChammyFlorals" />
 
-  <meta name="description" content="Handcrafted bouquets and keychains at Chammy Florals. Perfect gifts for any occasion. Fast processing, made to order, 100% handmade." />
-  <meta name="keywords" content="handmade bouquets, handcrafted keychains, floral gifts, flower arrangements, Chammy Florals, custom bouquets, gift ideas" />
+  <meta name="description"
+    content="Handcrafted bouquets and keychains at Chammy Florals. Perfect gifts for any occasion. Fast processing, made to order, 100% handmade." />
+  <meta name="keywords"
+    content="handmade bouquets, handcrafted keychains, floral gifts, flower arrangements, Chammy Florals, custom bouquets, gift ideas" />
   <meta name="author" content="Chammy Florals" />
 </head>
 
-<body>
-  
-  
-<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-  <div class="container">
-    <a class="navbar-brand" href=".">Chammy Florals</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans overflow-x-hidden">
 
-    <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav ms-md-auto align-items-lg-center">
-        <li class="nav-item me-2 my-2 my-lg-0">
-          <a class="btn btn-sm btn-outline-pink" id="navReviewsBtn" href="/reviews.html">
-            <i class="fa fa-star me-1"></i>Reviews
-          </a>
-        </li>
-        <li class="nav-item me-2 my-2 my-lg-0" id="authSection">
-        </li>
-      </ul>
-    </div>
-  </div>
-</nav>
-
-  <div id="announcementsSection" class="announcements-section" style="display: none;">
-    <div class="container">
-      <div id="announcementsCarousel" class="carousel slide announcements-carousel" data-bs-ride="carousel">
-        <div class="carousel-inner" id="carouselContent">
+  <!-- Header / Navigation (Custom Mobile Drawer + Desktop Nav) -->
+  <header class="sticky top-0 z-50 glass-header">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <!-- Brand Logo -->
+      <a href="." class="flex items-center gap-2.5 sm:gap-3 group text-decoration-none shrink-0">
+        <div
+          class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-rose-500 to-rose-400 text-white flex items-center justify-center shadow-lg shadow-rose-500/20 group-hover:scale-105 transition-transform">
+          <i class="fa-solid font-bold fa-spa text-base sm:text-lg"></i>
         </div>
-        
-        <button class="carousel-control-prev" type="button" data-bs-target="#announcementsCarousel" data-bs-slide="prev">
-          <span class="carousel-control-icon" aria-hidden="true">
-            <i class="fas fa-chevron-left"></i>
-          </span>
-          <span class="visually-hidden">Previous</span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#announcementsCarousel" data-bs-slide="next">
-          <span class="carousel-control-icon" aria-hidden="true">
-            <i class="fas fa-chevron-right"></i>
-          </span>
-          <span class="visually-hidden">Next</span>
-        </button>
+        <span
+          class="font-display font-bold text-lg sm:text-xl tracking-tight text-slate-900 group-hover:text-rose-600 transition-colors leading-tight">
+          Chammy Florals
+        </span>
+      </a>
 
-        <div class="carousel-indicators" id="carouselIndicators">
-        </div>
+      <!-- Desktop Nav Items -->
+      <nav class="hidden md:flex items-center gap-3">
+        <a href="." class="btn-shadcn-ghost flex items-center gap-2 text-decoration-none text-sm px-3 py-2">
+          <i class="fa fa-home text-rose-500"></i>
+          <span>Home</span>
+        </a>
+        <a href="/reviews.html" id="navReviewsBtn"
+          class="btn-shadcn-ghost flex items-center gap-2 text-decoration-none text-sm px-3 py-2">
+          <i class="fa fa-star text-amber-400"></i>
+          <span>Reviews</span>
+        </a>
+        <button type="button"
+          class="btn-shadcn-ghost flex items-center gap-2 text-decoration-none text-sm px-3 py-2 text-slate-700"
+          data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
+          <i class="fa fa-palette text-rose-500"></i>
+          <span>Custom Order</span>
+        </button>
+        <div id="authSection" class="flex items-center gap-2"></div>
+      </nav>
+
+      <!-- Mobile Right Controls (Profile Button BEFORE Hamburger) -->
+      <div class="flex items-center gap-2 md:hidden">
+        <div id="authSectionMobile" class="flex items-center"></div>
+        <button onclick="toggleMobileNavMenu()" type="button" aria-label="Toggle Navigation Menu"
+          class="p-2.5 rounded-xl border border-slate-200/80 bg-white/90 hover:bg-slate-100 text-slate-800 transition-all flex items-center justify-center shadow-sm">
+          <i id="mobileNavIcon" class="fa-solid fa-bars text-lg text-slate-700"></i>
+        </button>
       </div>
     </div>
-  </div>
 
-  <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content">
-        <div class="modal-header bg-pink text-white">
-          <h5 class="modal-title" id="announcementModalLabel">
-            <i class="fa fa-bullhorn me-2"></i>Announcement Details
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div id="announcementModalContent">
-          </div>
-        </div>
-      </div>
+    <!-- Mobile Navigation Drawer (Guaranteed Persistent) -->
+    <div id="mobileNavDrawer"
+      class="hidden md:hidden border-t border-slate-200/80 bg-white/95 backdrop-blur-2xl px-4 py-4 space-y-2.5 shadow-2xl transition-all">
+      <a href="."
+        class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-800 font-semibold text-sm text-decoration-none">
+        <i class="fa fa-home text-rose-500 text-base"></i>
+        <span>Home</span>
+      </a>
+      <a href="/reviews.html"
+        class="flex items-center gap-3 p-3 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-800 font-semibold text-sm text-decoration-none">
+        <i class="fa fa-star text-amber-400 text-base"></i>
+        <span>Reviews</span>
+      </a>
+      <button type="button" onclick="closeMobileNavDrawer(); openCustomOrderModal();"
+        class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-800 font-semibold text-sm text-decoration-none text-start border-0">
+        <i class="fa fa-palette text-rose-500 text-base"></i>
+        <span>Custom Order</span>
+      </button>
+      <div id="authSectionMobile" class="w-full pt-1"></div>
     </div>
-  </div>
+  </header>
 
-  <section class="text-center py-4 py-md-5">
-    <div class="hero">
-      <div class="container hero-inner">
-        <div class="hero-card rounded-4 shadow-sm text-center position-relative overflow-hidden">
-          <div class="position-absolute top-0 start-0 opacity-25" style="font-size: 120px; color: #ff99bb; transform: rotate(-15deg); margin: -30px 0 0 -30px;">🌸</div>
-          <div class="position-absolute bottom-0 end-0 opacity-25" style="font-size: 120px; color: #ff99bb; transform: rotate(15deg); margin: 0 -30px -30px 0;">💐</div>
+  <!-- Main Content Wrapper -->
+  <main class="flex-grow">
 
-          <div class="position-relative" style="z-index: 1;">
-            <h1 class="fw-bold display-5 text-pink mb-3">Beautiful Bouquets & Keychains</h1>
-            <p class="lead text-muted mb-4 mx-auto" style="max-width: 600px;">
-              Bloom with love — Chammy Florals crafts delicate, handcrafted bouquets and keepsakes for every occasion.
+    <!-- Hero Section (Mobile Optimized & Ambient Light) -->
+    <section class="relative py-8 sm:py-14 md:py-20 overflow-hidden px-2 sm:px-4">
+      <!-- Ambient Background Glows -->
+      <div
+        class="absolute top-10 left-1/2 -translate-x-1/2 w-[300px] sm:w-[600px] h-[200px] sm:h-[300px] bg-rose-400/20 blur-[90px] sm:blur-[120px] rounded-full pointer-events-none">
+      </div>
+      <div
+        class="absolute bottom-0 right-5 w-[200px] sm:w-[400px] h-[150px] sm:h-[250px] bg-emerald-400/20 blur-[80px] sm:blur-[100px] rounded-full pointer-events-none">
+      </div>
+
+      <div class="container mx-auto px-2 sm:px-4 relative z-10">
+        <div
+          class="glass-card p-5 sm:p-8 md:p-14 text-center max-w-4xl mx-auto relative overflow-hidden shadow-2xl rounded-3xl">
+
+          <!-- Decorative Floating Emblems -->
+          <div
+            class="absolute -top-4 -left-4 sm:-top-6 sm:-left-6 opacity-20 text-5xl sm:text-8xl pointer-events-none select-none text-rose-400 animate-float">
+            🌸</div>
+          <div
+            class="absolute -bottom-6 -right-6 sm:-bottom-8 sm:-right-8 opacity-20 text-5xl sm:text-8xl pointer-events-none select-none text-rose-400 animate-float"
+            style="animation-delay: 2s;">💐</div>
+
+          <div class="relative z-10 flex flex-col items-center">
+            <h1
+              class="font-display text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight text-slate-900 mb-4 sm:mb-6 leading-tight">
+              Chammy Florals
+            </h1>
+
+            <p
+              class="text-xs sm:text-base md:text-lg text-slate-600 mb-6 sm:mb-8 max-w-2xl font-normal leading-relaxed">
+              Bloom with love — Chammy Florals crafts delicate, custom-made bouquets and floral keychains for birthdays,
+              anniversaries, weddings, and life's sweetest moments.
             </p>
-            <div class="d-flex justify-content-center gap-2 gap-md-3 flex-wrap mb-3">
-              <button class="btn btn-pink btn-lg px-4" id="heroOrderBtn">
+
+            <div class="flex flex-col sm:flex-row justify-center gap-3 w-full max-w-xs sm:max-w-md">
+              <button class="btn-shadcn-primary w-full sm:w-auto sm:flex-1 py-3 text-sm sm:text-base" id="heroOrderBtn">
                 <i class="fa fa-shopping-bag me-2"></i>Order Now
               </button>
-              <button class="btn btn-outline-pink btn-lg px-4" id="heroCustomizeBtn" data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
-                <i class="fa fa-palette me-2"></i>Customize Order
+              <button class="btn-shadcn-outline w-full sm:w-auto sm:flex-1 py-3 text-sm sm:text-base"
+                id="heroCustomizeBtn" data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
+                <i class="fa fa-palette me-2"></i>Custom Order
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <div class="modal fade" id="downloadModal" tabindex="-1" aria-labelledby="downloadModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #fff 0%, #f7f7f7 100%);">
-          <h5 class="modal-title text-muted mb-0" id="downloadModalLabel">Get the Chammy Florals App</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal">X</button>
-        </div>
-        <div class="modal-body p-4 text-center">
-          <p class="mb-3">Enjoy faster ordering, order tracking, and push updates. Install the app for the best experience.</p>
-
-          <div class="d-flex justify-content-center gap-2 mb-3 flex-column flex-sm-row">
-          
-          </div>
-
-          <div class="small text-muted mb-3">Prefer sideloading? Download the APK directly:</div>
-          <a class="btn btn-outline-secondary" href="https://expo.dev/artifacts/eas/X12tDZ9DJ77cjNGZJgbQM.apk" download>Download APK</a>
-
-          <div class="mt-3 small text-muted">If you have trouble installing, open this page on your phone and tap the appropriate store button.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-labelledby="authRequiredModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-0 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-          <h5 class="modal-title text-white fw-bold mb-0" id="authRequiredModalLabel">
-            <i class="fas fa-lock me-2"></i>Authentication Required
-          </h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body p-4 text-center">
-          <div class="mb-4">
-            <i class="fas fa-user-circle" style="font-size: 80px; color: #667eea;"></i>
-          </div>
-          <h5 class="mb-3">Create an Account to Continue</h5>
-          <p class="text-muted mb-4">
-            To place an order, you need to create an account first. This helps us track your orders and provide better service.
-          </p>
-          <div class="d-grid gap-2">
-            <a href="customer-signup.html" class="btn btn-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
-              <i class="fas fa-user-plus me-2"></i>Create Account
-            </a>
-            <a href="customer-login.html" class="btn btn-outline-secondary btn-lg">
-              <i class="fas fa-sign-in-alt me-2"></i>Already Have Account? Login
-            </a>
+    <!-- Announcements Carousel Section -->
+    <div id="announcementsSection" class="py-3 sm:py-4 px-2 sm:px-4" style="display: none;">
+      <div class="container mx-auto">
+        <div class="glass-card p-3 sm:p-4 rounded-2xl relative overflow-hidden">
+          <div id="announcementsCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner" id="carouselContent"></div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#announcementsCarousel"
+              data-bs-slide="prev">
+              <span
+                class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900/50 flex items-center justify-center text-white text-xs sm:text-base">
+                <i class="fas fa-chevron-left"></i>
+              </span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#announcementsCarousel"
+              data-bs-slide="next">
+              <span
+                class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900/50 flex items-center justify-center text-white text-xs sm:text-base">
+                <i class="fas fa-chevron-right"></i>
+              </span>
+              <span class="visually-hidden">Next</span>
+            </button>
+            <div class="carousel-indicators" id="carouselIndicators"></div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-
-  <section class="container">
-    <div class="mb-4">
-      <div class="text-center">
-        <h2 class="fw-bold mb-0">Our Collections</h2>
-        <div class="small text-muted">Handpicked & handcrafted — find the perfect arrangement</div>
+    <!-- Announcement Details Modal -->
+    <div class="modal fade" id="announcementModal" tabindex="-1" aria-labelledby="announcementModalLabel"
+      aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header bg-rose-600 text-white rounded-t-3xl p-4 sm:p-6">
+            <h5 class="modal-title font-bold text-base sm:text-lg" id="announcementModalLabel">
+              <i class="fa fa-bullhorn me-2"></i>Announcement Details
+            </h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-4 sm:p-6">
+            <div id="announcementModalContent"></div>
+          </div>
+        </div>
       </div>
-      <div class="mt-3 d-flex justify-content-center">
-        <form id="productsSearchForm" class="d-flex mx-auto" style="max-width:560px; width:100%;" role="search" onsubmit="return false;">
-          <input id="productsSearch" class="form-control form-control-sm flex-fill" placeholder="Search categories or products" aria-label="Search products and categories">
-          <button id="productsSearchBtn" class="btn btn-pink btn-sm ms-2" type="button">Search</button>
+    </div>
+
+    <!-- Collections & Search Section -->
+    <section class="py-8 sm:py-12 container mx-auto px-4">
+      <div class="text-center max-w-xl mx-auto mb-6 sm:mb-8">
+        <h2 class="font-display text-2xl sm:text-3xl md:text-4xl font-bold mb-2 text-slate-900">Our
+          Collections</h2>
+        <p class="text-xs sm:text-sm text-slate-500">Handpicked & handcrafted — find the perfect arrangement for your
+          occasion</p>
+
+        <!-- Search Input Form (Responsive Layout) -->
+        <form id="productsSearchForm" class="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 max-w-md mx-auto"
+          role="search" onsubmit="return false;">
+          <div class="relative w-full">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input id="productsSearch" class="shadcn-input pl-11 text-xs sm:text-sm"
+              placeholder="Search bouquets, keychains, or occasions..." aria-label="Search products and categories">
+          </div>
+          <button id="productsSearchBtn" class="btn-shadcn-primary px-4 shrink-0 py-2.5 sm:py-2 text-xs sm:text-sm"
+            type="button">
+            Search
+          </button>
         </form>
       </div>
-    </div>
 
-    <!-- Categories Section -->
-    <div id="categoriesContainer" class="mb-5">
-      <div class="row g-3 justify-content-center" id="categoriesRow">
-        <!-- Categories will be loaded here -->
-      </div>
-    </div>
-
-    <!-- Products Section -->
-    <div class="mb-3 ">
-      <div class="d-flex flex-column flex-md-row align-items-center justify-content-center mb-3">
-        <div class="text-center">
-          <h3 class="fw-bold mb-1" id="productsSectionTitle">All Products</h3>
-          <div class="small text-muted" id="productsSectionSubtitle">Browse our entire collection</div>
+      <!-- Categories Container -->
+      <div id="categoriesContainer" class="mb-8 sm:mb-12">
+        <div class="row g-2 sm:g-3 justify-content-center" id="categoriesRow">
+          <!-- Categories loaded dynamically by products-list.js -->
         </div>
-        <div class="ms-md-3 mt-2 mt-md-0">
-          <button id="clearCategoryBtn" class="btn btn-outline-pink btn-sm" style="display: none;">
-            <i class="fa fa-times me-1"></i>Clear Filter
+      </div>
+
+      <!-- Products Section Title & Clear Filter -->
+      <div
+        class="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 pb-3 sm:pb-4 border-b border-slate-200">
+        <div class="text-center sm:text-left">
+          <h3 class="font-display text-xl sm:text-2xl font-bold text-slate-900" id="productsSectionTitle">All Products
+          </h3>
+          <p class="text-[11px] sm:text-xs text-slate-500 mt-0.5" id="productsSectionSubtitle">Browse our entire
+            handcrafted catalog</p>
+        </div>
+        <div class="mt-2 sm:mt-0">
+          <button id="clearCategoryBtn" class="btn-shadcn-outline text-xs px-3 py-1.5" style="display: none;">
+            <i class="fa fa-times me-1"></i>Clear Category Filter
           </button>
         </div>
       </div>
-      
-    </div>
 
-    <div id="productsContainer" class="row g-4 justify-content-center">
-      <!-- Products will be loaded here -->
-    </div>
-    
-    <!-- Loading indicator -->
-    <div id="loadingIndicator" class="text-center py-4" style="display: none;">
-      <div class="spinner-border text-pink" role="status">
-        <span class="visually-hidden">Loading...</span>
+      <!-- Products Dynamic Grid -->
+      <div id="productsContainer" class="row g-3 sm:g-4 justify-content-center">
+        <!-- Products loaded dynamically by products-list.js -->
       </div>
-      <p class="mt-2 text-muted">Loading more products...</p>
-    </div>
-    
-    <!-- No more products indicator -->
-    <div id="noMoreProducts" class="text-center py-4" style="display: none;">
-      <p class="text-muted"><i class="fa fa-check-circle text-pink me-2"></i>You've reached the end</p>
-    </div>
-  </section>
 
-
-
-  <section class="container my-5">
-    <div class="text-center mb-4">
-      <div class="d-inline-flex align-items-center gap-2 mb-2">
-        <h3 class="fw-bold mb-0">Customer Reviews</h3>
-      </div>
-    </div>
-    <div id="reviewsPreview" class="row g-4 justify-content-center">
-    </div>
-    <div class="text-center mt-4">
-      <a class="btn btn-pink btn-lg px-5" id="viewReviewsBtn" href="/reviews.html">
-        <i class="fa fa-comments me-2"></i>View All Reviews
-      </a>
-    </div>
-  </section>
-
-  <footer class="text-center py-4">
-  <p>Follow us on:</p>
-  <p class="mb-0">
-    <a href="https://www.facebook.com/chammyfloralss/" target="_blank" class="text-decoration-none me-3">
-      <i class="fab fa-facebook-f" style="color: #3b5998; font-size: 24px;"></i>
-    </a>
-    <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="text-decoration-none me-3">
-      <i class="fa-brands fa-facebook-messenger" style="color: #79a4ff; font-size: 24px;"></i>
-    </a>
-    <a href="https://www.instagram.com/chammyflorals/" target="_blank" class="text-decoration-none me-3">
-      <i class="fa-brands fa-instagram" style="color: #ff6b57; font-size: 24px;"></i>
-    </a>
-  </p>
-  <p class="mt-3 mb-0">© 2025 Chammy Florals. All rights reserved.</p>
-</footer>
-
-<div class="modal fade" id="inquiryModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content rounded-4 border-0 shadow-lg">
-      
-      <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
-        <div class="w-100">
-          <div class="d-flex align-items-center gap-3 mb-2">
-            <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-              <i class="fa fa-shopping-bag text-pink" style="font-size: 1.5rem;"></i>
-            </div>
-            <div>
-              <h5 class="modal-title text-white mb-0 fw-bold" style="font-size: 1.5rem;">Place Your Order</h5>
-              <p class="text-white mb-0 opacity-75 small">Fill in the details below to create your custom bouquet</p>
-            </div>
-          </div>
+      <!-- Loading Indicator -->
+      <div id="loadingIndicator" class="text-center py-6 sm:py-8" style="display: none;">
+        <div class="spinner-border text-rose-600" role="status">
+          <span class="visually-hidden">Loading...</span>
         </div>
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+        <p class="mt-2 text-xs sm:text-sm text-slate-500 font-medium">Fetching more floral items...</p>
       </div>
 
-      <div class="modal-body p-3 p-md-4">
-        <form id="inquiryForm" class="needs-validation" novalidate>
-          
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">1</div>
-              <h6 class="mb-0 fw-bold">Personal Information</h6>
-            </div>
-            <div class="row g-3">
-              <div class="col-lg-4 col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-user text-pink me-2"></i>Full Name
-                </label>
-                <input type="text" name="user_name" class="form-control" placeholder="Enter your name" required>
-                <div class="invalid-feedback">Please enter your name.</div>
-              </div>
-              <div class="col-lg-4 col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-envelope text-pink me-2"></i>Email Address
-                </label>
-                <input type="email" name="user_email" class="form-control" placeholder="your@email.com" required>
-                <div class="invalid-feedback">Please enter a valid email.</div>
-              </div>
-              <div class="col-lg-4 col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa-brands fa-facebook text-pink me-2"></i>Facebook Account Link
-                </label>
-                <input type="url" name="fb_link" class="form-control" placeholder="https://facebook.com/yourprofile" required>
-                <div class="invalid-feedback">Please enter your Facebook profile link.</div>
-              </div>
-            </div>
-          </div>
-
-          
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">2</div>
-              <h6 class="mb-0 fw-bold">Select Your Items</h6>
-            </div>
-            <div id="itemsContainer" class="mb-3">
-              <div class="order-item mb-2">
-                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
-                  <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item 1</span>
-                  <select class="form-select form-select-sm item-flower" name="flower_type_0" required style="flex: 3;">
-                    <option value="">Flower Type</option>
-                  </select>
-                  <select class="form-select form-select-sm item-color" name="color_0" aria-label="Color" style="flex: 2;">
-                    <option value="">Color</option>
-                  </select>
-                  <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_0" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
-                  <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="display: none; width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
-                    <i class="fa fa-times"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <button type="button" id="addItemBtn" class="btn btn-outline-pink w-100">
-              <i class="fa fa-plus me-2"></i>Add Another Item
-            </button>
-          </div>
-
-          
-          <div class="mb-4" id="addonsSection" style="display: none;">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">3</div>
-              <h6 class="mb-0 fw-bold">Add-ons</h6>
-            </div>
-            <div id="addonsContainer" class="p-3 bg-light rounded-3">
-              
-            </div>
-          </div>
-
-          
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">4</div>
-              <h6 class="mb-0 fw-bold">Discount Voucher</h6>
-            </div>
-            <div class="row g-3">
-              <div class="col-lg-8 col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-ticket text-pink me-2"></i>Voucher Code
-                </label>
-                <div class="input-group">
-                  <input type="text" id="voucherCodeInput" class="form-control" placeholder="Enter voucher code" style="text-transform: uppercase;">
-                  <button type="button" class="btn btn-outline-pink" id="applyVoucherBtn">
-                    <i class="fa fa-check me-2"></i>Apply
-                  </button>
-                </div>
-                <div id="voucherFeedback" class="mt-2"></div>
-              </div>
-              <div class="col-lg-4 col-12">
-                <label class="form-label fw-semibold">Order Total</label>
-                <div class="card bg-light border-0">
-                  <div class="card-body p-2">
-                    <div id="orderOriginalTotal" class="text-muted small" style="display: none;">
-                      <del>₱<span id="originalTotalAmount">0</span></del>
-                    </div>
-                    <div class="h4 mb-0 text-pink">
-                      ₱<span id="orderFinalTotal">0</span>
-                    </div>
-                    <div id="orderDiscountBadge" class="badge bg-success mt-1" style="display: none;">
-                      <i class="fa fa-tag me-1"></i><span id="orderDiscountAmount">0</span> OFF
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="bg-pink text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold;">5</div>
-              <h6 class="mb-0 fw-bold">Additional Details</h6>
-            </div>
-            <div class="row g-3">
-              <div class="col-lg-8 col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-comment text-pink me-2"></i>Special Message or Instructions
-                </label>
-                <textarea name="message" class="form-control" rows="3" placeholder="Add any special requests or messages for your order..."></textarea>
-              </div>
-              <div class="col-lg-4 col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-calendar text-pink me-2"></i>Expected Delivery Date
-                </label>
-                <input type="text" id="deliveryDatePicker" name="expected_delivery_date" class="form-control" placeholder="Select delivery date" required>
-                <input type="hidden" name="rush" value="No">
-                <div id="rushNotification" class="mt-2" style="display: none;">
-                  <div class="alert alert-warning alert-sm py-2 px-3">
-                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 3 days</small>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          
-          <div class="mb-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="agreeTerms" required>
-              <label class="form-check-label" for="agreeTerms">
-                I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" class="text-pink fw-semibold">Terms and Conditions</a>
-              </label>
-              <div class="invalid-feedback">
-                You must agree to the terms and conditions before placing an order.
-              </div>
-            </div>
-          </div>
-
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-pink btn-lg py-3" id="placeOrderBtn">
-              <i class="fa fa-shopping-bag me-2"></i>Place Order Now
-            </button>
-            <div class="text-center small text-muted">
-              <i class="fa fa-lock me-1"></i>Your information is secure and will only be used to process your order
-            </div>
-          </div>
-        </form>
+      <!-- End of Catalog Indicator -->
+      <div id="noMoreProducts" class="text-center py-6 sm:py-8" style="display: none;">
+        <p class="text-xs sm:text-sm text-slate-500 flex items-center justify-center gap-2">
+          <i class="fa fa-check-circle text-rose-500"></i>You've reached the end of the collection
+        </p>
       </div>
-    </div>
-  </div>
-</div>
+    </section>
 
-<div class="modal fade" id="voucherWarningModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" style="z-index: 1060;">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header border-0" style="background: linear-gradient(135deg, #fff4f7 0%, #ffe9f0 100%);">
-        <h5 class="modal-title fw-bold" style="color: #ff6f9b;">
-          <i class="fa fa-exclamation-triangle me-2"></i>Voucher Not Applied
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-4">
-        <p class="mb-0">You have entered a voucher code but haven't applied it yet. Do you want to proceed without the discount?</p>
-      </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-outline-secondary" id="voucherWarningProceed">
-          <i class="fa fa-forward me-2"></i>Proceed Without Discount
-        </button>
-        <button type="button" class="btn btn-pink" data-bs-dismiss="modal">
-          <i class="fa fa-arrow-left me-2"></i>Go Back to Apply
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="customizeOrderModal" tabindex="-1" aria-labelledby="customizeOrderModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content rounded-4 border-0 shadow-lg">
-      
-      <div class="modal-header border-0 position-relative" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 2rem;">
-        <div class="w-100">
-          <div class="d-flex align-items-center gap-3 mb-2">
-            <div class="bg-white rounded-circle p-2 shadow-sm" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-              <i class="fa fa-palette" style="font-size: 1.5rem; color: #ff6f9b;"></i>
-            </div>
-            <div>
-              <h5 class="modal-title text-white mb-0 fw-bold" style="font-size: 1.5rem;">Customize Your Order</h5>
-              <p class="text-white mb-0 opacity-75 small">Create your own unique bouquet arrangement</p>
-            </div>
-          </div>
+    <!-- Customer Reviews Section -->
+    <section class="py-8 sm:py-12 bg-slate-100/60 border-y border-slate-200">
+      <div class="container mx-auto px-4">
+        <div class="text-center max-w-xl mx-auto mb-8">
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-slate-900">Reviews</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">See what our customers say about their handcrafted items
+          </p>
         </div>
-        <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+
+        <div id="reviewsPreview" class="row g-3 sm:g-4 justify-content-center">
+          <!-- Reviews loaded dynamically by reviews.js -->
+        </div>
+
+        <div class="text-center mt-6 sm:mt-8">
+          <a class="btn-shadcn-primary text-decoration-none px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm"
+            id="viewReviewsBtn" href="/reviews.html">
+            <i class="fa fa-comments me-2"></i>Read All Reviews
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-8 sm:py-10">
+    <div class="container mx-auto px-4 text-center">
+      <div class="flex items-center justify-center gap-3 mb-3">
+        <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-600 text-white flex items-center justify-center">
+          <i class="fa-solid fa-spa text-xs sm:text-sm"></i>
+        </div>
+        <span class="font-display font-bold text-base sm:text-lg text-slate-900">Chammy Florals</span>
       </div>
 
-      <div class="modal-body p-3 p-md-4">
-        <form id="customizeOrderForm" class="needs-validation" novalidate>
-          
-          <!-- Section 1: Personal Information -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">1</div>
-              <h6 class="mb-0 fw-bold">Personal Information</h6>
+      <p class="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-5">
+        Handcrafted with love for every celebration. Delighted smiles guaranteed.
+      </p>
+
+      <div class="flex items-center justify-center gap-5 sm:gap-6 mb-5">
+        <a href="https://www.facebook.com/chammyfloralss/" target="_blank" aria-label="Facebook"
+          class="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:text-rose-600 hover:bg-slate-50 transition-all text-sm sm:text-base">
+          <i class="fab fa-facebook-f"></i>
+        </a>
+        <a href="https://www.messenger.com/t/847673415097754" target="_blank" aria-label="Messenger"
+          class="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:text-rose-600 hover:bg-slate-50 transition-all text-sm sm:text-base">
+          <i class="fa-brands fa-facebook-messenger"></i>
+        </a>
+        <a href="https://www.instagram.com/chammyflorals/" target="_blank" aria-label="Instagram"
+          class="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:text-rose-600 hover:bg-slate-50 transition-all text-sm sm:text-base">
+          <i class="fa-brands fa-instagram"></i>
+        </a>
+      </div>
+
+      <div class="text-[11px] sm:text-xs text-slate-400">
+        &copy; 2025 Chammy Florals. All rights reserved. &bull; <a href="/terms-and-conditions.html"
+          class="text-slate-400 hover:text-rose-500">Terms & Conditions</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== MODALS (Fully Mobile Responsive) ==================== -->
+
+  <!-- Order / Inquiry Modal -->
+  <div class="modal fade" id="inquiryModal" tabindex="-1" aria-labelledby="inquiryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl rounded-3xl">
+
+        <!-- Compact Header -->
+        <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+              <i class="fa-solid fa-bag-shopping"></i>
             </div>
-            <div class="row g-3">
-              <div class="col-lg-4 col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-user me-2" style="color: #ff6f9b;"></i>Full Name
-                </label>
-                <input type="text" name="custom_user_name" class="form-control" placeholder="Enter your name" required>
-                <div class="invalid-feedback">Please enter your name.</div>
-              </div>
-              <div class="col-lg-4 col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-envelope me-2" style="color: #ff6f9b;"></i>Email Address
-                </label>
-                <input type="email" name="custom_user_email" class="form-control" placeholder="your@email.com" required>
-                <div class="invalid-feedback">Please enter a valid email.</div>
-              </div>
-              <div class="col-lg-4 col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa-brands fa-facebook me-2" style="color: #ff6f9b;"></i>Facebook Account Link
-                </label>
-                <input type="url" name="custom_fb_link" class="form-control" placeholder="https://facebook.com/yourprofile" required>
-                <div class="invalid-feedback">Please enter your Facebook profile link.</div>
-              </div>
+            <div class="pr-6">
+              <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight"
+                id="inquiryModalLabel">Place Your Bouquet Order</h5>
+              <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">Fill in contact details & select
+                options</p>
             </div>
           </div>
+          <button type="button" class="btn-close btn-close-white absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs"
+            data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
 
-          <!-- Accordion for Items Selection -->
-          <div class="accordion mb-4" id="customizeOrderAccordion">
-            
-            <!-- Section 2: Stems Selection -->
-            <div class="accordion-item border-0 shadow-sm mb-2">
-              <h2 class="accordion-header">
-                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseStems" aria-expanded="true" aria-controls="collapseStems" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-                  <div class="d-flex align-items-center gap-2 w-100">
-                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">2</div>
-                    <h6 class="mb-0 fw-bold">Select Stems</h6>
-                    <span class="badge bg-danger ms-auto">Required</span>
+        <!-- Body -->
+        <div class="modal-body p-3.5 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/50">
+          <form id="inquiryForm" class="needs-validation space-y-4 sm:space-y-5" novalidate>
+
+            <!-- Step 1: Personal Info -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">1</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Contact Information</h6>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-user text-rose-500 me-1.5"></i>Full Name
+                  </label>
+                  <input type="text" name="user_name" class="shadcn-input text-sm sm:text-base"
+                    placeholder="Your full name" required>
+                </div>
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-envelope text-rose-500 me-1.5"></i>Email Address
+                  </label>
+                  <input type="email" name="user_email" class="shadcn-input text-sm sm:text-base"
+                    placeholder="your@email.com" required>
+                </div>
+                <div class="sm:col-span-2 md:col-span-1">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-brands fa-facebook text-rose-500 me-1.5"></i>Facebook Profile Link
+                  </label>
+                  <input type="url" name="fb_link" class="shadcn-input text-sm sm:text-base"
+                    placeholder="https://facebook.com/yourprofile" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Item Selection -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">2</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Selected Items</h6>
+              </div>
+
+              <div id="itemsContainer" class="space-y-3">
+                <div class="order-item">
+                  <div
+                    class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 w-full transition-all">
+                    <span
+                      class="badge bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold text-center shrink-0">Item
+                      1</span>
+                    <select class="form-select item-flower flex-1 text-sm sm:text-base py-2" name="flower_type_0"
+                      required>
+                      <option value="">Select Bouquet / Item</option>
+                    </select>
+                    <select class="form-select item-color w-full sm:w-36 text-sm sm:text-base py-2" name="color_0"
+                      aria-label="Color">
+                      <option value="">Color</option>
+                    </select>
+                    <input type="number"
+                      class="form-control item-quantity text-center w-full sm:w-24 text-sm sm:text-base py-2"
+                      name="quantity_0" min="1" value="1" required placeholder="Qty">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item p-2" style="display: none;">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
                   </div>
-                </button>
-              </h2>
-              <div id="collapseStems" class="accordion-collapse collapse show" data-bs-parent="#customizeOrderAccordion">
-                <div class="accordion-body">
-                  <div id="customStemsContainer" class="row g-3">
-                    <div class="col-12 text-center text-muted py-3">
-                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                      Loading stems...
+                </div>
+              </div>
+
+              <button type="button" id="addItemBtn"
+                class="btn-shadcn-outline w-full py-2.5 text-xs sm:text-sm font-semibold border-dashed">
+                <i class="fa-solid fa-plus me-1.5"></i>Add Another Item
+              </button>
+            </div>
+
+            <!-- Step 3: Add-ons -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5"
+              id="addonsSection" style="display: none;">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">3</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Optional Add-ons</h6>
+              </div>
+              <div id="addonsContainer" class="p-3.5 bg-slate-50/90 rounded-xl space-y-2 border border-slate-200/80">
+              </div>
+            </div>
+
+            <!-- Step 4: Discount & Price Summary -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">4</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Discount & Summary</h6>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-center">
+                <div class="md:col-span-2 space-y-2">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 block mb-1">Promo / Voucher
+                    Code</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="voucherCodeInput" class="shadcn-input uppercase text-sm sm:text-base"
+                      placeholder="Enter promo code">
+                    <button type="button" class="btn-shadcn-outline shrink-0 px-4 text-xs sm:text-sm font-semibold"
+                      id="applyVoucherBtn">
+                      <i class="fa-solid fa-tag me-1"></i>Apply
+                    </button>
+                  </div>
+                  <div id="voucherFeedback" class="text-xs sm:text-sm mt-1"></div>
+                </div>
+
+                <div
+                  class="p-3.5 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white text-center shadow-md">
+                  <div class="text-[11px] sm:text-xs text-white/80 font-semibold mb-0.5 uppercase tracking-wider">Order
+                    Total</div>
+                  <div id="orderOriginalTotal" class="text-white/60 text-xs line-through" style="display: none;">
+                    ₱<span id="originalTotalAmount">0</span>
+                  </div>
+                  <div class="text-2xl sm:text-3xl font-bold text-white leading-tight">
+                    ₱<span id="orderFinalTotal">0</span>
+                  </div>
+                  <div id="orderDiscountBadge"
+                    class="inline-flex items-center gap-1 bg-white/20 text-white border border-white/30 text-xs px-2.5 py-0.5 rounded-full mt-1 font-semibold"
+                    style="display: none;">
+                    <i class="fa-solid fa-tag"></i><span id="orderDiscountAmount">0</span> OFF
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5: Delivery Details -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">5</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Delivery Details</h6>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-calendar text-rose-500 me-1.5"></i>Expected Delivery Date
+                  </label>
+                  <input type="text" id="deliveryDatePicker" name="expected_delivery_date"
+                    class="shadcn-input text-sm sm:text-base" placeholder="Pick delivery date" required>
+                  <input type="hidden" name="rush" value="No">
+                  <div id="rushNotification" class="mt-2" style="display: none;">
+                    <div
+                      class="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs sm:text-sm flex items-center gap-2">
+                      <i class="fa-solid fa-bolt text-amber-500 text-sm"></i>
+                      <span><strong>Rush Order:</strong> Delivery within 3 days incurs additional rush fee.</span>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <!-- Section 3: Fillers Selection -->
-            <div class="accordion-item border-0 shadow-sm mb-2">
-              <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFillers" aria-expanded="false" aria-controls="collapseFillers" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-                  <div class="d-flex align-items-center gap-2 w-100">
-                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">3</div>
-                    <h6 class="mb-0 fw-bold">Select Fillers</h6>
-                    <span class="badge bg-danger ms-auto">Required</span>
-                  </div>
-                </button>
-              </h2>
-              <div id="collapseFillers" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
-                <div class="accordion-body">
-                  <div id="customFillersContainer" class="row g-3">
-                    <div class="col-12 text-center text-muted py-3">
-                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                      Loading fillers...
-                    </div>
-                  </div>
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-comment-dots text-rose-500 me-1.5"></i>Special Instructions / Note
+                  </label>
+                  <textarea name="message" class="shadcn-input h-20 text-sm sm:text-base py-2"
+                    placeholder="Greeting card note or custom requests..."></textarea>
                 </div>
               </div>
             </div>
 
-            <!-- Section 4: Wrapping Selection -->
-            <div class="accordion-item border-0 shadow-sm mb-2">
-              <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWrapping" aria-expanded="false" aria-controls="collapseWrapping" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-                  <div class="d-flex align-items-center gap-2 w-100">
-                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">4</div>
-                    <h6 class="mb-0 fw-bold">Select Wrapping</h6>
-                    <span class="badge bg-danger ms-auto">Required</span>
-                  </div>
-                </button>
-              </h2>
-              <div id="collapseWrapping" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
-                <div class="accordion-body">
-                  <div id="customWrappingContainer" class="row g-3">
-                    <div class="col-12 text-center text-muted py-3">
-                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                      Loading wrapping options...
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Section 5: Add-ons Selection -->
-            <div class="accordion-item border-0 shadow-sm mb-2">
-              <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddons" aria-expanded="false" aria-controls="collapseAddons" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-                  <div class="d-flex align-items-center gap-2 w-100">
-                    <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">5</div>
-                    <h6 class="mb-0 fw-bold">Add-ons (Optional)</h6>
-                  </div>
-                </button>
-              </h2>
-              <div id="collapseAddons" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
-                <div class="accordion-body">
-                  <div id="customAddonsContainer" class="row g-3">
-                    <div class="col-12 text-center text-muted py-3">
-                      <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                      Loading add-ons...
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Section 6: Voucher -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">6</div>
-              <h6 class="mb-0 fw-bold">Discount Voucher</h6>
-            </div>
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-ticket me-2" style="color: #ff6f9b;"></i>Voucher Code
+            <!-- Terms Checkbox -->
+            <div class="pt-1 px-1">
+              <div class="flex items-center gap-2">
+                <input class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer"
+                  type="checkbox" id="agreeTerms" required>
+                <label class="text-xs sm:text-sm text-slate-700 cursor-pointer" for="agreeTerms">
+                  I agree to the <a href="/terms-and-conditions.html" target="_blank"
+                    class="text-rose-600 font-semibold underline">Terms & Conditions</a>
                 </label>
-                <div class="input-group">
-                  <input type="text" id="customVoucherCodeInput" class="form-control" placeholder="Enter voucher code" style="text-transform: uppercase;">
-                  <button type="button" class="btn" id="applyCustomVoucherBtn" style="background: #ff6f9b; color: white;">
-                    <i class="fa fa-check me-2"></i>Apply
-                  </button>
-                </div>
-                <div id="customVoucherFeedback" class="mt-2"></div>
               </div>
             </div>
-          </div>
 
-          <!-- Section 7: Delivery Date & Additional Details -->
-          <div class="mb-4">
-            <div class="d-flex align-items-center gap-2 mb-3">
-              <div class="text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 30px; height: 30px; font-size: 0.9rem; font-weight: bold; background: #ff6f9b;">7</div>
-              <h6 class="mb-0 fw-bold">Delivery Date & Additional Details</h6>
+            <!-- Submit Button -->
+            <div class="pt-1 space-y-2">
+              <button type="submit"
+                class="btn-shadcn-primary w-full py-3.5 text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:shadow-rose-500/25 active:scale-[0.98] transition-all"
+                id="placeOrderBtn">
+                <i class="fa-solid fa-paper-plane me-2"></i>Confirm & Place Order
+              </button>
             </div>
-            <div class="row g-3">
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-calendar me-2" style="color: #ff6f9b;"></i>Expected Delivery Date
-                </label>
-                <input type="text" id="customDeliveryDatePicker" name="custom_expected_delivery_date" class="form-control" placeholder="Select delivery date" required>
-                <input type="hidden" name="custom_rush" value="No">
-                <div id="customRushNotification" class="mt-2" style="display: none;">
-                  <div class="alert alert-warning alert-sm py-2 px-3">
-                    <i class="fa fa-bolt me-1"></i><small><strong>Rush Order:</strong> Additional fees may apply for delivery within 3 days</small>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <label class="form-label fw-semibold">
-                  <i class="fa fa-comment me-2" style="color: #ff6f9b;"></i>Special Message or Instructions
-                </label>
-                <textarea name="custom_message" class="form-control" rows="3" placeholder="Add any special requests or messages for your custom order..."></textarea>
-              </div>
-            </div>
-          </div>
-
-          <!-- Order Summary -->
-          <div class="mb-4 p-3 rounded-3" style="background: linear-gradient(135deg, #fff0f6 0%, #ffe6f0 100%);">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <h6 class="mb-0 fw-bold" style="color: #ff6f9b;">
-                <i class="fa fa-receipt me-2"></i>Estimated Total
-              </h6>
-              <div class="text-end">
-                <div id="customOrderOriginalTotal" class="text-muted small" style="display: none;">
-                  <del>₱<span id="customOriginalTotalAmount">0</span></del>
-                </div>
-                <span class="fs-4 fw-bold" style="color: #ff6f9b;" id="customOrderTotal">₱0.00</span>
-              </div>
-            </div>
-            <div id="customOrderDiscountBadge" class="text-end" style="display: none;">
-              <span class="badge bg-success">
-                <i class="fa fa-tag me-1"></i>₱<span id="customOrderDiscountAmount">0</span> Discount Applied
-              </span>
-            </div>
-          </div>
-
-          <!-- Terms and Conditions -->
-          <div class="mb-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="customAgreeTerms" required>
-              <label class="form-check-label" for="customAgreeTerms">
-                I have read and agree to the <a href="/terms-and-conditions.html" target="_blank" class="fw-semibold" style="color: #ff6f9b;">Terms and Conditions</a>
-              </label>
-              <div class="invalid-feedback">
-                You must agree to the terms and conditions before placing an order.
-              </div>
-            </div>
-          </div>
-
-          <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-lg py-3" id="placeCustomOrderBtn" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); color: white;">
-              <i class="fa fa-palette me-2"></i>Place Custom Order
-            </button>
-            <div class="text-center small text-muted">
-              <i class="fa fa-lock me-1"></i>Your information is secure and will only be used to process your order
-            </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
+  <!-- Custom Order Builder Modal -->
+  <div class="modal fade" id="customizeOrderModal" tabindex="-1" aria-labelledby="customizeOrderModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl rounded-3xl">
+
+        <!-- Compact Header -->
+        <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+              <i class="fa-solid fa-palette"></i>
+            </div>
+            <div class="pr-6">
+              <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight"
+                id="customizeOrderModalLabel">Custom Bouquet Studio</h5>
+              <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">Select stems, fillers & wrapping
+                for a custom bouquet</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs"
+            data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body p-3.5 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/50">
+          <form id="customizeOrderForm" class="needs-validation space-y-4 sm:space-y-5" novalidate>
+
+            <!-- Step 1: Contact Info -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">1</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Contact Information</h6>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-user text-rose-500 me-1.5"></i>Full Name
+                  </label>
+                  <input type="text" name="custom_user_name" class="shadcn-input text-sm sm:text-base"
+                    placeholder="Your name" required>
+                </div>
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-envelope text-rose-500 me-1.5"></i>Email Address
+                  </label>
+                  <input type="email" name="custom_user_email" class="shadcn-input text-sm sm:text-base"
+                    placeholder="your@email.com" required>
+                </div>
+                <div class="sm:col-span-2 md:col-span-1">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-brands fa-facebook text-rose-500 me-1.5"></i>Facebook Profile Link
+                  </label>
+                  <input type="url" name="custom_fb_link" class="shadcn-input text-sm sm:text-base"
+                    placeholder="https://facebook.com/yourprofile" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Accordion for Stems, Fillers, Wrappings -->
+            <div class="accordion space-y-2.5 sm:space-y-3" id="customizeOrderAccordion">
+
+              <!-- Stems -->
+              <div class="accordion-item border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <h2 class="accordion-header">
+                  <button
+                    class="accordion-button flex items-center justify-between w-full p-3.5 sm:p-4 text-xs sm:text-sm"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseStems">
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="w-6 h-6 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center">2</span>
+                      <span class="font-bold text-slate-900 text-sm sm:text-base">Choose Flower Stems</span>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseStems" class="accordion-collapse collapse show"
+                  data-bs-parent="#customizeOrderAccordion">
+                  <div class="accordion-body p-3.5 sm:p-4 bg-slate-50/50">
+                    <div id="customStemsContainer" class="row g-2 sm:g-3">
+                      <div class="col-12 text-center py-4 text-slate-400 text-xs sm:text-sm">Loading available stems...
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fillers -->
+              <div class="accordion-item border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <h2 class="accordion-header">
+                  <button
+                    class="accordion-button collapsed flex items-center justify-between w-full p-3.5 sm:p-4 text-xs sm:text-sm"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseFillers">
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="w-6 h-6 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center">3</span>
+                      <span class="font-bold text-slate-900 text-sm sm:text-base">Choose Floral Fillers</span>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseFillers" class="accordion-collapse collapse" data-bs-parent="#customizeOrderAccordion">
+                  <div class="accordion-body p-3.5 sm:p-4 bg-slate-50/50">
+                    <div id="customFillersContainer" class="row g-2 sm:g-3">
+                      <div class="col-12 text-center py-4 text-slate-400 text-xs sm:text-sm">Loading fillers...</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Wrapping -->
+              <div class="accordion-item border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <h2 class="accordion-header">
+                  <button
+                    class="accordion-button collapsed flex items-center justify-between w-full p-3.5 sm:p-4 text-xs sm:text-sm"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseWrapping">
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="w-6 h-6 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center">4</span>
+                      <span class="font-bold text-slate-900 text-sm sm:text-base">Choose Wrapping & Ribbon</span>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseWrapping" class="accordion-collapse collapse"
+                  data-bs-parent="#customizeOrderAccordion">
+                  <div class="accordion-body p-3.5 sm:p-4 bg-slate-50/50">
+                    <div id="customWrappingContainer" class="row g-2 sm:g-3">
+                      <div class="col-12 text-center py-4 text-slate-400 text-xs sm:text-sm">Loading wrapping options...
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Voucher & Details -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="space-y-2">
+                <label class="form-label font-bold text-xs sm:text-sm text-slate-800 block mb-1">Voucher Code</label>
+                <div class="flex gap-2">
+                  <input type="text" id="customVoucherCodeInput" class="shadcn-input uppercase text-sm sm:text-base"
+                    placeholder="Enter voucher code">
+                  <button type="button" class="btn-shadcn-outline shrink-0 px-4 text-xs sm:text-sm font-semibold"
+                    id="applyCustomVoucherBtn">
+                    <i class="fa-solid fa-tag me-1"></i>Apply
+                  </button>
+                </div>
+                <div id="customVoucherFeedback" class="text-xs sm:text-sm mt-1"></div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-calendar text-rose-500 me-1.5"></i>Delivery Date
+                  </label>
+                  <input type="text" id="customDeliveryDatePicker" name="custom_expected_delivery_date"
+                    class="shadcn-input text-sm sm:text-base" placeholder="Select date" required>
+                  <input type="hidden" name="custom_rush" value="No">
+                  <div id="customRushNotification" class="mt-2" style="display: none;">
+                    <div
+                      class="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs sm:text-sm flex items-center gap-2">
+                      <i class="fa-solid fa-bolt text-amber-500 text-sm"></i>
+                      <span><strong>Rush Delivery:</strong> Orders under 3 days incur rush processing fees.</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-comment-dots text-rose-500 me-1.5"></i>Special Instructions
+                  </label>
+                  <textarea name="custom_message" class="shadcn-input h-20 text-sm sm:text-base py-2"
+                    placeholder="Specific flower placement, card message..."></textarea>
+                </div>
+              </div>
+
+              <div
+                class="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white flex items-center justify-between shadow-md mt-3">
+                <div>
+                  <span
+                    class="text-[11px] sm:text-xs text-white/80 font-semibold uppercase tracking-wider block">Estimated
+                    Custom Total</span>
+                  <div id="customOrderOriginalTotal" class="text-white/60 text-xs line-through" style="display: none;">
+                    ₱<span id="customOriginalTotalAmount">0</span>
+                  </div>
+                </div>
+                <span class="text-2xl sm:text-3xl font-bold text-white" id="customOrderTotal">₱0.00</span>
+              </div>
+            </div>
+
+            <!-- Terms Checkbox -->
+            <div class="pt-1 px-1">
+              <div class="flex items-center gap-2">
+                <input class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer"
+                  type="checkbox" id="customAgreeTerms" required>
+                <label class="text-xs sm:text-sm text-slate-700 cursor-pointer" for="customAgreeTerms">
+                  I agree to the <a href="/terms-and-conditions.html" target="_blank"
+                    class="text-rose-600 font-semibold underline">Terms & Conditions</a>
+                </label>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit"
+              class="btn-shadcn-primary w-full py-3.5 text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:shadow-rose-500/25 active:scale-[0.98] transition-all"
+              id="placeCustomOrderBtn">
+              <i class="fa-solid fa-palette me-2"></i>Place Custom Order
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auth Required Modal -->
+  <div class="modal fade" id="authRequiredModal" tabindex="-1" aria-labelledby="authRequiredModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-modal overflow-hidden p-5 sm:p-6 text-center">
+        <div
+          class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-2xl sm:text-3xl mx-auto mb-3 sm:mb-4">
+          <i class="fas fa-lock"></i>
+        </div>
+        <h5 class="font-display font-bold text-xl sm:text-2xl mb-2 text-slate-900">Account Required</h5>
+        <p class="text-xs sm:text-sm text-slate-500 mb-5 sm:mb-6">
+          To place your order or customize a bouquet, please log in or create a free account.
+        </p>
+        <div class="flex flex-col gap-2.5 sm:gap-3">
+          <a href="customer-signup.html" class="btn-shadcn-primary py-3 text-xs sm:text-sm text-decoration-none">
+            <i class="fas fa-user-plus me-2"></i>Create Free Account
+          </a>
+          <a href="customer-login.html" class="btn-shadcn-outline py-3 text-xs sm:text-sm text-decoration-none">
+            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voucher Warning Modal -->
+  <div class="modal fade" id="voucherWarningModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false"
+    style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content glass-modal p-5 sm:p-6 text-center">
+        <div
+          class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-100 text-amber-500 flex items-center justify-center text-xl sm:text-2xl mx-auto mb-3 sm:mb-4">
+          <i class="fa fa-exclamation-triangle"></i>
+        </div>
+        <h5 class="font-display font-bold text-lg sm:text-xl mb-2 text-slate-900">Unapplied Voucher Code</h5>
+        <p class="text-xs sm:text-sm text-slate-500 mb-5">
+          You entered a promo voucher code but haven't clicked "Apply" yet. Would you like to proceed without the
+          discount?
+        </p>
+        <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+          <button type="button" class="btn-shadcn-outline flex-1 py-2.5 text-xs sm:text-sm" id="voucherWarningProceed">
+            Proceed Without Discount
+          </button>
+          <button type="button" class="btn-shadcn-primary flex-1 py-2.5 text-xs sm:text-sm" data-bs-dismiss="modal">
+            Go Back & Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review Image Lightbox Modal -->
+  <div class="image-modal fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4"
+    id="imageModal" role="dialog" aria-modal="true" aria-label="Review photo">
+    <span class="image-modal-close absolute top-6 right-8 text-white text-4xl cursor-pointer hover:text-rose-400 transition-colors">&times;</span>
+    <img id="modalImage" src="" alt="Review detail view" class="max-w-full rounded-2xl shadow-2xl">
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/alert.js"></script>
   <script src="/js/voucher-handler.js"></script>
   <script src="/js/delivery-calendar.js"></script>
   <script src="/function.js" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
+  <script src="/js/reviews-inline.js" defer></script>
   <script src="/js/auth.js"></script>
+
   <script>
-    // Initialize custom delivery date calendars
+    // Mobile Drawer Toggle Functions
+    function toggleMobileNavMenu() {
+      const drawer = document.getElementById('mobileNavDrawer');
+      const icon = document.getElementById('mobileNavIcon');
+      if (!drawer) return;
+      const isHidden = drawer.classList.contains('hidden');
+      if (isHidden) {
+        drawer.classList.remove('hidden');
+        if (icon) { icon.classList.remove('fa-bars'); icon.classList.add('fa-xmark'); }
+      } else {
+        drawer.classList.add('hidden');
+        if (icon) { icon.classList.remove('fa-xmark'); icon.classList.add('fa-bars'); }
+      }
+    }
+
+    function closeMobileNavDrawer() {
+      const drawer = document.getElementById('mobileNavDrawer');
+      const icon = document.getElementById('mobileNavIcon');
+      if (drawer && !drawer.classList.contains('hidden')) {
+        drawer.classList.add('hidden');
+        if (icon) { icon.classList.remove('fa-xmark'); icon.classList.add('fa-bars'); }
+      }
+    }
+
+    function openCustomOrderModal() {
+      const modalEl = document.getElementById('customizeOrderModal');
+      if (modalEl && typeof bootstrap !== 'undefined') {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+      }
+    }
+
+    // Delivery Date Calendar Initializer
     let regularOrderCalendar = null;
     let customOrderCalendar = null;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-      // Prevent manual typing in date inputs
+
+    document.addEventListener('DOMContentLoaded', function () {
       const deliveryDatePicker = document.getElementById('deliveryDatePicker');
       if (deliveryDatePicker) {
-        deliveryDatePicker.addEventListener('keydown', (e) => {
-          e.preventDefault();
-        });
+        deliveryDatePicker.addEventListener('keydown', (e) => e.preventDefault());
       }
-      
+
       const customDeliveryDatePicker = document.getElementById('customDeliveryDatePicker');
       if (customDeliveryDatePicker) {
-        customDeliveryDatePicker.addEventListener('keydown', (e) => {
-          e.preventDefault();
-        });
+        customDeliveryDatePicker.addEventListener('keydown', (e) => e.preventDefault());
       }
-      
-      // Initialize regular order date picker when modal is shown
+
       const orderModal = document.getElementById('inquiryModal');
       if (orderModal) {
-        orderModal.addEventListener('shown.bs.modal', function() {
+        orderModal.addEventListener('shown.bs.modal', function () {
           const dateInput = document.getElementById('deliveryDatePicker');
           if (dateInput && !regularOrderCalendar) {
             regularOrderCalendar = new DeliveryCalendar('deliveryDatePicker', {
@@ -971,546 +891,33 @@
               onChange: (selectedDate, dateStr) => {
                 const input = document.getElementById('deliveryDatePicker');
                 input.value = dateStr;
-                
                 const rushInput = document.querySelector('input[name="rush"]');
                 const rushNotif = document.getElementById('rushNotification');
-                
                 if (!dateStr) {
-                  rushInput.value = 'No';
-                  rushNotif.style.display = 'none';
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
                   return;
                 }
-                
                 const date = new Date(dateStr);
                 date.setHours(0, 0, 0, 0);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
-                
                 if (diffDays >= 1 && diffDays <= 3) {
-                  rushInput.value = 'Yes';
-                  rushNotif.style.display = 'block';
+                  if (rushInput) rushInput.value = 'Yes';
+                  if (rushNotif) rushNotif.style.display = 'block';
                 } else {
-                  rushInput.value = 'No';
-                  rushNotif.style.display = 'none';
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
                 }
-                
-                // Trigger total recalculation
-                if (window.calculateOrderTotal) {
-                  window.calculateOrderTotal();
-                }
+                if (window.calculateOrderTotal) window.calculateOrderTotal();
               }
             });
-          } else if (regularOrderCalendar) {
-            regularOrderCalendar.refresh();
-          }
-        });
-      }
-      
-      // Initialize custom order date picker when modal is shown
-      const customOrderModal = document.getElementById('customizeOrderModal');
-      if (customOrderModal) {
-        customOrderModal.addEventListener('shown.bs.modal', function() {
-          const dateInput = document.getElementById('customDeliveryDatePicker');
-          if (dateInput && !customOrderCalendar) {
-            customOrderCalendar = new DeliveryCalendar('customDeliveryDatePicker', {
-              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })(),
-              onChange: (selectedDate, dateStr) => {
-                const input = document.getElementById('customDeliveryDatePicker');
-                input.value = dateStr;
-                
-                const rushInput = document.querySelector('input[name="custom_rush"]');
-                const rushNotif = document.getElementById('customRushNotification');
-                
-                if (!dateStr) {
-                  rushInput.value = 'No';
-                  rushNotif.style.display = 'none';
-                  return;
-                }
-                
-                const date = new Date(dateStr);
-                date.setHours(0, 0, 0, 0);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
-                
-                if (diffDays >= 1 && diffDays <= 3) {
-                  rushInput.value = 'Yes';
-                  rushNotif.style.display = 'block';
-                } else {
-                  rushInput.value = 'No';
-                  rushNotif.style.display = 'none';
-                }
-                
-                // Trigger total recalculation for custom order
-                if (window.calculateCustomOrderTotal) {
-                  window.calculateCustomOrderTotal();
-                }
-              }
-            });
-          } else if (customOrderCalendar) {
-            customOrderCalendar.refresh();
           }
         });
       }
     });
   </script>
-  <style>
-    /* Announcements Section */
-    .announcements-section {
-      padding: 60px 0;
-      background: linear-gradient(180deg, #fff5f9 0%, #ffffff 100%);
-    }
-    
-    /* Carousel Styling */
-    .announcements-carousel {
-      background: linear-gradient(135deg, #ff99c8 0%, #ff6fa3 100%);
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(255, 105, 180, 0.25);
-      position: relative;
-      margin-bottom: 40px;
-    }
-    
-    .announcements-carousel::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="2" fill="white" opacity="0.1"/></svg>');
-      pointer-events: none;
-      z-index: 0;
-    }
-    
-    .announcements-carousel .carousel-inner {
-      position: relative;
-      z-index: 1;
-    }
-    
-    .announcements-carousel .carousel-item {
-      min-height: 380px;
-      padding: 80px 60px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .announcements-carousel .carousel-item.active,
-    .announcements-carousel .carousel-item-next,
-    .announcements-carousel .carousel-item-prev {
-      display: flex;
-    }
-    
-    .announcements-carousel .carousel-item.active {
-      opacity: 1;
-    }
-    
-    .announcements-carousel .carousel-caption {
-      position: static;
-      padding: 0;
-      color: white;
-      text-align: center;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    
-    .announcements-carousel .carousel-caption h3 {
-      color: white;
-      font-weight: 800;
-      font-size: 3rem;
-      margin-bottom: 20px;
-      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      letter-spacing: -1px;
-      line-height: 1.2;
-      animation: slideDown 0.8s ease-out;
-    }
-    
-    @keyframes slideDown {
-      from {
-        opacity: 0;
-        transform: translateY(-30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    .announcements-carousel .carousel-caption p {
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 1.2rem;
-      line-height: 1.8;
-      margin-bottom: 30px;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-      font-weight: 400;
-      animation: slideUp 0.8s ease-out 0.2s both;
-    }
-    
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    .announcements-carousel .btn-light {
-      background: white;
-      color: #ff6fa3;
-      border: none;
-      padding: 16px 40px;
-      border-radius: 50px;
-      font-weight: 700;
-      font-size: 1.05rem;
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      animation: slideUp 0.8s ease-out 0.4s both;
-    }
-    
-    .announcements-carousel .btn-light:hover {
-      transform: translateY(-4px) scale(1.05);
-      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-      background: #fff;
-      color: #ff5082;
-    }
-    
-    .announcements-carousel .btn-light:active {
-      transform: translateY(-2px) scale(1.02);
-    }
-    
-    /* Navigation Arrows */
-    .announcements-carousel .carousel-control-prev,
-    .announcements-carousel .carousel-control-next {
-      width: 60px;
-      height: 60px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 50%;
-      opacity: 0;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-    
-    .announcements-carousel:hover .carousel-control-prev,
-    .announcements-carousel:hover .carousel-control-next {
-      opacity: 1;
-    }
-    
-    .announcements-carousel .carousel-control-prev {
-      left: 20px;
-    }
-    
-    .announcements-carousel .carousel-control-next {
-      right: 20px;
-    }
-    
-    .announcements-carousel .carousel-control-prev:hover,
-    .announcements-carousel .carousel-control-next:hover {
-      background: white;
-      transform: translateY(-50%) scale(1.1);
-    }
-    
-    .announcements-carousel .carousel-control-icon {
-      width: auto;
-      height: auto;
-    }
-    
-    .announcements-carousel .carousel-control-icon i {
-      color: #ff6fa3;
-      font-size: 1.5rem;
-      font-weight: bold;
-    }
-    
-    /* Indicators */
-    .announcements-carousel .carousel-indicators {
-      bottom: 30px;
-      margin: 0;
-      gap: 8px;
-    }
-    
-    .announcements-carousel .carousel-indicators button {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.6);
-      background: transparent;
-      margin: 0 4px;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
-      padding: 0;
-    }
-    
-    .announcements-carousel .carousel-indicators button:hover {
-      border-color: white;
-      transform: scale(1.2);
-    }
-    
-    .announcements-carousel .carousel-indicators button.active {
-      background: white;
-      width: 40px;
-      border-radius: 6px;
-      border-color: white;
-    }
-    
-      
-    #announcementModal .modal-content {
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    
-    #announcementModal .modal-header {
-      background: linear-gradient(135deg, #ff6f9b 0%, #ff5082 100%);
-      border-bottom: none;
-      padding: 20px;
-      color: white;
-    }
-    
-    #announcementModal .modal-body {
-      padding: 30px;
-    }
-    
-    .announcement-detail-image {
-      width: 100%;
-      max-height: 400px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-    
-    .announcement-detail-image:hover {
-      opacity: 0.9;
-    }
-    
-    .announcement-detail-type {
-      display: inline-block;
-      background: #ff6f9b;
-      color: white;
-      padding: 5px 15px;
-      border-radius: 20px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      margin-bottom: 15px;
-    }
-    
-    .announcement-detail-title {
-      font-size: 2rem;
-      font-weight: 600;
-      color: #ff6f9b;
-      margin-bottom: 15px;
-    }
-    
-    .announcement-detail-description {
-      font-size: 1.1rem;
-      line-height: 1.6;
-      color: #333;
-    }
-    
-    /* Mobile Responsive */
-    @media (max-width: 768px) {
-      .announcements-section {
-        padding: 40px 0;
-      }
-      
-      .announcements-carousel .carousel-item {
-        min-height: 340px;
-        padding: 50px 30px;
-      }
-      
-      .announcements-carousel .carousel-item::before,
-      .announcements-carousel .carousel-item::after {
-        font-size: 80px;
-      }
-      
-      .announcements-carousel .carousel-caption h3 {
-        font-size: 2rem;
-        margin-bottom: 15px;
-      }
-      
-      .announcements-carousel .carousel-caption p {
-        font-size: 1rem;
-        margin-bottom: 25px;
-      }
-      
-      .announcements-carousel .btn-light {
-        padding: 14px 32px;
-        font-size: 0.95rem;
-      }
-      
-      .announcements-carousel .carousel-control-prev,
-      .announcements-carousel .carousel-control-next {
-        width: 50px;
-        height: 50px;
-      }
-      
-      .announcements-carousel .carousel-control-prev {
-        left: 10px;
-      }
-      
-      .announcements-carousel .carousel-control-next {
-        right: 10px;
-      }
-      
-      .announcements-carousel .carousel-indicators {
-        bottom: 20px;
-      }
-      
-      #announcementModal .announcement-detail-title {
-        font-size: 1.5rem;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .announcements-carousel .carousel-item {
-        padding-bottom: 50px;
-      }
-      #announcementsCarousel .carousel-indicators {
-        bottom: 10px;
-        margin-bottom: 0;
-      }
-      #announcementsCarousel .carousel-indicators [data-bs-target] {
-        width: 8px;
-        height: 8px;
-        margin: 0 4px;
-      }
-    }
-
-    
-    .floating-chat-btn {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%);
-        color: white;
-        border: none;
-        box-shadow: 0 10px 28px rgba(255, 111, 155, 0.4);
-        font-size: 24px;
-        cursor: pointer;
-        z-index: 9998;
-        transition: all 0.25s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .floating-chat-btn:hover {
-        transform: scale(1.06);
-        box-shadow: 0 12px 32px rgba(255, 111, 155, 0.5);
-        color: white;
-    }
-
-    .floating-chat-btn:active {
-        transform: scale(0.95);
-    }
-  </style>
-  <script>
-    let allAnnouncements = [];
-
-    function showAnnouncementDetails(announcementId) {
-      const announcement = allAnnouncements.find(a => a.id === announcementId);
-      if (!announcement) return;
-
-      const modalContent = document.getElementById('announcementModalContent');
-      modalContent.innerHTML = `
-        ${announcement.image_url ? `
-          <img src="${announcement.image_url}" alt="${announcement.title}" class="announcement-detail-image" loading="lazy"
-               onclick="window.open('${announcement.image_url}', '_blank')"
-               title="Click to view full size"
-               onerror="this.style.display='none';">
-        ` : ''}
-        <span class="announcement-detail-type">
-          <i class="fa fa-tag me-1"></i>${announcement.type.replace('_', ' ').toUpperCase()}
-        </span>
-        <h3 class="announcement-detail-title">${announcement.title}</h3>
-        <p class="announcement-detail-description">${announcement.description}</p>
-      `;
-
-      const modal = new bootstrap.Modal(document.getElementById('announcementModal'));
-      modal.show();
-    }
-
-    let carouselInstance = null;
-
-    async function loadAnnouncements() {
-      try {
-        const API_URL = window.location.hostname === 'localhost' 
-          ? 'http://localhost:3000' 
-          : 'https://chammyflorals.vercel.app';
-        const response = await fetch(`${API_URL}/api/announcements`);
-        const data = await response.json();
-
-        if (data.announcements && data.announcements.length > 0) {
-          allAnnouncements = data.announcements;
-          const section = document.getElementById('announcementsSection');
-          const carouselContent = document.getElementById('carouselContent');
-          const carouselIndicators = document.getElementById('carouselIndicators');
-
-          if (carouselInstance) {
-            carouselInstance.dispose();
-            carouselInstance = null;
-          }
-
-          carouselContent.innerHTML = '';
-          carouselIndicators.innerHTML = '';
-
-          // Populate carousel
-          carouselContent.innerHTML = data.announcements.map((ann, index) => `
-            <div class="carousel-item ${index === 0 ? 'active' : ''}">
-              <div class="carousel-caption">
-                <h3>${ann.title}</h3>
-                <p>${ann.description.length > 150 ? ann.description.substring(0, 150) + '...' : ann.description}</p>
-                <button onclick="showAnnouncementDetails('${ann.id}')" class="btn btn-light">
-                  Learn More <i class="fa fa-arrow-right ms-2"></i>
-                </button>
-              </div>
-            </div>
-          `).join('');
-
-          carouselIndicators.innerHTML = data.announcements.map((ann, index) => `
-            <button type="button" data-bs-target="#announcementsCarousel" data-bs-slide-to="${index}" 
-                    ${index === 0 ? 'class="active" aria-current="true"' : ''}
-                    aria-label="Slide ${index + 1}"></button>
-          `).join('');
-
-          section.style.display = 'block';
-
-          setTimeout(() => {
-            const carouselEl = document.getElementById('announcementsCarousel');
-            carouselInstance = new bootstrap.Carousel(carouselEl, {
-              interval: 6000,
-              wrap: true,
-              keyboard: true,
-              touch: true,
-              pause: 'hover',
-              ride: 'carousel'
-            });
-            carouselInstance.cycle();
-          }, 150);
-        }
-      } catch (error) {
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', loadAnnouncements);
-  </script>
-  <link rel="stylesheet" href="/css/notify-prompt.css">
-  <script src="/js/push-subscribe.js"></script>
-  <script src="/js/notify-prompt.js"></script>
-  <script src="/js/customize-order.js"></script>
-
 </body>
+
 </html>

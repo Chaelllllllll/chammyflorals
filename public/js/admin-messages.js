@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (!token) {
     alertWarning('Please log in first');
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
     return;
   }
 
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login.html';
+      window.location.href = '/customer-login.html';
     });
   }
 

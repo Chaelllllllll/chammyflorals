@@ -1,6 +1,6 @@
 async function loadReportsData() {
   const token = localStorage.getItem('adminToken');
-  if (!token) return window.location.href = '/admin/login.html';
+  if (!token) return window.location.href = '/customer-login.html';
   try {
     const url = '/api/admin/reports';
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });

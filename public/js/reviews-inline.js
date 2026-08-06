@@ -46,7 +46,9 @@ window.openImageModal = function(imageSrc) {
     const modalImg = document.getElementById('modalImage');
     if (modal && modalImg) {
       modalImg.src = imageSrc;
-      modal.classList.add('active');
+      // Show the lightbox: drop `hidden`, add `flex` (Tailwind) + `active` (custom CSS)
+      modal.classList.remove('hidden');
+      modal.classList.add('flex', 'active');
       document.body.style.overflow = 'hidden';
     }
   } catch (err) {
@@ -58,7 +60,9 @@ window.closeImageModal = function() {
   try {
     const modal = document.getElementById('imageModal');
     if (modal) {
-      modal.classList.remove('active');
+      // Hide the lightbox again
+      modal.classList.add('hidden');
+      modal.classList.remove('flex', 'active');
       document.body.style.overflow = 'auto';
     }
   } catch (err) {
@@ -85,4 +89,17 @@ const modalClose = document.querySelector('.image-modal-close');
 if (modalClose) modalClose.addEventListener('click', function(e) {
   e.preventDefault();
   window.closeImageModal();
+});
+
+// Delegated click handler for review images -> open lightbox
+document.addEventListener('click', function(e) {
+  const wrapper = e.target.closest('.review-image-wrapper');
+  if (wrapper) {
+    e.preventDefault();
+    e.stopPropagation();
+    const imageUrl = wrapper.getAttribute('data-image-url');
+    if (imageUrl && typeof window.openImageModal === 'function') {
+      window.openImageModal(imageUrl);
+    }
+  }
 });

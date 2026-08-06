@@ -1,7 +1,7 @@
 // admin-todo.js - simple To Do orders viewer (requires admin token in localStorage)
 (async function(){
   const token = localStorage.getItem('adminToken');
-  if (!token) return window.location.href = '/admin/login.html';
+  if (!token) return window.location.href = '/customer-login.html';
 
   const todoTable = document.getElementById('todoTable');
   const sortSelect = document.getElementById('sortSelect');
@@ -14,7 +14,7 @@
   const detailsModal = orderDetailsModalEl ? new bootstrap.Modal(orderDetailsModalEl) : null;
   const orderDetailsContent = document.getElementById('orderDetailsContent');
 
-  logoutButton?.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
+  logoutButton?.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 
   function formatColor(c) {
     try {

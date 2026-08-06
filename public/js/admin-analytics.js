@@ -2,7 +2,7 @@
 (function(){
   async function fetchOrders(){
     const token = localStorage.getItem('adminToken');
-    if (!token) return window.location.href = '/admin/login.html';
+    if (!token) return window.location.href = '/customer-login.html';
     const res = await fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } });
     if(!res.ok) {
       const body = await res.json().catch(()=>({}));

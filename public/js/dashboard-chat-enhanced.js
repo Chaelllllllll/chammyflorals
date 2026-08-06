@@ -25,13 +25,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Get customer ID from token
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        customerId = payload.id;
-    } catch (error) {
-        if (floatingChatBtn) {
-            floatingChatBtn.style.display = 'none';
+        if (token && token.split('.').length === 3) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            customerId = payload.id || payload.sub || payload.customerId;
         }
-        return;
+    } catch (error) {}
+
+    if (!customerId) {
+        try {
+            const userStr = localStorage.getItem('customer_user') || localStorage.getItem('user');
+            if (userStr) {
+                const u = JSON.parse(userStr);
+                customerId = u.id || u.sub;
+            }
+        } catch (e) {}
     }
     
     // Function to update chat notification badge
@@ -168,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Load messages function with image and product support
     async function loadMessages() {
-        if (!chatMessages || !customerId) return;
+        if (!chatMessages || !token) return;
 
         try {
             const response = await fetch('/api/customer-chat', {

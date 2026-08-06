@@ -666,7 +666,7 @@ document.getElementById('addProductBtn').addEventListener('click', () => {
   renderGalleryPreview();
 });
 
-document.getElementById('logoutButton').addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/admin/login.html'; });
+document.getElementById('logoutButton').addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 
 document.getElementById('productForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -687,6 +687,20 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
   const pricing = readPricingFromForm();
     const addons = readAddonsFromForm();
   const colors = readColorsFromForm();
+
+    // Upload any new pricing row images
+    for (const pRow of pricing) {
+      if (pRow._file) {
+        try {
+          const pfd = new FormData();
+          pfd.append('file', pRow._file);
+          const pUpl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: pfd });
+          if (pUpl && pUpl.url) pRow.image_url = pUpl.url;
+        } catch (err) { console.error('Pricing image upload failed for', pRow.label, err); }
+        delete pRow._file;
+      }
+    }
+
     if (pricing && pricing.length) payload.pricing = pricing;
     if (addons && addons.length) payload.addons = addons;
   if (colors && colors.length) payload.colors = colors;
@@ -841,13 +855,49 @@ loadProducts();
 // -----------------
 function createPricingRow(row = {}) {
   const tr = document.createElement('tr');
+  const existingImg = row.image_url || '';
   tr.innerHTML = `
     <td><input class="form-control form-control-sm pricing-label" value="${escapeHtml(row.label||'')}" placeholder="Label e.g. FWG1"></td>
     <td><input class="form-control form-control-sm pricing-set" value="${escapeHtml(row.set||'')}" placeholder="Set e.g. 1 pc"></td>
     <td><input class="form-control form-control-sm pricing-price" type="number" min="0" step="0.01" value="${row.price||''}"></td>
+    <td>
+      <div class="d-flex align-items-center gap-2">
+        <input type="hidden" class="pricing-image-url" value="${escapeHtml(existingImg)}">
+        ${existingImg ? `<img src="${escapeHtml(existingImg)}" class="pricing-image-preview" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer;" title="Click to change">` : `<div class="pricing-image-preview" style="width:40px;height:40px;border-radius:6px;border:1px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#94a3b8;font-size:14px;" title="Click to upload"><i class="fas fa-image"></i></div>`}
+        <input type="file" accept="image/*" class="pricing-image-file d-none">
+      </div>
+    </td>
     <td><button type="button" class="btn btn-sm btn-outline-danger remove-pricing">✕</button></td>
   `;
   tr.querySelector('.remove-pricing').addEventListener('click', () => tr.remove());
+
+  // Click preview to trigger file input
+  const preview = tr.querySelector('.pricing-image-preview');
+  const fileInput = tr.querySelector('.pricing-image-file');
+  if (preview && fileInput) {
+    preview.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      // Replace preview with actual image thumbnail
+      const td = preview.closest('td');
+      const existingPreview = td.querySelector('.pricing-image-preview');
+      if (existingPreview) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'pricing-image-preview';
+        img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer;';
+        img.title = 'Click to change';
+        img.addEventListener('click', () => fileInput.click());
+        existingPreview.replaceWith(img);
+      }
+      // Clear the hidden URL since we have a new file
+      const hiddenUrl = td.querySelector('.pricing-image-url');
+      if (hiddenUrl) hiddenUrl.value = '';
+    });
+  }
+
   return tr;
 }
 
@@ -952,11 +1002,24 @@ document.getElementById('addColorRow')?.addEventListener('click', () => {
 
 function readPricingFromForm() {
   const rows = Array.from(document.querySelectorAll('#pricingTable tbody tr'));
-  return rows.map(r => ({
-    label: r.querySelector('.pricing-label').value.trim(),
-    set: r.querySelector('.pricing-set').value.trim(),
-    price: (function(v){ const s = String((r.querySelector('.pricing-price').value||'').trim()); const n = parseFloat(s); return isNaN(n) ? s : n; })(r),
-  })).filter(x => x.label || x.set || x.price);
+  return rows.map(r => {
+    const entry = {
+      label: r.querySelector('.pricing-label').value.trim(),
+      set: r.querySelector('.pricing-set').value.trim(),
+      price: (function(){ const s = String((r.querySelector('.pricing-price').value||'').trim()); const n = parseFloat(s); return isNaN(n) ? s : n; })(),
+    };
+    // Collect existing image URL
+    const hiddenUrl = r.querySelector('.pricing-image-url');
+    if (hiddenUrl && hiddenUrl.value.trim()) {
+      entry.image_url = hiddenUrl.value.trim();
+    }
+    // Collect new file (for upload later)
+    const fileInput = r.querySelector('.pricing-image-file');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      entry._file = fileInput.files[0];
+    }
+    return entry;
+  }).filter(x => x.label || x.set || x.price);
 }
 
 function readAddonsFromForm() {

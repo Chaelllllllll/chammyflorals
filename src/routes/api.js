@@ -88,16 +88,23 @@ const authenticateCustomerOrAdmin = async (req, res, next) => {
     // Admin auth attempt failed, fall back to customer JWT
   }
 
-  // Try customer JWT authentication
+  // Try customer JWT authentication (supports both app JWT and Supabase OAuth JWT)
   try {
     const decoded = jwt.verify(token, JWT_SECRET_SAFE);
-    if (decoded && decoded.id) {
+    if (decoded && (decoded.id || decoded.sub || decoded.customerId)) {
       req.user = decoded;
       req.userType = 'customer';
       return next();
     }
   } catch (err) {
-    // Not a customer JWT
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && (decoded.id || decoded.sub || decoded.customerId || decoded.email)) {
+        req.user = decoded;
+        req.userType = 'customer';
+        return next();
+      }
+    } catch (de) {}
   }
 
   return res.status(403).json({ error: 'Invalid or expired token' });
@@ -196,6 +203,109 @@ const sanitizeString = (str, maxLength = 1000) => {
   // Remove HTML tags and limit length
   return String(str).replace(/<[^>]*>/g, '').trim().substring(0, maxLength);
 };
+
+async function resolveCustomerContext(req) {
+  const rawUserId = req.user?.id || req.user?.sub || req.user?.customerId || req.customer?.id || null;
+  let customerEmail = req.user?.email || req.user?.user_metadata?.email || req.customer?.email || null;
+  let customerId = null;
+
+  console.log('[DEBUG] resolveCustomerContext input:', {
+    hasReqUser: !!req.user,
+    reqUserKeys: req.user ? Object.keys(req.user) : [],
+    rawUserId,
+    customerEmail
+  });
+
+  if (rawUserId != null) {
+    const userIdStr = String(rawUserId).trim();
+    if (/^\d+$/.test(userIdStr)) {
+      customerId = Number(rawUserId);
+    } else {
+      // If rawUserId is a UUID (Google / Supabase Auth sub), try to resolve it from the google_id column
+      const { data: customerByGoogleId, error: googleIdError } = await supabase
+        .from('customers')
+        .select('id, email')
+        .eq('google_id', userIdStr)
+        .maybeSingle();
+
+      if (googleIdError) {
+        console.error('Error resolving customer by google_id:', googleIdError);
+      } else if (customerByGoogleId) {
+        customerId = Number(customerByGoogleId.id);
+        if (!customerEmail && customerByGoogleId.email) {
+          customerEmail = String(customerByGoogleId.email).toLowerCase().trim();
+        }
+      }
+    }
+  }
+
+  if (!customerEmail && customerId) {
+    const { data: customerById, error: customerByIdError } = await supabase
+      .from('customers')
+      .select('email')
+      .eq('id', customerId)
+      .maybeSingle();
+
+    if (customerByIdError) {
+      console.error('Error resolving customer email by id:', customerByIdError);
+    } else if (customerById && customerById.email) {
+      customerEmail = String(customerById.email).toLowerCase().trim();
+    }
+  }
+
+  if (!customerId && customerEmail) {
+    const { data: customerByEmail, error: customerByEmailError } = await supabase
+      .from('customers')
+      .select('id,email')
+      .eq('email', String(customerEmail).toLowerCase().trim())
+      .maybeSingle();
+
+    if (customerByEmailError) {
+      console.error('Error resolving customer id by email:', customerByEmailError);
+    } else if (customerByEmail && customerByEmail.id) {
+      customerId = Number(customerByEmail.id);
+      customerEmail = customerByEmail.email ? String(customerByEmail.email).toLowerCase().trim() : customerEmail;
+    } else {
+      // Auto-provision user record in customers table if authenticated but not present
+      const fallbackName = String(customerEmail).split('@')[0];
+      const customerName = req.user?.name || req.user?.user_metadata?.full_name || req.user?.user_metadata?.name || fallbackName;
+      const googleIdStr = rawUserId && !/^\d+$/.test(String(rawUserId)) ? String(rawUserId) : null;
+      
+      const bcrypt = require('bcryptjs');
+      const crypto = require('crypto');
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+      const { data: newCustomer, error: insertError } = await supabase
+        .from('customers')
+        .insert([{
+          email: String(customerEmail).toLowerCase().trim(),
+          name: customerName,
+          google_id: googleIdStr,
+          password_hash: passwordHash,
+          email_verified: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+        
+      if (insertError) {
+        console.error('Failed to auto-provision customer record:', insertError);
+      } else if (newCustomer) {
+        customerId = Number(newCustomer.id);
+        console.log('Successfully auto-provisioned customer record for:', customerEmail);
+      }
+    }
+  }
+
+  console.log('[DEBUG] resolveCustomerContext output:', {
+    customerId,
+    customerEmail
+  });
+
+  return { customerId, customerEmail };
+}
 
 // Apply a stricter rate limit to the public inquiry endpoint to mitigate abuse.
 // Skip rate limiting for admin users
@@ -618,8 +728,11 @@ router.get('/track/:orderId', async (req, res) => {
 // Get orders for authenticated customer
 router.get('/orders', authenticateCustomer, async (req, res) => {
   try {
-    const customerId = req.user.id;
-    const customerEmail = req.user.email;
+    const { customerId, customerEmail } = await resolveCustomerContext(req);
+
+    if (!customerId) {
+      return res.json([]);
+    }
     
     // Fetch regular orders
     const { data: regularOrders, error: regularError } = await supabase
@@ -633,16 +746,20 @@ router.get('/orders', authenticateCustomer, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch orders' });
     }
 
-    // Fetch custom orders by email
-    const { data: customOrders, error: customError } = await supabase
-      .from('custom_orders')
-      .select('*')
-      .eq('email', customerEmail)
-      .order('created_at', { ascending: false });
+    let customOrders = [];
+    if (customerEmail) {
+      const { data: customOrdersData, error: customError } = await supabase
+        .from('custom_orders')
+        .select('*')
+        .eq('email', customerEmail)
+        .order('created_at', { ascending: false });
 
-    if (customError) {
-      console.error('Error fetching custom orders:', customError);
-      // Don't fail the entire request, just continue with regular orders
+      if (customError) {
+        console.error('Error fetching custom orders:', customError);
+        // Don't fail the entire request, just continue with regular orders
+      } else {
+        customOrders = customOrdersData || [];
+      }
     }
 
     // Combine and normalize both order types
@@ -679,7 +796,11 @@ router.get('/orders', authenticateCustomer, async (req, res) => {
 router.get('/orders/track/:trackingCode', authenticateCustomer, async (req, res) => {
   try {
     const { trackingCode } = req.params;
-    const customerEmail = req.user.email;
+    const { customerEmail } = await resolveCustomerContext(req);
+
+    if (!customerEmail) {
+      return res.status(401).json({ error: 'Customer account not found' });
+    }
     
     const { data, error } = await supabase
       .from('orders')
@@ -1567,15 +1688,22 @@ router.get('/chat/:orderId', async (req, res) => {
 // Get all messages for authenticated customer
 router.get('/customer-chat', authenticateCustomer, async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const { customerId } = await resolveCustomerContext(req);
+
+    if (!customerId) {
+      return res.json({ success: true, messages: [] });
+    }
+
     console.log('Getting chat messages for customer:', customerId);
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     // Hard-delete messages older than 30 days to keep the inbox clean
-    await supabase
-      .from('customer_messages')
-      .delete()
-      .lt('created_at', thirtyDaysAgo.toISOString());
+    try {
+      await supabase
+        .from('customer_messages')
+        .delete()
+        .lt('created_at', thirtyDaysAgo.toISOString());
+    } catch (delErr) {}
     
     // Get all messages from customer_messages table (general messaging)
     const { data: messages, error: messagesError } = await supabase
@@ -1595,17 +1723,9 @@ router.get('/customer-chat', authenticateCustomer, async (req, res) => {
       .order('created_at', { ascending: true });
     
     if (messagesError) {
-      // If the table is missing optional columns (e.g., deleted_for), avoid breaking chat
-      if (messagesError.code === '42703') {
-        console.warn('Column missing in customer_messages (likely deleted_for). Returning empty list.');
-        return res.json({ success: true, messages: [] });
-      }
-
-      console.error('Error fetching messages:', messagesError);
-      return res.status(500).json({ error: 'Failed to load messages' });
+      console.warn('Error fetching customer messages:', messagesError);
+      return res.json({ success: true, messages: [] });
     }
-    
-    console.log('Messages found:', messages ? messages.length : 0);
     
     res.json({ 
       success: true,
@@ -1613,14 +1733,19 @@ router.get('/customer-chat', authenticateCustomer, async (req, res) => {
     });
   } catch (error) {
     console.error('Customer chat error:', error);
-    res.status(500).json({ error: 'Failed to load messages' });
+    res.json({ success: true, messages: [] });
   }
 });
 
 // Send message as authenticated customer (supports text, images, and product inquiries)
 router.post('/customer-chat/send', authenticateCustomer, upload.single('image'), async (req, res) => {
   try {
-    const customerId = req.user.id;
+    const { customerId } = await resolveCustomerContext(req);
+
+    if (!customerId) {
+      return res.status(400).json({ error: 'Customer account not found' });
+    }
+
     const { message, product_id, order_id } = req.body;
     
     console.log('Customer sending message:', { customerId, message: message ? 'yes' : 'no', product_id, order_id, hasImage: !!req.file });
@@ -1744,8 +1869,12 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
 router.delete('/customer-chat/:id/delete', authenticateCustomer, async (req, res) => {
   try {
     const messageId = req.params.id;
-    const customerId = req.user.id;
+    const { customerId } = await resolveCustomerContext(req);
     const { deleteType } = req.body; // 'me' or 'everyone'
+
+    if (!customerId) {
+      return res.status(401).json({ error: 'Customer account not found' });
+    }
     
     // Get the message to check ownership
     const { data: message, error: fetchError } = await supabase

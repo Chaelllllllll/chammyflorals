@@ -1,7 +1,7 @@
 async function loadOrders() {
   const token = localStorage.getItem('adminToken');
   if (!token) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
     return;
   }
 
@@ -18,7 +18,7 @@ async function loadOrders() {
     }
     if (!verifyResponse.ok) {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login.html';
+      window.location.href = '/customer-login.html';
       return;
     }
 
@@ -568,7 +568,7 @@ function viewDetails(orderId) {
 function resetDetailsModalFooter() {
   const modalFooter = document.querySelector('#orderDetailsModal .modal-footer');
   if (modalFooter) {
-    modalFooter.innerHTML = `<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>`;
+    modalFooter.innerHTML = `<button type="button" class="btn-outline-pink" data-bs-dismiss="modal">Close</button>`;
   }
 }
 
@@ -1277,10 +1277,10 @@ function openEditModal(orderId) {
   if (modalFooter) {
     modalFooter.innerHTML = `
       <div class="me-auto">
-        <button type="button" class="btn btn-outline-danger" id="editDeleteButton">Delete</button>
+        <button type="button" class="btn-outline-danger" id="editDeleteButton">Delete</button>
       </div>
       <div>
-        <button type="button" class="btn btn-pink" id="editSaveButton">Save</button>
+        <button type="button" class="btn-pink" id="editSaveButton">Save</button>
       </div>
     `;
   }
@@ -1487,7 +1487,7 @@ function showSuccessModal(message) {
 
 function logout() {
   localStorage.removeItem('adminToken');
-  window.location.href = '/admin/login.html';
+  window.location.href = '/customer-login.html';
 }
 
 // Event listeners

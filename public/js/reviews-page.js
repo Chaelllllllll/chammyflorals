@@ -66,34 +66,50 @@ async function renderPageReviews(append = false) {
     const endIdx = Math.min(startIdx + REVIEWS_PER_PAGE, sorted.length);
     const reviewsToDisplay = sorted.slice(startIdx, endIdx);
 
-    const reviewsHTML = reviewsToDisplay.map(r => `
-      <div class="col-12 mb-3">
-        <div class="review-card">
-          ${r.image_url ? `
-            <div class="row g-0">
-              <div class="col-md-6">
-                <div class="review-content">
-                  <div class="review-author">${escapeHtml(r.name || 'Customer')}</div>
-                  <div class="review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
-                  <p class="review-text mb-0">${escapeHtml(r.message)}</p>
+    const reviewsHTML = reviewsToDisplay.map(r => {
+      const starsHTML = '★'.repeat(r.stars) + '☆'.repeat(5 - (r.stars||0));
+      const time = r.created_at || r.createdAt ? new Date(r.created_at || r.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }) : '';
+      const initial = (r.name || 'C').charAt(0).toUpperCase();
+
+      return `
+        <div class="col-12 col-md-6 col-lg-4 mb-4 flex">
+          <div class="glass-card w-full flex flex-col justify-between p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+            <div>
+              <!-- Author Profile Header -->
+              <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center min-w-0">
+                  <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-bold text-sm flex items-center justify-center shrink-0 me-3 shadow-sm select-none">
+                    ${initial}
+                  </div>
+                  <div class="min-w-0">
+                    <h5 class="font-bold text-slate-800 text-base mb-0.5 truncate">${escapeHtml(r.name || 'Customer')}</h5>
+                    ${time ? `<span class="text-xs text-slate-400 font-medium block">${time}</span>` : ''}
+                  </div>
+                </div>
+                <div class="text-amber-500 text-base tracking-wide select-none shrink-0 ms-2">${starsHTML}</div>
+              </div>
+              
+              <!-- Review text message -->
+              <p class="text-slate-600 text-sm leading-relaxed mb-4">${escapeHtml(r.message)}</p>
+            </div>
+            
+            <!-- Review image -->
+            ${r.image_url ? `
+              <div class="review-image-wrapper relative w-full h-52 rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-opacity mt-2 group border border-slate-100/80" data-image-url="${escapeHtml(r.image_url)}">
+                <img src="${escapeHtml(r.image_url)}" class="w-full h-full object-cover" alt="Review photo" loading="lazy" />
+                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-semibold">
+                  <i class="fa fa-eye me-1.5 text-sm"></i> View Full Image
                 </div>
               </div>
-              <div class="col-md-6">
-                <div class="review-image-wrapper" data-image-url="${escapeHtml(r.image_url)}">
-                  <img src="${escapeHtml(r.image_url)}" alt="Review image" loading="lazy" onerror="this.closest('.col-md-6').style.display='none'" />
-                </div>
-              </div>
-            </div>
-          ` : `
-            <div class="review-content">
-              <div class="review-author">${escapeHtml(r.name || 'Customer')}</div>
-              <div class="review-stars">${'★'.repeat(r.stars)}${'☆'.repeat(5 - (r.stars||0))}</div>
-              <p class="review-text mb-0">${escapeHtml(r.message)}</p>
-            </div>
-          `}
+            ` : ''}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
     
     if (append) {
       container.insertAdjacentHTML('beforeend', reviewsHTML);
@@ -128,24 +144,7 @@ async function renderPageReviews(append = false) {
         }
       });
     }
-    // Add click event listeners to all review images
-    setTimeout(() => {
-      const imageWrappers = container.querySelectorAll('.review-image-wrapper');
-      console.log('Found review images:', imageWrappers.length);
-      imageWrappers.forEach(wrapper => {
-        wrapper.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          const imageUrl = this.getAttribute('data-image-url');
-          console.log('Image clicked, URL:', imageUrl);
-          if (imageUrl && typeof window.openImageModal === 'function') {
-            window.openImageModal(imageUrl);
-          } else {
-            console.error('openImageModal not available or no URL');
-          }
-        });
-      });
-    }, 100);
+
   } catch (err) {
     console.error('Failed to render page reviews', err);
     container.innerHTML = '<div class="p-4 text-center text-danger">Failed to load reviews. Please try again later.</div>';
@@ -172,6 +171,22 @@ function setButtonLoading(btn, loading) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Delegated click handler for review images -> lightbox
+  // Attached once to the container, so it keeps working after "Load More" or re-renders
+  const reviewsContainerEl = document.getElementById('reviewsContainer');
+  if (reviewsContainerEl) {
+    reviewsContainerEl.addEventListener('click', (e) => {
+      const wrapper = e.target && e.target.closest && e.target.closest('.review-image-wrapper');
+      if (!wrapper) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const imageUrl = wrapper.getAttribute('data-image-url');
+      if (imageUrl && typeof window.openImageModal === 'function') {
+        window.openImageModal(imageUrl);
+      }
+    });
+  }
+
   await renderPageReviews();
 
   // Wire star filter
@@ -252,18 +267,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } finally {
       setButtonLoading(submitBtn, false);
-    }
-  });
-  // delegated click handler for thumbnails -> modal
-  document.addEventListener('click', (e) => {
-    const img = e.target && e.target.closest && e.target.closest('.review-thumb');
-    if (!img) return;
-    const url = img.dataset && img.dataset.url ? img.dataset.url : img.src;
-    const modalImg = document.getElementById('reviewImageModalImg');
-    if (modalImg) modalImg.src = url || '';
-    const modalEl = document.getElementById('reviewImageModal');
-    if (modalEl) {
-      try { new bootstrap.Modal(modalEl).show(); } catch (err) {}
     }
   });
 });

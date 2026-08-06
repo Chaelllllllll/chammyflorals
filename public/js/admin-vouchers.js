@@ -2,7 +2,7 @@
 (async function() {
   const token = localStorage.getItem('adminToken');
   if (!token) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
     return;
   }
 
@@ -15,7 +15,7 @@
 
   logoutButton?.addEventListener('click', () => {
     localStorage.removeItem('adminToken');
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
   });
 
   // Load all vouchers

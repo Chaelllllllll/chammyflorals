@@ -35,16 +35,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Get customer ID from token
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        customerId = payload.id; // Changed from payload.customerId to payload.id
-        console.log('Customer ID:', customerId);
-    } catch (error) {
-        console.error('Invalid token:', error);
-        if (floatingChatBtn) {
-            floatingChatBtn.style.display = 'none';
+        if (token && token.split('.').length === 3) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            customerId = payload.id || payload.sub || payload.customerId;
         }
-        return;
-    }
+    } catch (error) {}
 
     // Floating chat button click handler
     if (floatingChatBtn && chatModal) {

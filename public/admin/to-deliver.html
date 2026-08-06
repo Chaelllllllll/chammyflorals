@@ -76,11 +76,6 @@
     .details-key { color: #8a8a8a; font-size: 0.85rem; }
     .details-section { padding: 0.9rem; background: linear-gradient(180deg,#fffafc, #fff6f9); border-radius: 12px; }
     .summary-panel { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 18px rgba(196,31,92,0.04); }
-    .modal-header.gradient-pink { background: linear-gradient(135deg, #ff6b9d 0%, #ff99bb 100%); color: white; padding: 1rem 1.25rem; }
-    .modal-title { color: white; }
-    .order-details-modal .modal-body { background: transparent; }
-    .order-details-modal .modal-content { overflow: visible; }
-    .order-details-modal .modal-dialog { max-width: 980px; }
     .order-detail-section-title { font-size: 0.95rem; color: #6c6c6c; margin-bottom: 0.5rem; }
     .btn-print { border-radius: 8px; }
   </style>
@@ -210,18 +205,18 @@
   </div>
 
   <!-- Main Content -->
-  <div class="main-content">
+  <div class="main-content" id="mainContent">
   <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
     <div class="card shadow-sm">
       <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 gap-3">
           <div>
-            <h2 class="card-title mb-0">
+            <h2 class="card-title mb-1">
               <i class="fas fa-truck text-pink me-2"></i>Orders Ready for Delivery
             </h2>
             <div class="small text-muted">Orders ready to be delivered.</div>
           </div>
-          <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
+          <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-between justify-content-md-end">
             <button class="btn btn-pink btn-sm" data-bs-toggle="modal" data-bs-target="#manualOrderModal">
               <i class="fas fa-plus me-1"></i>New Order
             </button>
@@ -264,23 +259,18 @@
   <!-- Order Details Modal -->
   <div class="modal fade" id="orderDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content rounded-4 border-0 shadow-lg">
-        <div class="modal-header gradient-pink border-0">
-          <div class="d-flex align-items-center gap-2">
-            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-              <i class="fas fa-info-circle text-pink"></i>
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="d-flex align-items-center gap-2.5">
+            <div class="bg-rose-500 text-white rounded-xl p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-info-circle text-white"></i>
             </div>
-            <h5 class="modal-title mb-0">Order Details</h5>
+            <h5 class="modal-title mb-0 font-display font-bold text-slate-900">Order Details</h5>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="orderDetailsContent">
           <!-- Order details will be populated here -->
-        </div>
-        <div class="modal-footer border-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>Close
-          </button>
         </div>
       </div>
     </div>
@@ -289,48 +279,34 @@
   <!-- Delivery Confirmation Modal -->
   <div class="modal fade" id="deliveryConfirmModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content rounded-4 border-0 shadow-lg">
-        <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);">
-          <div class="d-flex align-items-center gap-3">
-            <div class="bg-white rounded-circle p-3 shadow" style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-              <i class="fas fa-truck text-danger fs-4"></i>
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="d-flex align-items-center gap-2.5">
+            <div class="bg-rose-500 text-white rounded-xl p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-truck text-white"></i>
             </div>
             <div>
-              <h5 class="modal-title mb-0 fw-bold">Delivery Confirmation</h5>
-              <small class="opacity-75">Complete order delivery details</small>
+              <h5 class="modal-title mb-0 font-display font-bold text-slate-900">Delivery Confirmation</h5>
+              <small class="text-xs text-slate-400 d-block">Complete order delivery details</small>
             </div>
           </div>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body p-4">
           <!-- Order Summary -->
-          <div class="card border-0 mb-4" style="background: linear-gradient(135deg, #ffeef4 0%, #ffd6e0 100%);">
-            <div class="card-body">
-              <div class="row g-3">
-                <div class="col-md-4">
-                  <div class="d-flex align-items-center gap-2">
-                    <div>
-                      <small class="text-muted d-block">Order ID</small>
-                      <strong id="deliveryOrderId" class="text-danger">-</strong>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="d-flex align-items-center gap-2">
-                    <div>
-                      <small class="text-muted d-block">Customer</small>
-                      <strong id="deliveryCustomerName">-</strong>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-4">
-                  <div class="d-flex align-items-center gap-2">
-                    <div>
-                      <small class="text-muted d-block">Total Amount</small>
-                      <strong id="deliveryTotalAmount" class="text-success fs-5">₱0.00</strong>
-                    </div>
-                  </div>
-                </div>
+          <div class="details-section mb-4">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <small class="details-key d-block">Order ID</small>
+                <strong id="deliveryOrderId" class="fw-bold text-pink fs-6">-</strong>
+              </div>
+              <div class="col-md-4">
+                <small class="details-key d-block">Customer</small>
+                <strong id="deliveryCustomerName" class="fw-semibold text-slate-800">-</strong>
+              </div>
+              <div class="col-md-4">
+                <small class="details-key d-block">Total Amount</small>
+                <strong id="deliveryTotalAmount" class="text-emerald-600 fs-5 fw-bold">₱0.00</strong>
               </div>
             </div>
           </div>
@@ -338,9 +314,8 @@
           <!-- Delivery Details Form -->
           <form id="deliveryConfirmForm">
             <div class="mb-4">
-              <label for="deliveryReceiverName" class="form-label fw-semibold">
-                <i class="fas" style="color: #ff6b9d;" class="me-2"></i>Received By
-                <span class="text-danger">*</span>
+              <label for="deliveryReceiverName" class="form-label fw-semibold text-slate-700">
+                Received By <span class="text-danger">*</span>
               </label>
               <input 
                 type="text" 
@@ -352,12 +327,11 @@
             </div>
 
             <div class="mb-4">
-              <label for="deliveryAmountPaid" class="form-label fw-semibold">
-                <i class="fas text-success me-2"></i>Amount Received
-                <span class="text-danger">*</span>
+              <label for="deliveryAmountPaid" class="form-label fw-semibold text-slate-700">
+                Amount Received <span class="text-danger">*</span>
               </label>
               <div class="input-group input-group-lg">
-                <span class="input-group-text bg-light border-end-0"><i class="fas fa-peso-sign"></i></span>
+                <span class="input-group-text bg-light border-end-0 text-slate-500"><i class="fas fa-peso-sign"></i></span>
                 <input 
                   type="number" 
                   step="0.01" 
@@ -370,9 +344,8 @@
             </div>
 
             <div class="mb-4">
-              <label for="deliveryDeliveredBy" class="form-label fw-semibold">
-                <i class="fas text-info me-2"></i>Delivered By
-                <span class="text-danger">*</span>
+              <label for="deliveryDeliveredBy" class="form-label fw-semibold text-slate-700">
+                Delivered By <span class="text-danger">*</span>
               </label>
               <input 
                 type="text" 
@@ -384,8 +357,8 @@
             </div>
 
             <div class="mb-4">
-              <label for="deliveryNotes" class="form-label fw-semibold">
-                <i class="fas text-secondary me-2"></i>Delivery Notes
+              <label for="deliveryNotes" class="form-label fw-semibold text-slate-700">
+                Delivery Notes
               </label>
               <textarea 
                 class="form-control" 
@@ -396,9 +369,8 @@
             </div>
 
             <div class="mb-4">
-              <label for="deliveryPaymentMethod" class="form-label fw-semibold">
-                <i class="fas text-pink me-2"></i>Payment Method
-                <span class="text-danger">*</span>
+              <label for="deliveryPaymentMethod" class="form-label fw-semibold text-slate-700">
+                Payment Method <span class="text-danger">*</span>
               </label>
               <select id="deliveryPaymentMethod" class="form-select form-select-lg">
                 <option value="">Select payment method</option>
@@ -407,11 +379,11 @@
               </select>
             </div>
 
-            <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-lg text-white fw-bold" id="deliveryConfirmButton" style="background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);">
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn-pink" id="deliveryConfirmButton">
                 <i class="fas fa-check-double me-2"></i>Confirm Delivery
               </button>
-              <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">
+              <button type="button" class="btn-outline-pink" data-bs-dismiss="modal">
                 <i class="fas fa-times me-2"></i>Cancel
               </button>
             </div>

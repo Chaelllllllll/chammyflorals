@@ -119,7 +119,7 @@ app.use(
           "'unsafe-hashes'",
         ],
         scriptSrcAttr: ["'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co', 'https://*.googleusercontent.com'],
         connectSrc: [
           "'self'",
           'https://*.supabase.co',

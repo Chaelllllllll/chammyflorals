@@ -1,7 +1,7 @@
 // Check authentication
 const adminToken = localStorage.getItem('adminToken');
 if (!adminToken) {
-    window.location.href = '/admin/login.html';
+    window.location.href = '/customer-login.html';
 }
 
 // Logout functionality
@@ -11,14 +11,14 @@ document.getElementById('logoutButton').addEventListener('click', async () => {
         if (ok) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
-            window.location.href = '/admin/login.html';
+            window.location.href = '/customer-login.html';
         }
     } catch (e) {
         // fallback to old behaviour
         if (confirm('Are you sure you want to logout?')) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
-            window.location.href = '/admin/login.html';
+            window.location.href = '/customer-login.html';
         }
     }
 });
@@ -99,7 +99,7 @@ async function loadAnnouncements() {
         if (response.status === 401) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
-            window.location.href = '/admin/login.html';
+            window.location.href = '/customer-login.html';
             return;
         }
         
@@ -211,7 +211,7 @@ document.getElementById('announcementForm').addEventListener('submit', async (e)
         if (response.status === 401) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
-            window.location.href = '/admin/login.html';
+            window.location.href = '/customer-login.html';
             return;
         }
         
@@ -273,7 +273,7 @@ window.deleteAnnouncement = async function(id) {
         if (response.status === 401) {
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminName');
-            window.location.href = '/admin/login.html';
+            window.location.href = '/customer-login.html';
             return;
         }
 
