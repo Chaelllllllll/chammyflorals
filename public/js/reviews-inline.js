@@ -6,12 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const heroSubmitBtn = document.getElementById('heroSubmitReviewBtn');
   if (heroSubmitBtn) {
     heroSubmitBtn.addEventListener('click', function() {
-      const form = document.getElementById('pageAddReviewForm');
-      if (form) {
-        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const first = form.querySelector('input, select, textarea');
-        if (first) first.focus({ preventScroll: true });
-      }
+      window.openReviewModal();
     });
   }
 
@@ -25,13 +20,32 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // expose convenience functions on window (safe for markup to call)
-window.scrollToReviewForm = function() {
-  const form = document.getElementById('pageAddReviewForm');
-  if (form) {
-    form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const first = form.querySelector('input, select, textarea');
-    if (first) first.focus({ preventScroll: true });
+window.openReviewModal = function() {
+  try {
+    const modalEl = document.getElementById('pageAddReviewModal');
+    if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+  } catch (err) {
+    console.error('openReviewModal error', err);
   }
+};
+
+window.closeReviewModal = function() {
+  try {
+    const modalEl = document.getElementById('pageAddReviewModal');
+    if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+      const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.hide();
+    }
+  } catch (err) {
+    console.error('closeReviewModal error', err);
+  }
+};
+
+window.scrollToReviewForm = function() {
+  window.openReviewModal();
 };
 
 window.scrollToReviews = function() {

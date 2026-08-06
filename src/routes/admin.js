@@ -1243,6 +1243,15 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
 
         // Push notifications disabled — skipping mobile push sends
         console.log('Push notifications disabled; skipping mobile push send for this update');
+
+        // Notify the customer's Telegram chat of the new status (best-effort)
+        try {
+          const { notifyOrderStatusChange } = require('../lib/orderBot');
+          await notifyOrderStatusChange(orderId);
+          console.log('Telegram status notification attempted for order:', orderId);
+        } catch (tgErr) {
+          console.error('Failed to send Telegram status notification:', tgErr.message || tgErr);
+        }
       } else {
         console.log('Skipping status notification:', {
           reason: !updated ? 'no updated record' :
@@ -1305,6 +1314,15 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
 
     // Push notifications disabled — skipping mobile push sends for delivery notifications
     console.log('Push notifications disabled; skipping mobile push send for delivery notification');
+
+    // Notify the customer's Telegram chat that the order was delivered (best-effort)
+    try {
+      const { notifyOrderStatusChange } = require('../lib/orderBot');
+      await notifyOrderStatusChange(orderId);
+      console.log('Telegram delivery notification attempted for order:', orderId);
+    } catch (tgErr) {
+      console.error('Failed to send Telegram delivery notification:', tgErr.message || tgErr);
+    }
 
     res.json({ message: 'Order marked as Delivered', updated: updated });
   } catch (err) {

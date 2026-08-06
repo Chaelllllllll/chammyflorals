@@ -196,18 +196,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderPageReviews();
   });
 
-  // Wire navbar submit button to scroll to form
+  // Wire navbar submit button to open the review modal
   const navSubmitBtn = document.getElementById('navSubmitReviewBtn');
   if (navSubmitBtn) {
     navSubmitBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      const form = document.getElementById('pageAddReviewForm');
-      if (form) {
-        form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // focus first field
-        const first = form.querySelector('input, select, textarea');
-        if (first) first.focus({ preventScroll: true });
-      }
+      window.openReviewModal();
     });
   }
 
@@ -250,7 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       displayedReviewsCount = 0;
       form.classList.remove('was-validated');
       await renderPageReviews();
-      showPageError('Review submitted successfully.');
+      if (typeof window.closeReviewModal === 'function') window.closeReviewModal();
+      if (typeof window.alertSuccess === 'function') {
+        window.alertSuccess('Review submitted successfully.');
+      } else {
+        showPageError('Review submitted successfully.');
+        setTimeout(()=> showPageError(''), 3000);
+      }
       // Scroll to top of reviews to see the new review
       const reviewsContainer = document.getElementById('reviewsContainer');
       if (reviewsContainer) {
@@ -269,4 +269,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       setButtonLoading(submitBtn, false);
     }
   });
+
+  // Query-param prefill: /reviews.html?orderId=ORDERID (e.g. from Telegram review button)
+  const params = new URLSearchParams(window.location.search);
+  const prefillOrderId = (params.get('orderId') || '').trim();
+  if (prefillOrderId) {
+    const orderIdInput = document.getElementById('pageReviewOrderId');
+    if (orderIdInput) {
+      orderIdInput.value = sanitizeInput(prefillOrderId, 64);
+      setTimeout(() => {
+        window.openReviewModal();
+      }, 300);
+    }
+  }
 });

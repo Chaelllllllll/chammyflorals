@@ -1293,7 +1293,9 @@ router.get('/settings/rush-fee', cacheMiddleware(600), async (req, res) => {
 
 // GET /api/settings/telegram-link - Fetch Telegram bot link
 router.get('/settings/telegram-link', async (req, res) => {
-  res.json({ telegram_bot_link: process.env.TELEGRAM_BOT_LINK || 'https://t.me/YourBot' });
+  let link = process.env.TELEGRAM_BOT_LINK || 'https://t.me/YourBot';
+  if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+  res.json({ telegram_bot_link: link });
 });
 
 // Reviews endpoints (public)

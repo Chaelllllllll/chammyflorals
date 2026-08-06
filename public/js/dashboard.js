@@ -550,6 +550,8 @@ function getOrderProgress(status) {
         'preparing': 1,
         'in progress': 1,
         'out for delivery': 2,
+        'to receive': 2,
+        'to deliver': 2,
         'shipping': 2,
         'shipped': 2,
         'in transit': 2,

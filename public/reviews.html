@@ -47,10 +47,15 @@
     <section class="relative py-12 md:py-16 overflow-hidden">
       <div class="container mx-auto px-4">
         <div class="glass-card p-8 md:p-12 text-center max-w-4xl mx-auto relative shadow-2xl">
-          <h1 class="font-display text-4xl sm:text-5xl font-bold text-slate-900 mb-4">Customer Reviews</h1>
-          <button class="btn-shadcn-primary px-6 py-2.5" id="heroReadReviewsBtn">
-            <i class="fa fa-comments me-2"></i>Explore All Reviews
-          </button>
+          <h1 class="font-display text-4xl sm:text-5xl font-bold text-slate-900 mb-6">Customer Reviews</h1>
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <button class="btn-shadcn-primary px-6 py-2.5" id="heroSubmitReviewBtn">
+              <i class="fa fa-pen me-2"></i>Submit a Review
+            </button>
+            <button class="btn-shadcn-ghost px-6 py-2.5" id="heroReadReviewsBtn">
+              <i class="fa fa-comments me-2"></i>Explore All Reviews
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -95,6 +100,54 @@
     <span
       class="image-modal-close absolute top-6 right-8 text-white text-4xl cursor-pointer hover:text-rose-400 transition-colors">&times;</span>
     <img id="modalImage" src="" alt="Review detail view" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl">
+  </div>
+
+  <!-- Submit a Review Modal -->
+  <div class="modal fade" id="pageAddReviewModal" tabindex="-1" aria-labelledby="pageAddReviewModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title font-display text-2xl font-bold text-slate-900" id="pageAddReviewModalLabel">Write a Review</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="pageAddReviewError" class="text-danger mb-3" style="display:none;"></div>
+          <form id="pageAddReviewForm" class="needs-validation" novalidate>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label for="pageReviewOrderId" class="form-label font-semibold text-xs text-slate-700 mb-1.5 block">Order ID</label>
+                <input type="text" id="pageReviewOrderId" class="shadcn-input" placeholder="e.g. 1042" required />
+              </div>
+              <div>
+                <label for="pageReviewStars" class="form-label font-semibold text-xs text-slate-700 mb-1.5 block">Rating</label>
+                <select id="pageReviewStars" class="shadcn-input" required>
+                  <option value="" selected disabled>Select a rating</option>
+                  <option value="5">★★★★★ (5 Stars)</option>
+                  <option value="4">★★★★☆ (4 Stars)</option>
+                  <option value="3">★★★☆☆ (3 Stars)</option>
+                  <option value="2">★★☆☆☆ (2 Stars)</option>
+                  <option value="1">★☆☆☆☆ (1 Star)</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-6">
+              <label for="pageReviewMessage" class="form-label font-semibold text-xs text-slate-700 mb-1.5 block">Your Review</label>
+              <textarea id="pageReviewMessage" class="shadcn-input" style="height:auto;min-height:7rem;resize:vertical;" placeholder="Tell us about your experience..." required></textarea>
+            </div>
+            <div class="mb-6">
+              <label for="pageReviewImage" class="form-label font-semibold text-xs text-slate-700 mb-1.5 block">Photo (optional)</label>
+              <input type="file" id="pageReviewImage" class="shadcn-input" accept="image/*" />
+            </div>
+            <div class="text-end">
+              <button type="submit" class="btn-shadcn-primary px-6 py-2.5">
+                <i class="fa fa-paper-plane me-2"></i>Submit Review
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->

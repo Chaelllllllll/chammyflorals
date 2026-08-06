@@ -48,6 +48,21 @@
     }
   }
 
+  // Load Telegram bot link from API
+  async function loadTelegramLink() {
+    try {
+      const res = await fetch(`${API_URL}/api/settings/telegram-link`);
+      if (!res.ok) throw new Error('Failed to load telegram link');
+      const data = await res.json();
+      const btn = document.getElementById('tg-track-btn-custom');
+      if (btn && data.telegram_bot_link) {
+        btn.href = data.telegram_bot_link;
+      }
+    } catch (err) {
+      console.error('Failed to load telegram link:', err);
+    }
+  }
+
   function showError() {
     const containers = ['customStemsContainer', 'customFillersContainer', 'customWrappingContainer', 'customAddonsContainer'];
     containers.forEach(id => {
@@ -728,6 +743,8 @@
   function init() {
     const modal = document.getElementById('customizeOrderModal');
     if (!modal) return;
+    
+    loadTelegramLink();
     
     // Intercept modal show event to check authentication
     modal.addEventListener('show.bs.modal', (event) => {
