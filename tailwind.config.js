@@ -5,6 +5,7 @@ module.exports = {
     './public/**/*.html',
     './public/**/*.js'
   ],
+  blocklist: ['collapse'],
   theme: {
     container: {
       center: true,

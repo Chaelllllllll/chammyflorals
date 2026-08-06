@@ -18,7 +18,7 @@ const upload = multer({
 });
 const router = express.Router();
 const fs = require('fs');
-const messenger = require('../lib/messenger');
+
 const { setSession } = require('../lib/sessionStore');
 const { clearCache } = require('../middleware/cache');
 const path = require('path');
@@ -1199,8 +1199,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
         previousStatus,
         newStatus: updated?.status,
         statusChanged: previousStatus !== updated?.status,
-        hasEmail: !!updated?.email,
-        hasPsid: !!(updated?.messenger_psid || updated?.customer_psid)
+        hasEmail: !!updated?.email
       });
 
       if (updated && previousStatus !== updated.status && updated.email) {
@@ -1240,23 +1239,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
           console.error('Failed to send email (continuing with messenger):', emailErr.message || emailErr);
         }
 
-        console.log('Email done, now checking messenger...');
-        // Also attempt to notify the customer via Messenger if they've linked their chat (best-effort)
-        try {
-          const psid = updated.messenger_psid || updated.customer_psid;
-          console.log('Messenger PSID check:', { psid, has_psid: !!psid });
-          if (psid) {
-            console.log('Sending messenger notification for status:', updated.status, 'to PSID:', psid);
-            const mres = await messenger.notifyCustomer(updated);
-            console.log('Messenger response:', mres);
-            if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger', mres);
-            else console.log('Messenger: customer notification result', mres && mres.status);
-          } else {
-            console.log('No messenger PSID found, skipping messenger notification');
-          }
-        } catch (mErr) {
-          console.error('Failed to send messenger notification to customer:', mErr);
-        }
+
 
         // Push notifications disabled — skipping mobile push sends
         console.log('Push notifications disabled; skipping mobile push send for this update');
@@ -1318,31 +1301,6 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
       }
     } catch (mailErr) {
       console.error('Failed to send delivered email (transient):', mailErr);
-    }
-
-    // Also attempt to notify the customer via Messenger (best-effort) when delivered
-    try {
-      if (updated && (updated.messenger_psid || updated.customer_psid)) {
-        const messenger = require('../lib/messenger');
-        const notifyPayload = Object.assign({}, updated);
-        if (typeof received !== 'undefined') notifyPayload.payment_received = Number(received);
-        if (receiverName) notifyPayload.receiver_name = String(receiverName);
-        if (deliveredBy) notifyPayload.delivered_by = String(deliveredBy);
-        if (notes) notifyPayload.delivery_notes = String(notes);
-        if (typeof payment_method !== 'undefined' && payment_method !== null) notifyPayload.payment_method = String(payment_method);
-        console.log('Sending delivery notification with payload:', {
-          orderId: notifyPayload.order_id,
-          receiverName: notifyPayload.receiver_name,
-          paymentReceived: notifyPayload.payment_received,
-          deliveredBy: notifyPayload.delivered_by,
-          notes: notifyPayload.delivery_notes
-        });
-        const mres = await messenger.notifyCustomer(notifyPayload);
-        if (mres && mres.ok === false) console.warn('Failed to notify customer via Messenger (deliver):', mres);
-        else console.log('Messenger: delivered notification sent to customer');
-      }
-    } catch (mErr) {
-      console.warn('Failed to send messenger notification to customer (deliver):', mErr && mErr.message ? mErr.message : mErr);
     }
 
     // Push notifications disabled — skipping mobile push sends for delivery notifications
@@ -1413,72 +1371,14 @@ router.get('/reviews', auth, async (req, res) => {
   }
 });
 
-// --- Legacy messenger-specific admin endpoints (operate on unified `admins` table) ---
-// List messenger-capable admins (pending and approved)
-router.get('/admins/messenger', auth, async (req, res) => {
-  try {
-    const { data, error } = await supabase.from('admins').select('*').order('created_at', { ascending: false }).limit(500);
-    if (error) throw error;
-    // Only include rows that have a PSID (these are messenger-capable records)
-    const messengerRows = (data || []).filter(r => r && r.psid);
-    const pending = messengerRows.filter(r => String(r.status || '').toLowerCase() !== 'approved');
-    const approved = messengerRows.filter(r => String(r.status || '').toLowerCase() === 'approved');
-    res.json({ pending, approved });
-  } catch (err) {
-    console.error('Failed to list messenger-capable admins:', err);
-    res.status(500).json({ error: 'Failed to list messenger admins' });
-  }
-});
 
-// Approve a messenger admin (by PSID)
-router.patch('/admins/messenger/:psid/approve', auth, async (req, res) => {
-  try {
-    const { psid } = req.params;
-    if (!psid) return res.status(400).json({ error: 'psid required' });
-    const { data, error } = await supabase.from('admins').update({ status: 'Approved', approved_at: new Date().toISOString() }).eq('psid', String(psid)).select();
-    if (error) throw error;
-    res.json({ ok: true, updated: data && data[0] ? data[0] : null });
-  } catch (err) {
-    console.error('Failed to approve messenger admin:', err);
-    res.status(500).json({ error: 'Failed to approve messenger admin' });
-  }
-});
-
-// Delete/reject a messenger admin (by PSID)
-router.delete('/admins/messenger/:psid', auth, async (req, res) => {
-  try {
-    const { psid } = req.params;
-    if (!psid) return res.status(400).json({ error: 'psid required' });
-    const { data, error } = await supabase.from('admins').delete().eq('psid', String(psid)).select();
-    if (error) throw error;
-    res.json({ ok: true, removed: data && data[0] ? data[0] : null });
-  } catch (err) {
-    console.error('Failed to delete messenger admin:', err);
-    res.status(500).json({ error: 'Failed to delete messenger admin' });
-  }
-});
-
-// Create or upsert a messenger-capable admin manually (psid)
-router.post('/admins/messenger', auth, async (req, res) => {
-  try {
-    const { psid, name, status } = req.body || {};
-    if (!psid) return res.status(400).json({ error: 'psid is required' });
-    const rec = { psid: String(psid), name: name || null, status: status || 'Approved', created_at: new Date().toISOString() };
-    const { data, error } = await supabase.from('admins').upsert([rec], { onConflict: ['psid'] }).select();
-    if (error) throw error;
-    res.json({ ok: true, result: data && data[0] ? data[0] : null });
-  } catch (err) {
-    console.error('Failed to create/upsert messenger admin (admins table):', err);
-    res.status(500).json({ error: 'Failed to create messenger admin' });
-  }
-});
 
 // --- Admin accounts management (email/password) ---
 
 // List admins (do not return password_hash)
 router.get('/admins', auth, async (req, res) => {
   try {
-    const { data, error } = await supabase.from('admins').select('id,email,psid,name,status,created_at').order('created_at', { ascending: false }).limit(200);
+    const { data, error } = await supabase.from('admins').select('id,email,tgid,name,status,created_at').order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
     res.json({ admins: data || [] });
   } catch (err) {
@@ -1490,7 +1390,7 @@ router.get('/admins', auth, async (req, res) => {
 // Create an admin account (store salted scrypt password hash as salt$hash)
 router.post('/admins', auth, async (req, res) => {
   try {
-    const { email, password, name, psid, status } = req.body || {};
+    const { email, password, name, tgid, status } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
     const salt = crypto.randomBytes(16).toString('hex');
     const derived = crypto.scryptSync(String(password), salt, 64).toString('hex');
@@ -1499,10 +1399,10 @@ router.post('/admins', auth, async (req, res) => {
       email: String(email).trim().toLowerCase(), 
       password_hash,
       name: name ? String(name).trim() : null,
-      psid: psid ? String(psid).trim() : null,
+      tgid: tgid ? String(tgid).trim() : null,
       status: status || 'Not Approved'
     };
-    const { data, error } = await supabase.from('admins').insert([record]).select('id,email,name,psid,status,created_at');
+    const { data, error } = await supabase.from('admins').insert([record]).select('id,email,name,tgid,status,created_at');
     if (error) throw error;
     res.json({ ok: true, admin: data && data[0] ? data[0] : null });
   } catch (err) {
@@ -1511,18 +1411,18 @@ router.post('/admins', auth, async (req, res) => {
   }
 });
 
-// Update admin fields (name, psid, email, status)
+// Update admin fields (name, tgid, email, status)
 router.patch('/admins/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'id is required' });
-    const allowed = ['name','psid','email','status'];
+    const allowed = ['name','tgid','email','status'];
     const updates = {};
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) updates[k] = req.body[k];
     }
     if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No updatable fields provided' });
-    const { data, error } = await supabase.from('admins').update(updates).eq('id', id).select('id,email,psid,name,status,created_at');
+    const { data, error } = await supabase.from('admins').update(updates).eq('id', id).select('id,email,tgid,name,status,created_at');
     if (error) throw error;
     res.json({ ok: true, admin: data && data[0] ? data[0] : null });
   } catch (err) {

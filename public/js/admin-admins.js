@@ -1,4 +1,4 @@
-(async function(){
+(function(){
   // Simple admin page script - expects admin token stored in localStorage.adminToken
   const token = localStorage.getItem('adminToken') || '';
   if (!token) {
@@ -6,8 +6,6 @@
     return;
   }
 
-  const pendingList = document.getElementById('pendingList');
-  const approvedList = document.getElementById('approvedList');
   const adminsTableBody = document.getElementById('adminsTableBody');
   const searchInput = document.getElementById('searchInput');
   const refreshBtn = document.getElementById('refreshBtn');
@@ -29,41 +27,36 @@
     const tr = document.createElement('tr');
     const nameTd = document.createElement('td');
     nameTd.innerHTML = `<strong>${r.name||'(no name)'}</strong>`;
-    const psidTd = document.createElement('td'); psidTd.textContent = r.psid || '';
+    
+    // Extract Telegram Chat ID (now stored directly in tgid)
+    const tgTd = document.createElement('td'); tgTd.textContent = r.tgid || '';
     const emailTd = document.createElement('td'); emailTd.textContent = r.email || '';
     const statusTd = document.createElement('td'); statusTd.innerHTML = `<span class="badge bg-${(String(r.status||'').toLowerCase()==='approved'?'success':'secondary')}">${r.status||'Not Approved'}</span>`;
-  const actionsTd = document.createElement('td');
+    const actionsTd = document.createElement('td');
     const editBtn = el('button','btn btn-sm btn-pink me-1','Edit');
-  editBtn.onclick = ()=> openEditModal(r);
-  actionsTd.appendChild(editBtn);
-  tr.appendChild(nameTd); tr.appendChild(psidTd); tr.appendChild(emailTd); tr.appendChild(statusTd); tr.appendChild(actionsTd);
+    editBtn.onclick = () => openEditModal(r);
+    actionsTd.appendChild(editBtn);
+
+    tr.appendChild(nameTd); 
+    tr.appendChild(tgTd); 
+    tr.appendChild(emailTd); 
+    tr.appendChild(statusTd); 
+    tr.appendChild(actionsTd);
     return tr;
   }
 
   async function load(){
     try{
-      const data = await api('/admins/messenger');
-      // render unified admins table for messenger-capable rows
       adminsTableBody.innerHTML = '';
-      const all = ((data.pending||[]).concat(data.approved||[]));
       const q = (searchInput && searchInput.value || '').trim().toLowerCase();
-      // avoid duplicates by id (or psid)
       const seen = new Set();
-      (all || []).forEach(r=>{
-        const key = r.id || r.psid || (r.email ? `email:${r.email}` : null);
-        if (!key || seen.has(key)) return;
-        const hay = `${r.name||''} ${r.psid||''} ${r.email||''}`.toLowerCase();
-        if (q && !hay.includes(q)) return;
-        seen.add(key);
-        adminsTableBody.appendChild(rowForAdmin(r));
-      });
 
-      // load email admins and append those not yet shown
+      // Load email admins
       const adm = await api('/admins');
       (adm.admins||[]).forEach(a=>{
-        const key = a.id || a.psid || (a.email ? `email:${a.email}` : null);
+        const key = a.id || (a.email ? `email:${a.email}` : null);
         if (!key || seen.has(key)) return;
-        const hay = `${a.name||''} ${a.psid||''} ${a.email||''}`.toLowerCase();
+        const hay = `${a.name||''} ${a.tgid||''} ${a.email||''}`.toLowerCase();
         if (q && !hay.includes(q)) return;
         seen.add(key);
         adminsTableBody.appendChild(rowForAdmin(a));
@@ -74,8 +67,7 @@
     }
   }
 
-  // Manual messenger admin form
-  // modal handling: open modal to edit/create admin
+  // Edit modal handling
   const adminModalEl = document.getElementById('adminEditModal');
   let adminModal = null;
   try { adminModal = new bootstrap.Modal(adminModalEl); } catch (e) { adminModal = null; }
@@ -83,23 +75,24 @@
   const modalSaveBtn = document.getElementById('modalSaveBtn');
 
   function openEditModal(r){
-    // populate modal fields; requires an existing record (edit-only UX)
-    if (!r) return; // disallow create-from-UI
+    if (!r) return;
     const id = r.id || null;
     document.getElementById('modalAdminId').value = id || '';
     document.getElementById('modalName').value = (r && r.name) || '';
-    document.getElementById('modalPsid').value = (r && r.psid) || '';
+    
+    // Fill Telegram input directly from tgid field
+    document.getElementById('modalTelegramChatId').value = (r && r.tgid) || '';
+
     document.getElementById('modalEmail').value = (r && r.email) || '';
     document.getElementById('modalStatus').value = (r && r.status) || 'Not Approved';
     document.getElementById('modalPassword').value = '';
-    // update modal title and save button text
+    
     const titleEl = document.getElementById('adminEditTitle');
     if (titleEl) titleEl.textContent = 'Edit Admin';
     if (modalSaveBtn) modalSaveBtn.textContent = 'Save Changes';
 
-    // Configure Delete button: visible only when editing an existing record or when a PSID exists
+    // Configure Delete button
     if (modalDeleteBtn) {
-      // clear previous handler
       modalDeleteBtn.onclick = null;
       if (id) {
         modalDeleteBtn.classList.remove('d-none');
@@ -107,17 +100,6 @@
           if (!confirm('Delete this admin account? This cannot be undone.')) return;
           try {
             await api(`/admins/${encodeURIComponent(id)}`, { method: 'DELETE' });
-            if (adminModal) adminModal.hide();
-            load();
-          } catch (err) { alertError('Delete failed: '+(err.message||err)); }
-        };
-      } else if ((r && r.psid)) {
-        // no id but has psid (messenger-only record)
-        modalDeleteBtn.classList.remove('d-none');
-        modalDeleteBtn.onclick = async function(){
-          if (!confirm('Remove this messenger subscription?')) return;
-          try {
-            await api(`/admins/messenger/${encodeURIComponent(r.psid)}`, { method: 'DELETE' });
             if (adminModal) adminModal.hide();
             load();
           } catch (err) { alertError('Delete failed: '+(err.message||err)); }
@@ -130,24 +112,24 @@
     if (adminModal) adminModal.show();
   }
 
-  // New admin creation via UI is disabled (use server or DB tools). Ensure no New Admin wiring remains.
-
   // Save from modal
   document.getElementById('modalSaveBtn').addEventListener('click', async ()=>{
     const id = document.getElementById('modalAdminId').value || null;
     const name = document.getElementById('modalName').value.trim();
-    const psid = document.getElementById('modalPsid').value.trim() || null;
+    const rawTg = document.getElementById('modalTelegramChatId').value.trim();
     const email = document.getElementById('modalEmail').value.trim() || null;
     const status = document.getElementById('modalStatus').value || 'Not Approved';
     const password = document.getElementById('modalPassword').value || null;
+
+    // Telegram chat ID maps to database column tgid directly
+    const tgid = rawTg || null;
+
     try{
       if (!id) {
         alertInfo('Creating new admins from the UI is disabled. Please create accounts via the server or database.');
         return;
       } else {
-        // update basic fields
-        await api(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, psid, email, status }) });
-        // update password if provided
+        await api(`/admins/${encodeURIComponent(id)}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, tgid, email, status }) });
         if (password) {
           await api(`/admins/${encodeURIComponent(id)}/password`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password }) });
         }
@@ -161,7 +143,7 @@
   if (refreshBtn) refreshBtn.addEventListener('click', load);
   if (searchInput) searchInput.addEventListener('input', ()=>{ load(); });
 
-  // Wire logout (clear admin token and redirect to login)
+  // Wire logout
   const logoutBtn = document.getElementById('logoutButton');
   if (logoutBtn) logoutBtn.addEventListener('click', ()=>{ localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 

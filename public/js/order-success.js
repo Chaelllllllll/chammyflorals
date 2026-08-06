@@ -37,6 +37,20 @@ function formatColor(c) {
     const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val == null ? '-' : String(val); };
     setText('os-order-id', data.orderId || data.order_id || orderId);
 
+    // Fetch Telegram link
+    try {
+      const tgRes = await fetch('/api/settings/telegram-link');
+      if (tgRes.ok) {
+        const tgData = await tgRes.json();
+        const tgBtn = document.getElementById('tg-track-btn');
+        if (tgBtn && tgData.telegram_bot_link) {
+          tgBtn.href = `${tgData.telegram_bot_link}?start=${encodeURIComponent(orderId)}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch telegram bot link:', e);
+    }
+
     // Helper function to get color value (hex or rgb)
     function getColorValue(colorData) {
       if (!colorData) return null;

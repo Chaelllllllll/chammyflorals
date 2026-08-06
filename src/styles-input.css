@@ -471,3 +471,90 @@
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
+
+/* Light cute pink theme overrides (.theme-cute) */
+.theme-cute {
+  --primary: 345 100% 72%;
+  --ring: 345 100% 72%;
+}
+
+.theme-cute .bg-rose-600,
+.theme-cute .bg-rose-500 {
+  background-color: #ff6f9b !important;
+}
+.theme-cute .bg-rose-100 {
+  background-color: #fff0f3 !important;
+}
+.theme-cute .bg-rose-50 {
+  background-color: #fffafb !important;
+}
+.theme-cute .text-rose-600,
+.theme-cute .text-rose-500 {
+  color: #ff6f9b !important;
+}
+.theme-cute .text-rose-700 {
+  color: #e5527f !important;
+}
+.theme-cute .border-rose-200 {
+  border-color: #ffdce4 !important;
+}
+.theme-cute .from-rose-600 {
+  --tw-gradient-from: #ff6f9b !important;
+  --tw-gradient-to: rgb(255 111 155 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.theme-cute .from-rose-500 {
+  --tw-gradient-from: #ff7fa5 !important;
+  --tw-gradient-to: rgb(255 127 165 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+.theme-cute .to-rose-400 {
+  --tw-gradient-to: #ff9ebd !important;
+}
+.theme-cute .to-rose-500 {
+  --tw-gradient-to: #ff7fa5 !important;
+}
+.theme-cute .to-rose-600 {
+  --tw-gradient-to: #ff6f9b !important;
+}
+.theme-cute .via-rose-500 {
+  --tw-gradient-to: rgb(255 111 155 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #ff7fa5 !important, var(--tw-gradient-to) !important;
+}
+.theme-cute .shadow-rose-500\/40,
+.theme-cute .shadow-rose-500\/20,
+.theme-cute .shadow-rose-500\/25,
+.theme-cute .shadow-rose-500\/10 {
+  --tw-shadow-color: rgba(255, 111, 155, 0.4) !important;
+}
+.theme-cute .btn-pink {
+  background-color: #ff6f9b !important;
+  color: white !important;
+  border: none !important;
+}
+.theme-cute .btn-pink:hover {
+  background-color: #e5527f !important;
+}
+.theme-cute .btn-outline-pink {
+  border-color: #ff6f9b !important;
+  color: #ff6f9b !important;
+}
+.theme-cute .btn-outline-pink:hover {
+  background-color: #ff6f9b !important;
+  color: white !important;
+}
+.theme-cute .btn-shadcn-primary {
+  background-color: #ff6f9b !important;
+}
+.theme-cute .btn-shadcn-primary:hover {
+  background-color: #e5527f !important;
+  box-shadow: 0 10px 15px -3px rgba(255, 111, 155, 0.3) !important;
+}
+.theme-cute #floatingChatBtn {
+  background-color: #ff6f9b !important;
+  box-shadow: 0 10px 25px rgba(255, 111, 155, 0.4) !important;
+}
+.theme-cute #floatingChatBtn:hover {
+  background-color: #e5527f !important;
+}
+

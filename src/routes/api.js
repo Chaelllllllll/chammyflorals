@@ -339,7 +339,8 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
     console.log('User type:', req.userType);
     
     // Get customer_id from authenticated user (null for admin-created orders)
-    const customer_id = req.user?.id || null;
+    const { customerId } = await resolveCustomerContext(req);
+    const customer_id = customerId || null;
     
     // SECURITY FIX: Sanitize user inputs
     const {
@@ -649,17 +650,15 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       console.error('Failed to send confirmation email:', mailErr);
     }
 
-    // Notify admins via Facebook Messenger (if configured)
+
+
+    // Notify admins via Telegram Bot (if configured)
     try {
-      const messenger = require('../lib/messenger');
-      // prefer the inserted row data if available
+      const telegram = require('../lib/telegram');
       const inserted = (data && Array.isArray(data) && data[0]) ? data[0] : orderData;
-      const notifyResult = await messenger.notifyAdmins(inserted);
-      if (!notifyResult.ok) {
-        console.warn('Failed to notify admins via Messenger:', notifyResult.message || notifyResult.error);
-      }
-    } catch (mErr) {
-      console.error('Messenger notification error:', mErr);
+      await telegram.notifyTelegram(inserted);
+    } catch (tgErr) {
+      console.error('Telegram notification error:', tgErr);
     }
 
     res.json({ message: 'Inquiry sent successfully!', orderId });
@@ -1292,6 +1291,11 @@ router.get('/settings/rush-fee', cacheMiddleware(600), async (req, res) => {
   }
 });
 
+// GET /api/settings/telegram-link - Fetch Telegram bot link
+router.get('/settings/telegram-link', async (req, res) => {
+  res.json({ telegram_bot_link: process.env.TELEGRAM_BOT_LINK || 'https://t.me/YourBot' });
+});
+
 // Reviews endpoints (public)
 // GET /reviews - list recent reviews
 // Cache for 5 minutes (reviews change less frequently)
@@ -1829,29 +1833,20 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
     }
     
     console.log('Message sent successfully:', chatData);
-    // Notify admins via Facebook Messenger PSIDs instead of push subscriptions
+    // Notify admins via Telegram Bot
     try {
-      const messenger = require('../lib/messenger');
+      const telegram = require('../lib/telegram');
       let customerName = null;
       try {
         const { data: cust, error: custErr } = await supabase.from('customers').select('name').eq('id', customerId).single();
         if (!custErr && cust) customerName = cust.name || null;
       } catch (e) {}
 
-      const title = customerName ? `${customerName} sent a message` : `Customer ${customerId} sent a message`;
-      let text = `${title}\n\n${sanitizedMessage}`;
-
-      try {
-        const imageUrl = (chatData && Array.isArray(chatData) && chatData[0]) ? chatData[0].image_url : null;
-        const notifyResult = await messenger.notifyAdminsMessage(text, imageUrl);
-        if (!notifyResult || notifyResult.ok === false) {
-          console.warn('Failed to notify admins via Messenger:', notifyResult && (notifyResult.message || notifyResult.error));
-        }
-      } catch (mErr) {
-        console.warn('Messenger notifyAdminsMessage error:', mErr && mErr.message ? mErr.message : mErr);
-      }
-    } catch (err) {
-      console.warn('Admin messenger notify error:', err && err.message ? err.message : err);
+      const title = customerName ? `💬 <b>${customerName} sent a message</b>` : `💬 <b>Customer sent a message</b>`;
+      const text = `${title}\n\n${sanitizedMessage}`;
+      await telegram.notifyTelegram(text);
+    } catch (tgErr) {
+      console.warn('Telegram notification error for customer message:', tgErr);
     }
 
     res.json({ 
@@ -2185,7 +2180,7 @@ router.post('/admin/customer-messages/send', adminAuth, upload.single('image'), 
 
       // Disallow admin push subscriptions — admins should use Messenger PSIDs instead
       if (user_type === 'admin') {
-        return res.status(400).json({ error: 'Admin push subscriptions are not supported. Use Messenger PSID notifications instead.' });
+        return res.status(400).json({ error: 'Admin push subscriptions are not supported. Use Telegram Bot notifications instead.' });
       }
 
       // Debug logging: capture auth context and incoming payload to help diagnose admin vs customer saves
@@ -2318,10 +2313,10 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     
     // Get customer_id from authenticated user (null for guest orders or admins)
     let customer_id = null;
-    if (req.userType === 'customer' && req.user && req.user.id) {
-      customer_id = req.user.id;
+    if (req.userType === 'customer') {
+      const { customerId } = await resolveCustomerContext(req);
+      customer_id = customerId || null;
     }
-    // For admins or guests, customer_id remains null
     
     // Generate order ID using the same secure method as regular products
     const orderId = generateOrderId();
@@ -2461,18 +2456,14 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
     } catch (mailErr) {
       console.error('Failed to send custom order confirmation email:', mailErr);
     }
-    
-    // Notify admins via Facebook Messenger (if configured)
-    try {
-      const messenger = require('../lib/messenger');
-      
-      const lines = [];
-      lines.push('⋆˚✿˖°𝐍𝐞𝐰 𝐂𝐮𝐬𝐭𝐨𝐦 𝐎𝐫𝐝𝐞𝐫!⋆˚✿˖°');
-      lines.push('──────────୨ৎ──────────');
-      lines.push(`𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: ${orderId}`);
-      lines.push(`𝐂𝐮𝐬𝐭𝐨𝐦𝐞𝐫: ${full_name}`);
-      if (facebook_link) lines.push(`𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤: ${facebook_link}`);
-      lines.push('──────────୨ৎ──────────');
+    // Notify admins via Telegram Bot (if configured)
+    const lines = [];
+    lines.push('⋆˚✿˖°𝐍𝐞𝐰 𝐂𝐮𝐬𝐭𝐨𝐦 𝐎𝐫𝐝𝐞𝐫!⋆˚✿˖°');
+    lines.push('──────────୨ৎ──────────');
+    lines.push(`𝐎𝐫𝐝𝐞𝐫 𝐈𝐃: ${orderId}`);
+    lines.push(`𝐂𝐮𝐬𝐭𝐨𝐦𝐞𝐫: ${full_name}`);
+    if (facebook_link) lines.push(`𝐅𝐚𝐜𝐞𝐛𝐨𝐨𝐤: ${facebook_link}`);
+    lines.push('──────────୨ৎ──────────');
       lines.push('𝐈𝐭𝐞𝐦𝐬:');
       if (stems && stems.length) {
         stems.forEach(s => lines.push(`  𝐒𝐭𝐞𝐦𝐬: ${s.name} x${s.quantity} - ₱${(s.price * s.quantity).toFixed(2)}`));
@@ -2498,16 +2489,16 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
       lines.push(`𝐓𝐨𝐭𝐚𝐥: ₱${Number(customOrderData.total_fee).toLocaleString()}`);
       lines.push(`𝐒𝐭𝐚𝐭𝐮𝐬: Pending`);
       
-      const customMessage = lines.join('\n');
-      const notifyResult = await messenger.notifyAdmins(customMessage);
-      
-      if (!notifyResult.ok) {
-        console.warn('Failed to notify admins via Messenger:', notifyResult.message || notifyResult.error);
-      } else {
-        console.log('Successfully notified admins via Messenger for custom order:', orderId);
-      }
-    } catch (messengerErr) {
-      console.error('Failed to send Messenger notification:', messengerErr);
+
+
+    // Notify admins via Telegram Bot (if configured)
+    try {
+      const telegram = require('../lib/telegram');
+      // Pass order object directly so it builds a clean HTML notification
+      const inserted = customOrderData;
+      await telegram.notifyTelegram(inserted);
+    } catch (tgErr) {
+      console.error('Telegram notification error:', tgErr);
     }
     
     return res.status(201).json({

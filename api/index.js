@@ -29,7 +29,7 @@ const { ipKeyGenerator } = require('express-rate-limit');
 const session = require('express-session');
 
 // Try to load routes with error handling
-let passport, apiRoutes, adminRoutes, messengerRoutes, authRoutes, announcementsRoutes, vouchersRoutes;
+let passport, apiRoutes, adminRoutes, authRoutes, announcementsRoutes, vouchersRoutes;
 
 try {
   passport = require('../src/config/passport');
@@ -52,12 +52,7 @@ try {
   console.error('✗ Failed to load admin routes:', err.message);
 }
 
-try {
-  messengerRoutes = require('../src/routes/messenger');
-  console.log('✓ Messenger routes loaded');
-} catch (err) {
-  console.error('✗ Failed to load messenger routes:', err.message);
-}
+
 
 try {
   authRoutes = require('../src/routes/auth');
@@ -242,8 +237,7 @@ app.get('/api/health', (req, res) => {
       api: !!apiRoutes,
       admin: !!adminRoutes,
       announcements: !!announcementsRoutes,
-      vouchers: !!vouchersRoutes,
-      messenger: !!messengerRoutes
+      vouchers: !!vouchersRoutes
     },
     note: 'Google/Facebook OAuth removed'
   });
@@ -279,10 +273,7 @@ if (adminRoutes) {
   console.log('✓ Admin routes registered at /admin');
 }
 
-if (messengerRoutes) {
-  app.use('/messenger', messengerRoutes);
-  console.log('✓ Messenger routes registered at /messenger');
-}
+
 
 console.log('Routes registration complete (Google/Facebook auth removed)');
 console.log('========================================');

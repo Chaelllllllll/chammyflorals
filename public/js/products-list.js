@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pImg = (r.image_url || '').trim();
         html += `
           <tr class="${bgClass}">
-            <td class="border-0">${pImg ? `<img src="${escapeHtml(pImg)}" alt="${escapeHtml(r.label||'')}" class="pricing-img-zoom" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;" onerror="this.style.display='none';">` : `<span class="text-slate-300"><i class="fa-regular fa-image"></i></span>`}</td>
+            <td class="border-0">${pImg ? `<img src="${escapeHtml(pImg)}" alt="${escapeHtml(r.label||'')}" class="pricing-img-zoom" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:zoom-in;" onclick="if(typeof window.openImageModal === 'function') { window.openImageModal('${escapeHtml(pImg)}'); }" onerror="this.style.display='none';">` : `<span class="text-slate-300"><i class="fa-regular fa-image"></i></span>`}</td>
             <td class="border-0 font-semibold text-slate-800">${escapeHtml(r.label||'')}</td>
             <td class="border-0 text-slate-500">${escapeHtml(r.set||'')}</td>
             <td class="border-0 text-end"><span class="badge bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">₱${escapeHtml(r.price||'')}</span></td>

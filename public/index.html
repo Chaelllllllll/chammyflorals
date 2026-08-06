@@ -8,7 +8,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>Chammy Florals 💐 - Artisanal Handcrafted Bouquets & Gifts</title>
+  <title>Chammy Florals</title>
 
   <link rel="shortcut icon" href="https://chammyflorals.vercel.app/flowers/cherry-blossom.png" type="image/x-icon">
 
@@ -44,7 +44,7 @@
   <meta name="author" content="Chammy Florals" />
 </head>
 
-<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans overflow-x-hidden">
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans overflow-x-hidden theme-cute">
 
   <!-- Header / Navigation (Custom Mobile Drawer + Desktop Nav) -->
   <header class="sticky top-0 z-50 glass-header">
@@ -684,6 +684,29 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Add-ons -->
+              <div class="accordion-item border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <h2 class="accordion-header">
+                  <button
+                    class="accordion-button collapsed flex items-center justify-between w-full p-3.5 sm:p-4 text-xs sm:text-sm"
+                    type="button" data-bs-toggle="collapse" data-bs-target="#collapseAddons">
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="w-6 h-6 rounded-full bg-rose-600 text-white font-bold text-xs flex items-center justify-center">5</span>
+                      <span class="font-bold text-slate-900 text-sm sm:text-base">Choose Add-ons</span>
+                    </div>
+                  </button>
+                </h2>
+                <div id="collapseAddons" class="accordion-collapse collapse"
+                  data-bs-parent="#customizeOrderAccordion">
+                  <div class="accordion-body p-3.5 sm:p-4 bg-slate-50/50">
+                    <div id="customAddonsContainer" class="row g-2 sm:g-3">
+                      <div class="col-12 text-center py-4 text-slate-400 text-xs sm:text-sm">Loading add-ons...</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Custom Voucher & Details -->
@@ -916,6 +939,44 @@
             });
           }
         });
+      }
+    });
+  </script>
+
+  <!-- Image Lightbox Modal -->
+  <div class="image-modal fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md hidden items-center justify-center p-4" id="imageModal" style="display: none;">
+    <span class="image-modal-close absolute top-6 right-8 text-white text-4xl cursor-pointer hover:text-rose-400 transition-colors" onclick="window.closeImageModal()">&times;</span>
+    <img id="modalImage" src="" alt="Detail view" class="max-w-full max-h-[85vh] rounded-2xl shadow-2xl">
+  </div>
+  <script>
+    window.openImageModal = function(imageSrc) {
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImage');
+      if (modal && modalImg) {
+        modalImg.src = imageSrc;
+        modal.style.setProperty('display', 'flex', 'important');
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      }
+    };
+    window.closeImageModal = function() {
+      const modal = document.getElementById('imageModal');
+      if (modal) {
+        modal.style.setProperty('display', 'none', 'important');
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+      }
+    };
+    // Close modal on background click
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.id === 'imageModal') {
+        window.closeImageModal();
+      }
+    });
+    // Close modal on ESC key
+    document.addEventListener('keydown', function(e) {
+      if (e && e.key === 'Escape') {
+        window.closeImageModal();
       }
     });
   </script>

@@ -630,6 +630,71 @@ chatStyles.textContent = `
         color: #ff6f9b;
         font-size: 12px;
     }
+
+    /* Scoped broadcast announcement attachment styling */
+    .broadcast-attachment {
+        background: linear-gradient(135deg, #fffafb 0%, #fff0f3 100%) !important;
+        border: 1px solid #ffdce4 !important;
+        border-radius: 14px !important;
+        padding: 12px 14px !important;
+        margin-bottom: 10px !important;
+        display: flex !important;
+        gap: 12px !important;
+        align-items: center !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 6px 18px rgba(255, 111, 155, 0.08) !important;
+        text-align: left !important;
+    }
+
+    .broadcast-attachment:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 10px 24px rgba(255, 111, 155, 0.12) !important;
+        border-color: #ffb8c6 !important;
+    }
+
+    .broadcast-attachment .attachment-icon {
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 12px !important;
+        background: linear-gradient(135deg, #ff9ebd 0%, #ff6f9b 100%) !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        color: #fff !important;
+        font-size: 18px !important;
+        flex-shrink: 0 !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.35) !important;
+    }
+
+    .broadcast-attachment .attachment-content {
+        flex: 1 !important;
+        min-width: 0 !important;
+    }
+
+    .broadcast-attachment .attachment-title {
+        font-weight: 700 !important;
+        color: #475569 !important;
+        font-size: 14px !important;
+        margin-bottom: 4px !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.4 !important;
+    }
+
+    .broadcast-attachment .attachment-subtitle {
+        font-size: 12px !important;
+        color: #64748b !important;
+        opacity: 0.85 !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.4 !important;
+    }
+
+    .broadcast-attachment .attachment-arrow {
+        color: #ff6f9b !important;
+        font-size: 14px !important;
+        flex-shrink: 0 !important;
+    }
 `;
 document.head.appendChild(chatStyles);
 

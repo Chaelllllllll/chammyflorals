@@ -3,6 +3,27 @@ const API_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3000' 
     : 'https://chammyflorals.vercel.app';
 let allOrders = [];
+let telegramBotLink = 'https://t.me/ChammyFloralsBot';
+
+// Load Telegram Bot Link dynamically
+fetch('/api/settings/telegram-link')
+    .then(res => res.json())
+    .then(data => {
+        if (data && data.telegram_bot_link) {
+            telegramBotLink = data.telegram_bot_link;
+        }
+    })
+    .catch(err => console.warn('Failed to load Telegram bot link:', err));
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 // Check authentication
 async function checkAuth() {
@@ -187,7 +208,14 @@ function displayAllOrders(orders, append = false) {
     const ordersToDisplay = orders.slice(startIdx, endIdx);
     
     const orderHTML = ordersToDisplay.map(order => {
-        const statusClass = getStatusClass(order.status);
+        const statusBadgeClass = (function(status) {
+            const normalized = (status || '').toLowerCase().trim();
+            if (normalized === 'delivered') return 'bg-emerald-50 text-emerald-700 border border-emerald-200/60';
+            if (normalized === 'processing') return 'bg-rose-50 text-rose-700 border border-rose-200/60';
+            if (normalized === 'cancelled') return 'bg-slate-100 text-slate-600 border border-slate-200/60';
+            return 'bg-amber-50 text-amber-700 border border-amber-200/60';
+        })(order.status);
+
         const statusText = order.status.charAt(0).toUpperCase() + order.status.slice(1).replace('_', ' ');
         const date = new Date(order.created_at).toLocaleDateString('en-US', { 
             month: 'short', 
@@ -196,15 +224,34 @@ function displayAllOrders(orders, append = false) {
         });
         
         return `
-            <div class="order-item" data-order-id="${order.id}">
-                <div class="order-icon">
-                    <i class="fa fa-receipt"></i>
+            <div class="order-item glass-card p-5 mb-4 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-pointer border border-slate-100/90" data-order-id="${order.id}">
+                <!-- Card Header -->
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm shadow-rose-500/20"></span>
+                        <span class="font-display font-bold text-slate-800 text-sm">Order #${order.order_id || order.id}</span>
+                    </div>
+                    <span class="text-xs text-slate-400 font-semibold">${date}</span>
                 </div>
-                <div class="order-details">
-                    <h4>Order #${order.order_id || order.id}</h4>
-                    <p>${order.flower_type || 'Custom Order'} x${order.quantity || 1} • ${date} • ₱${order.total_fee || '0.00'}</p>
+
+                <!-- Card Body -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-12 h-12 rounded-xl bg-rose-50/60 border border-rose-100/50 text-rose-500 flex items-center justify-center shrink-0">
+                            <i class="fa fa-spa text-lg"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h5 class="font-bold text-slate-800 text-sm mb-1 truncate">${escapeHtml(order.flower_type || 'Custom Bouquet')}</h5>
+                            <p class="text-xs text-slate-500 font-medium mb-0">Quantity: ${order.quantity || 1}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing and Status -->
+                    <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2 shrink-0 border-t border-slate-100/80 sm:border-0 pt-2.5 sm:pt-0">
+                        <div class="font-display font-bold text-rose-600 text-sm sm:text-base">₱${order.total_fee || '0.00'}</div>
+                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold select-none shadow-sm ${statusBadgeClass}">${statusText}</span>
+                    </div>
                 </div>
-                <span class="order-status ${statusClass}">${statusText}</span>
             </div>
         `;
     }).join('');
@@ -459,6 +506,11 @@ window.showOrderDetails = async function(orderId) {
                 <i class="fa fa-check-circle me-2"></i>You've already submitted a review for this order
             </div>
         ` : ''}
+
+        <a href="${telegramBotLink}?start=${order.order_id || order.id}" target="_blank" class="btn-shadcn-primary w-full py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 mb-3 mt-4 text-white text-decoration-none" style="background: #0088cc; border: none; display: flex; align-items: center; justify-content: center; color: #fff;">
+            <i class="fa-brands fa-telegram text-lg"></i>
+            <span>Track your order using our Telegram Bot</span>
+        </a>
     `;
     
     modal.classList.add('show');
