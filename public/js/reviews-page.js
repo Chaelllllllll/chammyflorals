@@ -210,7 +210,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     form.classList.add('was-validated');
-    if (!form.checkValidity()) return;
+    if (!form.checkValidity()) {
+      const imageEl = document.getElementById('pageReviewImage');
+      const missingPhoto = !(imageEl && imageEl.files && imageEl.files.length);
+      if (missingPhoto) {
+        showPageError('A photo is required to submit your review. Please attach an image before submitting.');
+        if (imageEl) imageEl.focus();
+      } else {
+        showPageError('Please fill in the required fields before submitting.');
+      }
+      return;
+    }
 
   // Sanitize inputs client-side before sending. Server will also sanitize.
   const orderId = sanitizeInput(document.getElementById('pageReviewOrderId').value, 64);

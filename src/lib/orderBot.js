@@ -353,10 +353,10 @@ async function notifyOrderStatusChange(orderId) {
       ? process.env.FRONTEND_URL.trim()
       : 'https://chammyflorals.vercel.app';
     const reviewUrl = `${base.replace(/\/$/, '')}/reviews.html?orderId=${encodeURIComponent(found.data.order_id)}`;
-    const reviewMsg = `<b>Order #${escapeHtml(found.data.order_id)}</b> has been delivered! 🎉\n\nWe would love to hear about your experience. Tap the button below to leave a review.`;
+    const reviewMsg = `<b>Order #${escapeHtml(found.data.order_id)}</b> has been delivered!\n\nWe would love to hear about your experience. Tap the button below to leave a review.`;
     const reviewOpts = {
       reply_markup: JSON.stringify({
-        inline_keyboard: [[{ text: '✍️ Leave a Review', url: reviewUrl }]]
+        inline_keyboard: [[{ text: 'Leave a Review', url: reviewUrl }]]
       })
     };
     try {
