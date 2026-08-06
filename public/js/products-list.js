@@ -606,13 +606,25 @@ document.addEventListener('DOMContentLoaded', () => {
           full.id = fullId;
           full.tabIndex = -1;
           full.innerHTML = `
-            <div class="modal-dialog modal-dialog-centered modal-xl">
-              <div class="modal-content bg-transparent border-0">
-                <div class="modal-body p-0 text-center" style="background:transparent">
-                  <img src="${escapeHtml(src)}" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:12px;" alt="">
+            <div class="modal-dialog modal-dialog-centered" style="width:fit-content;max-width:calc(100vw - 2rem);">
+              <div class="modal-content border-0 rounded-3xl overflow-hidden shadow-2xl" style="width:fit-content;">
+                <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+                      <i class="fa-solid fa-expand"></i>
+                    </div>
+                    <div class="pr-6">
+                      <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight">Product Gallery</h5>
+                      <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">View the full image</p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close btn-close-white absolute z-50 top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-footer border-0 justify-content-center bg-transparent">
-                  <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                <div class="modal-body p-0 text-center bg-slate-50/50" style="line-height:0;flex:0 0 auto;">
+                  <img src="${escapeHtml(src)}" style="width:auto;height:auto;max-width:calc(100vw - 2rem);max-height:72vh;object-fit:contain;background:#fff;display:block;margin:0 auto;" alt="">
+                </div>
+                <div class="modal-footer border-t border-slate-200/80 justify-content-center bg-white p-3">
+                  <button type="button" class="btn btn-outline-dark px-4 rounded-lg" data-bs-dismiss="modal">Close</button>
                 </div>
               </div>
             </div>
@@ -638,13 +650,25 @@ document.addEventListener('DOMContentLoaded', () => {
           full.id = fullId;
           full.tabIndex = -1;
           full.innerHTML = `
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-              <div class="modal-content border-0 rounded-3xl overflow-hidden shadow-xl">
-                <div class="modal-body p-0 text-center">
-                  <img src="${escapeHtml(src)}" style="width:100%;max-height:70vh;object-fit:contain;background:#fff;" alt="">
+            <div class="modal-dialog modal-dialog-centered" style="width:fit-content;max-width:calc(100vw - 2rem);">
+              <div class="modal-content border-0 rounded-3xl overflow-hidden shadow-2xl" style="width:fit-content;">
+                <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+                  <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+                      <i class="fa-solid fa-flower"></i>
+                    </div>
+                    <div class="pr-6">
+                      <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight">Flower Type</h5>
+                      <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">View the full image</p>
+                    </div>
+                  </div>
+                  <button type="button" class="btn-close btn-close-white absolute z-50 top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 text-center bg-slate-50/50" style="line-height:0;flex:0 0 auto;">
+                  <img src="${escapeHtml(src)}" style="width:auto;height:auto;max-width:calc(100vw - 2rem);max-height:72vh;object-fit:contain;background:#fff;display:block;margin:0 auto;" alt="">
                 </div>
                 <div class="modal-footer border-t border-slate-200/80 justify-content-center bg-white p-3">
-                  <button type="button" class="btn btn-dark px-4 rounded-lg" data-bs-dismiss="modal">Close</button>
+                  <button type="button" class="btn btn-outline-dark px-4 rounded-lg" data-bs-dismiss="modal">Close</button>
                 </div>
               </div>
             </div>
