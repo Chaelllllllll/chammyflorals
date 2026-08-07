@@ -867,10 +867,69 @@ loadProducts();
 // -----------------
 // Pricing & add-ons UI helpers
 // -----------------
+let dragSrcEl = null;
+
+function handleDragStart(e) {
+  this.style.opacity = '0.4';
+  dragSrcEl = this;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+  if (e.preventDefault) {
+    e.preventDefault();
+  }
+  e.dataTransfer.dropEffect = 'move';
+  return false;
+}
+
+function handleDragEnter(e) {
+  this.classList.add('over');
+}
+
+function handleDragLeave(e) {
+  this.classList.remove('over');
+}
+
+function handleDrop(e) {
+  if (e.stopPropagation) {
+    e.stopPropagation();
+  }
+  if (dragSrcEl !== this) {
+    const tbody = this.parentNode;
+    const children = Array.from(tbody.children);
+    const dragIndex = children.indexOf(dragSrcEl);
+    const dropIndex = children.indexOf(this);
+    
+    if (dragIndex < dropIndex) {
+      tbody.insertBefore(dragSrcEl, this.nextSibling);
+    } else {
+      tbody.insertBefore(dragSrcEl, this);
+    }
+  }
+  return false;
+}
+
+function handleDragEnd(e) {
+  this.style.opacity = '1';
+  document.querySelectorAll('#pricingTable tbody tr').forEach(row => {
+    row.classList.remove('over');
+  });
+}
+
 function createPricingRow(row = {}) {
   const tr = document.createElement('tr');
+  tr.setAttribute('draggable', 'true');
+  tr.addEventListener('dragstart', handleDragStart, false);
+  tr.addEventListener('dragover', handleDragOver, false);
+  tr.addEventListener('dragenter', handleDragEnter, false);
+  tr.addEventListener('dragleave', handleDragLeave, false);
+  tr.addEventListener('drop', handleDrop, false);
+  tr.addEventListener('dragend', handleDragEnd, false);
+
   const existingImg = row.image_url || '';
   tr.innerHTML = `
+    <td style="vertical-align:middle; text-align:center;"><i class="fas fa-grip-vertical text-muted drag-handle"></i></td>
     <td><input class="form-control form-control-sm pricing-label" value="${escapeHtml(row.label||'')}" placeholder="Label e.g. FWG1"></td>
     <td><input class="form-control form-control-sm pricing-set" value="${escapeHtml(row.set||'')}" placeholder="Set e.g. 1 pc"></td>
     <td><input class="form-control form-control-sm pricing-price" type="number" min="0" step="0.01" value="${row.price||''}"></td>

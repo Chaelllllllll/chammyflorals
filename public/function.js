@@ -572,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     data.user_name = form.querySelector('input[name="user_name"]').value;
     data.user_email = form.querySelector('input[name="user_email"]').value;
-    data.fb_link = form.querySelector('input[name="fb_link"]').value;
+    data.fb_link = form.querySelector('input[name="fb_link"]')?.value || '';
     data.message = form.querySelector('textarea[name="message"]').value;
     data.rush = form.querySelector('input[name="rush"]').value;
     data.expected_delivery_date = form.querySelector('input[name="expected_delivery_date"]').value;
@@ -634,7 +634,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // Check authentication (optional for orders)
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('adminToken');
       
       // Prepare headers with auth token if available
       const headers = { 
@@ -686,8 +686,16 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const orderId = result.orderId || result.order_id || '';
           if (orderId) {
-            // reset form and redirect
             e.target.reset();
+            if (window.location.pathname.includes('/admin/')) {
+              alertSuccess(`Order created successfully! Order ID: ${orderId}`);
+              if (typeof loadOrders === 'function') {
+                loadOrders();
+              } else {
+                window.location.reload();
+              }
+              return;
+            }
             window.location.href = `/order-success.html?orderId=${encodeURIComponent(orderId)}`;
             return;
           }
@@ -697,6 +705,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         // Handle errors
         if (response.status === 401) {
+          if (window.location.pathname.includes('/admin/')) {
+            alertError('Authentication error. Please ensure you are logged in to the admin panel.');
+            return;
+          }
           // Token expired or invalid - user needs to log in again
           localStorage.removeItem('auth_token');
           localStorage.removeItem('customer');

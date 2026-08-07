@@ -102,6 +102,26 @@
       align-items: center;
       justify-content: center;
     }
+    
+    /* Draggable row styling */
+    #pricingTable tbody tr {
+      cursor: grab;
+      transition: background-color 0.2s ease;
+    }
+    #pricingTable tbody tr:active {
+      cursor: grabbing;
+    }
+    #pricingTable tbody tr.over {
+      border-top: 2.5px solid #ff6f9b !important;
+      background-color: #fff6f9 !important;
+    }
+    .drag-handle {
+      cursor: grab;
+      padding: 4px;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
   </style>
 </head>
 <body class="admin-page">
@@ -349,7 +369,8 @@
                 <table class="table table-sm table-borderless mb-0" id="pricingTable">
                   <thead>
                     <tr>
-                      <th style="width:30%">Flower Type / Label</th>
+                      <th style="width:5%"></th>
+                      <th style="width:25%">Flower Type / Label</th>
                       <th style="width:20%">Set</th>
                       <th style="width:15%">Price (₱)</th>
                       <th style="width:25%">Image</th>

@@ -266,6 +266,9 @@
             <div class="small text-muted">Manage and search customer orders.</div>
           </div>
           <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-end">
+            <button class="btn btn-pink btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#inquiryModal">
+              <i class="fas fa-plus me-1"></i>Add Order
+            </button>
             <!-- Mobile: Single dropdown button with notification badge -->
             <div class="dropdown d-md-none">
               <button class="btn btn-pink btn-sm dropdown-toggle position-relative" type="button" id="mobileStatusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -794,13 +797,269 @@
     }
   </style>
 
+  <!-- Order / Inquiry Modal -->
+  <div class="modal fade" id="inquiryModal" tabindex="-1" aria-labelledby="inquiryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+      <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl rounded-3xl">
+
+        <!-- Compact Header -->
+        <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+              <i class="fa-solid fa-bag-shopping"></i>
+            </div>
+            <div class="pr-6">
+              <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight"
+                id="inquiryModalLabel">Place Your Bouquet Order</h5>
+              <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">Fill in contact details & select
+                options</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs"
+            data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Body -->
+        <div class="modal-body p-3.5 sm:p-6 space-y-4 sm:space-y-5 bg-slate-50/50">
+          <form id="inquiryForm" class="needs-validation space-y-4 sm:space-y-5" novalidate>
+
+            <!-- Step 1: Personal Info -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">1</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Contact Information</h6>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-user text-rose-500 me-1.5"></i>Full Name
+                  </label>
+                  <input type="text" name="user_name" class="shadcn-input text-sm sm:text-base"
+                    placeholder="Your full name" required>
+                </div>
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-envelope text-rose-500 me-1.5"></i>Email Address
+                  </label>
+                  <input type="email" name="user_email" class="shadcn-input text-sm sm:text-base"
+                    placeholder="your@email.com" required>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2: Item Selection -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">2</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Selected Items</h6>
+              </div>
+
+              <div id="itemsContainer" class="space-y-3">
+                <div class="order-item">
+                  <div
+                    class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 w-full transition-all">
+                    <span
+                      class="badge bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold text-center shrink-0">Item
+                      1</span>
+                    <select class="form-select item-flower flex-1 text-sm sm:text-base py-2" name="flower_type_0"
+                      required>
+                      <option value="">Select Bouquet / Item</option>
+                    </select>
+                    <select class="form-select item-color w-full sm:w-36 text-sm sm:text-base py-2" name="color_0"
+                      aria-label="Color">
+                      <option value="">Color</option>
+                    </select>
+                    <input type="number"
+                      class="form-control item-quantity text-center w-full sm:w-24 text-sm sm:text-base py-2"
+                      name="quantity_0" min="1" value="1" required placeholder="Qty">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item p-2" style="display: none;">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" id="addItemBtn"
+                class="btn-shadcn-outline w-full py-2.5 text-xs sm:text-sm font-semibold border-dashed">
+                <i class="fa-solid fa-plus me-1.5"></i>Add Another Item
+              </button>
+            </div>
+
+            <!-- Step 3: Add-ons -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5"
+              id="addonsSection" style="display: none;">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">3</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Optional Add-ons</h6>
+              </div>
+              <div id="addonsContainer" class="p-3.5 bg-slate-50/90 rounded-xl space-y-2 border border-slate-200/80">
+              </div>
+            </div>
+
+            <!-- Step 4: Discount & Price Summary -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">4</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Discount & Summary</h6>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 items-center">
+                <div class="md:col-span-2 space-y-2">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 block mb-1">Promo / Voucher
+                    Code</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="voucherCodeInput" class="shadcn-input uppercase text-sm sm:text-base"
+                      placeholder="Enter promo code">
+                    <button type="button" class="btn-shadcn-outline shrink-0 px-4 text-xs sm:text-sm font-semibold"
+                      id="applyVoucherBtn">
+                      <i class="fa-solid fa-tag me-1"></i>Apply
+                    </button>
+                  </div>
+                  <div id="voucherFeedback" class="text-xs sm:text-sm mt-1"></div>
+                </div>
+
+                <div
+                  class="p-3.5 rounded-2xl bg-gradient-to-br from-rose-500 to-rose-600 text-white text-center shadow-md">
+                  <div class="text-[11px] sm:text-xs text-white/80 font-semibold mb-0.5 uppercase tracking-wider">Order
+                    Total</div>
+                  <div id="orderOriginalTotal" class="text-white/60 text-xs line-through" style="display: none;">
+                    ₱<span id="originalTotalAmount">0</span>
+                  </div>
+                  <div class="text-2xl sm:text-3xl font-bold text-white leading-tight">
+                    ₱<span id="orderFinalTotal">0</span>
+                  </div>
+                  <div id="orderDiscountBadge"
+                    class="inline-flex items-center gap-1 bg-white/20 text-white border border-white/30 text-xs px-2.5 py-0.5 rounded-full mt-1 font-semibold"
+                    style="display: none;">
+                    <i class="fa-solid fa-tag"></i><span id="orderDiscountAmount">0</span> OFF
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5: Delivery Details -->
+            <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+              <div class="flex items-center gap-2.5 border-b border-slate-100 pb-2.5">
+                <span
+                  class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-rose-100 text-rose-600 font-bold text-xs flex items-center justify-center shrink-0">5</span>
+                <h6 class="font-bold text-sm sm:text-base text-slate-900 mb-0">Delivery Details</h6>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-calendar text-rose-500 me-1.5"></i>Expected Delivery Date
+                  </label>
+                  <input type="text" id="deliveryDatePicker" name="expected_delivery_date"
+                    class="shadcn-input text-sm sm:text-base" placeholder="Pick delivery date" required>
+                  <input type="hidden" name="rush" value="No">
+                  <div id="rushNotification" class="mt-2" style="display: none;">
+                    <div
+                      class="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-800 text-xs sm:text-sm flex items-center gap-2">
+                      <i class="fa-solid fa-bolt text-amber-500 text-sm"></i>
+                      <span><strong>Rush Order:</strong> Delivery within 3 days incurs additional rush fee.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-comment-dots text-rose-500 me-1.5"></i>Special Instructions / Note
+                  </label>
+                  <textarea name="message" class="shadcn-input h-20 text-sm sm:text-base py-2"
+                    placeholder="Greeting card note or custom requests..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Terms Checkbox -->
+            <div class="pt-1 px-1">
+              <div class="flex items-center gap-2">
+                <input class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer"
+                  type="checkbox" id="agreeTerms" required>
+                <label class="text-xs sm:text-sm text-slate-700 cursor-pointer" for="agreeTerms">
+                  I agree to the <a href="/terms-and-conditions.html" target="_blank"
+                    class="text-rose-600 font-semibold underline">Terms & Conditions</a>
+                </label>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="pt-1 space-y-2">
+              <button type="submit"
+                class="btn-shadcn-primary w-full py-3.5 text-sm sm:text-base font-bold shadow-lg hover:shadow-xl hover:shadow-rose-500/25 active:scale-[0.98] transition-all"
+                id="placeOrderBtn">
+                <i class="fa-solid fa-paper-plane me-2"></i>Confirm & Place Order
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/alert.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/delivery-calendar.js"></script>
+  <script src="/js/voucher-handler.js"></script>
+  <script src="/function.js" defer></script>
   <script src="/js/admin-dashboard.js"></script>
   <script src="/js/push-subscribe.js"></script>
   <link rel="stylesheet" href="/css/notify-prompt.css">
+
+  <script>
+    // Delivery Date Calendar Initializer
+    let regularOrderCalendar = null;
+    document.addEventListener('DOMContentLoaded', function () {
+      const deliveryDatePicker = document.getElementById('deliveryDatePicker');
+      if (deliveryDatePicker) {
+        deliveryDatePicker.addEventListener('keydown', (e) => e.preventDefault());
+      }
+
+      const orderModal = document.getElementById('inquiryModal');
+      if (orderModal) {
+        orderModal.addEventListener('shown.bs.modal', function () {
+          const dateInput = document.getElementById('deliveryDatePicker');
+          if (dateInput && !regularOrderCalendar) {
+            regularOrderCalendar = new DeliveryCalendar('deliveryDatePicker', {
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })(),
+              onChange: (selectedDate, dateStr) => {
+                const input = document.getElementById('deliveryDatePicker');
+                input.value = dateStr;
+                const rushInput = document.querySelector('input[name="rush"]');
+                const rushNotif = document.getElementById('rushNotification');
+                if (!dateStr) {
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
+                  return;
+                }
+                const date = new Date(dateStr);
+                date.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
+                if (diffDays >= 1 && diffDays <= 3) {
+                  if (rushInput) rushInput.value = 'Yes';
+                  if (rushNotif) rushNotif.style.display = 'block';
+                } else {
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
+                }
+                if (window.calculateOrderTotal) window.calculateOrderTotal();
+              }
+            });
+          }
+        });
+      }
+    });
+  </script>
   
 </body>
 </html>
