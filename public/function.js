@@ -1,8 +1,48 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Check custom order status setting
+  async function checkCustomOrderStatus() {
+    const customBtns = ['navCustomizeBtn', 'mobileNavCustomizeBtn', 'heroCustomizeBtn'];
+    try {
+      const res = await fetch('/api/settings/custom-order-status');
+      if (res.ok) {
+        const { status } = await res.json();
+        if (status === 'open') {
+          // Show custom order buttons if open by removing inline display: none
+          customBtns.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.removeProperty('display');
+          });
+        } else {
+          // Explicitly keep/set them hidden
+          customBtns.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.setProperty('display', 'none', 'important');
+          });
+        }
+      } else {
+        // Fallback: show buttons if API fails
+        customBtns.forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) btn.style.removeProperty('display');
+        });
+      }
+    } catch (err) {
+      console.error('Failed to check custom order status:', err);
+      // Fallback: show buttons if error occurs
+      customBtns.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.removeProperty('display');
+      });
+    }
+  }
+  checkCustomOrderStatus();
+
   const inquiryForm = document.getElementById('inquiryForm');
   if (!inquiryForm) {
     return;
   }
+
+  const isAdminDashboardPage = window.location.pathname.startsWith('/admin/');
 
   // Pre-fill customer information if logged in
   function prefillCustomerInfo() {
@@ -15,24 +55,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const nameInput = inquiryForm.querySelector('input[name="user_name"]');
         if (nameInput && customer.name) {
           nameInput.value = customer.name;
-          nameInput.readOnly = true;
-          nameInput.style.backgroundColor = '#f8f9fa';
+          if (isAdminDashboardPage) {
+            nameInput.readOnly = false;
+            nameInput.removeAttribute('readonly');
+            nameInput.style.backgroundColor = '';
+          } else {
+            nameInput.readOnly = true;
+            nameInput.style.backgroundColor = '#f8f9fa';
+          }
         }
         
         // Pre-fill email field
         const emailInput = inquiryForm.querySelector('input[name="user_email"]');
         if (emailInput && customer.email) {
           emailInput.value = customer.email;
-          emailInput.readOnly = true;
-          emailInput.style.backgroundColor = '#f8f9fa';
+          if (isAdminDashboardPage) {
+            emailInput.readOnly = false;
+            emailInput.removeAttribute('readonly');
+            emailInput.style.backgroundColor = '';
+          } else {
+            emailInput.readOnly = true;
+            emailInput.style.backgroundColor = '#f8f9fa';
+          }
         }
       } catch (error) {
       }
     }
+
+    // Always pre-fill saved delivery address and preferred meetup place if they exist in localStorage
+    try {
+      const savedAddress = localStorage.getItem('customer_delivery_address');
+      if (savedAddress) {
+        const addressInput = inquiryForm.querySelector('input[name="delivery_address"]');
+        if (addressInput) {
+          addressInput.value = savedAddress;
+          // Trigger Muntinlupa check for meetup section display
+          if (typeof checkMuntinlupaForInput === 'function') {
+            checkMuntinlupaForInput(addressInput, savedAddress);
+          }
+        }
+      }
+      const savedMeetup = localStorage.getItem('customer_preferred_meetup_place');
+      if (savedMeetup) {
+        const meetupInput = inquiryForm.querySelector('input[name="preferred_meetup_place"]');
+        if (meetupInput) {
+          meetupInput.value = savedMeetup;
+        }
+      }
+    } catch (e) {}
   }
 
-  // Call prefill function
-  prefillCustomerInfo();
+  // Prefill call moved to the end of DOMContentLoaded to ensure all helper functions are defined
 
   // --- Auto-fetch product & addons when Flower Type changes ---
   const flowerSelect = inquiryForm.querySelector('select[name="flower_type"]');
@@ -197,7 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const price = a.price != null ? Number(a.price) : 0;
             const priceStr = price > 0 ? `₱${price.toLocaleString()}` : '';
             const id = 'addon_' + idx;
-            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" class="form-check-input addon-checkbox" id="${id}" data-name="${escapeHtml(label)}" data-price="${price}"><label class="form-check-label" for="${id}" style="cursor: pointer;"><span class="fw-semibold">${escapeHtml(label)}</span>${priceStr ? ` <span class="badge bg-pink text-white ms-2">${priceStr}</span>` : ''}</label></div>`;
+            const valueStr = label + (priceStr ? ` - ${priceStr}` : '');
+            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${escapeHtml(valueStr)}" class="form-check-input addon-checkbox" id="${id}" data-name="${escapeHtml(label)}" data-price="${price}"><label class="form-check-label" for="${id}" style="cursor: pointer;"><span class="fw-semibold">${escapeHtml(label)}</span>${priceStr ? ` <span class="badge bg-pink text-white ms-2">${priceStr}</span>` : ''}</label></div>`;
           }).join('');
           addonsContainer.innerHTML = html;
           try {
@@ -275,22 +349,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = 'order-item mb-2';
     row.innerHTML = `
-      <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
-        <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${index + 1}</span>
-        <select class="form-select form-select-sm item-flower" name="flower_type_${index}" required style="flex: 3;">
-          <option value="">Flower Type</option>
-        </select>
-        <select class="form-select form-select-sm item-color" name="color_${index}" aria-label="Color" style="flex: 2;">
-          <option value="">Color</option>
-        </select>
-        <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${index}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
-        <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
-          <i class="fa fa-times"></i>
-        </button>
+      <div class="flex flex-col gap-2.5 p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 w-full transition-all flex-wrap">
+        <div class="flex items-center gap-2.5 w-full flex-col sm:flex-row">
+          <span class="badge bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold text-center shrink-0">Item ${index + 1}</span>
+          <select class="form-select item-flower flex-1 text-sm sm:text-base py-2" name="flower_type_${index}" required>
+            <option value="">Select Bouquet / Item</option>
+          </select>
+          <select class="form-select item-color w-full sm:w-36 text-sm sm:text-base py-2" name="color_${index}" aria-label="Color">
+            <option value="">Color</option>
+          </select>
+          <input type="number" class="form-control item-quantity text-center w-full sm:w-24 text-sm sm:text-base py-2" name="quantity_${index}" min="1" value="1" required placeholder="Qty">
+          <button type="button" class="btn btn-sm btn-outline-danger remove-item p-2">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
       </div>
     `;
     const selectEl = row.querySelector('.item-flower');
-  populateItemSelect(selectEl);
+    populateItemSelect(selectEl);
     // ensure color select is populated shortly after creation (handles async product cache)
     setTimeout(() => {
       try { populateColorSelectForRow(row); } catch (e) {}
@@ -301,8 +377,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (e) {}
     }, 40);
+    
     // attach change handler so addons preview updates when item selection changes
-    try { selectEl.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); populateColorSelectForRow(row); }); } catch (e) {}
+    try { 
+      selectEl.addEventListener('change', (ev) => { 
+        onFlowerTypeChange(ev); 
+        computeRushFee(); 
+        populateColorSelectForRow(row); 
+        updateQuantityLimits(row);
+        calculateOrderTotal();
+      }); 
+    } catch (e) {}
+    
     row.querySelector('.remove-item').addEventListener('click', () => {
       if (itemsContainer.children.length <= 1) return; // keep at least one
       row.remove();
@@ -310,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateItemNumbers();
       // update rush fee when item removed
       computeRushFee();
+      calculateOrderTotal();
     });
     return row;
   }
@@ -370,10 +457,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const initialSelects = itemsContainer.querySelectorAll('.item-flower');
     initialSelects.forEach(s => {
       populateItemSelect(s);
-      try { s.addEventListener('change', (ev) => { onFlowerTypeChange(ev); computeRushFee(); populateColorSelectForRow(s.closest('.order-item')); }); } catch (e) {}
-      // populate color select for existing rows
+      try { 
+        s.addEventListener('change', (ev) => { 
+          onFlowerTypeChange(ev); 
+          computeRushFee(); 
+          populateColorSelectForRow(s.closest('.order-item')); 
+          updateQuantityLimits(s.closest('.order-item'));
+          calculateOrderTotal();
+        }); 
+      } catch (e) {}
+      // populate color select + quantity limits for existing rows
       const row = s.closest('.order-item');
-      if (row) populateColorSelectForRow(row);
+      if (row) {
+        populateColorSelectForRow(row);
+        updateQuantityLimits(row);
+      }
     });
   })();
 
@@ -381,9 +479,152 @@ document.addEventListener('DOMContentLoaded', () => {
     const idx = itemsContainer.children.length;
     const newRow = createItemRow(idx);
     itemsContainer.appendChild(newRow);
+    updateQuantityLimits(newRow);
     // recompute rush fee when new item added
     computeRushFee();
   });
+
+  // --- Min/Max quantity enforcement per product ---
+
+  // Reads the selected product's min_qty/max_qty, applies the limits to the
+  // quantity input, clamps the current value, and shows a helper hint.
+  function updateQuantityLimits(row) {
+    try {
+      const select = row.querySelector('.item-flower');
+      const qtyInput = row.querySelector('.item-quantity');
+      if (!select || !qtyInput) return;
+      const opt = select.selectedOptions && select.selectedOptions[0];
+      const productId = opt && opt.dataset && opt.dataset.productId;
+      let minQty = 1;
+      let maxQty = null;
+      let productName = opt && opt.textContent
+        ? opt.textContent.replace(/₱[\d,]+(?:\.\d{2})?/g, '').replace(/\s*-\s*$/, '').trim()
+        : '';
+      if (!productName) productName = opt && opt.value ? opt.value : '';
+      if (productId) {
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        if (prod) {
+          minQty = parseInt(prod.min_qty) || 1;
+          maxQty = prod.max_qty != null && prod.max_qty !== '' ? parseInt(prod.max_qty) : null;
+          if (maxQty != null && maxQty < minQty) maxQty = minQty;
+          if (prod.name) productName = String(prod.name);
+        }
+      }
+      // NOTE: We intentionally do NOT set the native min/max attributes here.
+      // The form uses `novalidate` + manual reportValidity(), so native attrs
+      // would trigger the browser's generic bubble instead of our friendly
+      // inline error + alert. Limits are enforced by validateOrderQuantities().
+
+      // Clamp the current value to be at least 1, and at most the product's maxQty
+      let val = parseInt(qtyInput.value) || 1;
+      if (val < 1) val = 1;
+      if (maxQty != null && val > maxQty) val = maxQty;
+      if (String(qtyInput.value) !== String(val)) {
+        qtyInput.value = val;
+        calculateOrderTotal();
+      }
+
+      // Show a helper hint under the row
+      let hint = row.querySelector('.item-qty-hint');
+      if (!hint) {
+        hint = document.createElement('small');
+        hint.className = 'item-qty-hint d-block mt-1';
+        hint.style.fontSize = '11px';
+        row.appendChild(hint);
+      }
+      const hasLimits = (maxQty != null && maxQty > 0) || minQty > 1;
+      if (hasLimits) {
+        const rangeText = (maxQty != null && maxQty > 0)
+          ? `${productName}: min ${minQty} • max ${maxQty}`
+          : `${productName}: min ${minQty}`;
+        hint.textContent = 'ℹ ' + rangeText;
+        hint.style.display = '';
+        hint.style.color = '#6b7280';
+      } else {
+        hint.style.display = 'none';
+      }
+      // clear any stale error styling
+      qtyInput.classList.remove('is-invalid');
+      const errEl = row.querySelector('.item-qty-error');
+      if (errEl) errEl.style.display = 'none';
+    } catch (e) {}
+  }
+
+  // Validates every item row's quantity against the selected product's
+  // min/max. Marks offending rows and returns human-readable errors.
+  function validateOrderQuantities() {
+    const errors = [];
+    const rows = itemsContainer ? itemsContainer.querySelectorAll('.order-item') : [];
+    
+    // Group quantities by product ID
+    const productGroups = {};
+    
+    // Clear all previous errors first
+    rows.forEach(row => {
+      const qtyInput = row.querySelector('.item-quantity');
+      if (qtyInput) qtyInput.classList.remove('is-invalid');
+      const errEl = row.querySelector('.item-qty-error');
+      if (errEl) errEl.style.display = 'none';
+    });
+
+    rows.forEach(row => {
+      const selectEl = row.querySelector('.item-flower');
+      const qtyInput = row.querySelector('.item-quantity');
+      if (!selectEl || !qtyInput) return;
+      const opt = selectEl.selectedOptions && selectEl.selectedOptions[0];
+      if (!opt || !opt.value) return;
+      const productId = opt.dataset && opt.dataset.productId;
+      if (!productId) return;
+      const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+      if (!prod) return;
+      
+      const qty = parseInt(qtyInput.value) || 0;
+      if (!productGroups[productId]) {
+        productGroups[productId] = {
+          product: prod,
+          totalQty: 0,
+          rows: []
+        };
+      }
+      productGroups[productId].totalQty += qty;
+      productGroups[productId].rows.push({ row, qtyInput });
+    });
+
+    // Validate each product group
+    Object.keys(productGroups).forEach(productId => {
+      const { product, totalQty, rows: groupRows } = productGroups[productId];
+      const minQty = parseInt(product.min_qty) || 1;
+      const maxQty = product.max_qty != null && product.max_qty !== '' ? parseInt(product.max_qty) : null;
+      const label = String(product.name);
+      
+      let error = null;
+      if (totalQty < minQty) {
+        error = `"${label}" requires a total of at least ${minQty} item(s). You selected ${totalQty}.`;
+      } else if (maxQty != null && totalQty > maxQty) {
+        error = `"${label}" allows a total of at most ${maxQty} item(s). You selected ${totalQty}.`;
+      }
+      
+      if (error) {
+        errors.push(error);
+        // Mark all rows in the offending product group as invalid
+        groupRows.forEach(({ row, qtyInput }) => {
+          qtyInput.classList.add('is-invalid');
+          let errEl = row.querySelector('.item-qty-error');
+          if (!errEl) {
+            errEl = document.createElement('small');
+            errEl.className = 'item-qty-error d-block mt-1';
+            errEl.style.fontSize = '11px';
+            errEl.style.color = '#e11d48';
+            row.appendChild(errEl);
+          }
+          errEl.textContent = '⚠ ' + error;
+          errEl.style.display = '';
+        });
+      }
+    });
+    
+    return errors;
+  }
 
   // --- Rush fee calculation and UI update ---
   let _categoriesCache = null; // name -> rush_fee
@@ -408,23 +649,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function getRushFeeTotal() {
+    if (!_categoriesCache) return 0;
+    const itemRows = itemsContainer.querySelectorAll('.order-item');
+    let totalRush = 0;
+    itemRows.forEach(row => {
+      const select = row.querySelector('.item-flower');
+      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+      const opt = select && select.selectedOptions && select.selectedOptions[0];
+      const productId = opt && opt.dataset && opt.dataset.productId;
+      if (!productId) return;
+      const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+      const cat = prod && prod.category ? String(prod.category).trim() : '';
+      const key = String(cat || '').trim().toLowerCase();
+      const fee = _categoriesCache[key] || 0;
+      if (fee) totalRush += fee * qty;
+    });
+    return totalRush;
+  }
+
   function computeRushFee() {
     try {
       if (!_categoriesCache) return;
-      const itemRows = itemsContainer.querySelectorAll('.order-item');
-      let totalRush = 0;
-      itemRows.forEach(row => {
-        const select = row.querySelector('.item-flower');
-        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
-        const opt = select && select.selectedOptions && select.selectedOptions[0];
-        const productId = opt && opt.dataset && opt.dataset.productId;
-        if (!productId) return;
-        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
-        const cat = prod && prod.category ? String(prod.category).trim() : '';
-        const key = String(cat || '').trim().toLowerCase();
-        const fee = _categoriesCache[key] || 0;
-        if (fee) totalRush += fee * qty;
-      });
+      const totalRush = getRushFeeTotal();
       const rushSelect = inquiryForm.querySelector('select[name="rush"]');
       if (rushSelect) {
         const yesOpt = rushSelect.querySelector('option[value="Yes"]');
@@ -443,6 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) {
       computeRushFee();
       calculateOrderTotal();
+      validateOrderQuantities();
     }
   });
 
@@ -452,6 +700,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!inquiryForm) return;
     let total = 0;
     
+    let totalCustomizationFee = 0;
+    let hasCustomizationFee = false;
+
     // Calculate items cost from selected products
     const itemRows = itemsContainer.querySelectorAll('.order-item');
     itemRows.forEach(row => {
@@ -472,9 +723,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const price = parseFloat(priceMatch[1].replace(/,/g, ''));
         total += price * qty;
       }
+
+      // Add customization fee automatically if product has customization fee configured.
+      // The fee is a FLAT one-time charge applied ONCE to the order total
+      // (not per added item, not per quantity).
+      const productId = selectedOption.dataset.productId;
+      if (productId && !hasCustomizationFee) {
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const fee = prod ? parseFloat(prod.customization_fee) : 0;
+        if (fee > 0) {
+          hasCustomizationFee = true;
+          totalCustomizationFee = fee;
+          total += fee;
+        }
+      }
     });
+
+    // Update customization fee card display
+    const feeAlertContainer = document.getElementById('customizationFeeAlertContainer');
+    const feeAlertAmount = document.getElementById('customizationFeeAlertAmount');
+    if (feeAlertContainer) {
+      if (hasCustomizationFee) {
+        feeAlertContainer.style.display = 'block';
+        if (feeAlertAmount) {
+          feeAlertAmount.textContent = totalCustomizationFee.toFixed(2);
+        }
+      } else {
+        feeAlertContainer.style.display = 'none';
+      }
+    }
     
-    // Add addon prices
+    // Add addon prices as a flat fee for the entire order
     const addonCheckboxes = document.querySelectorAll('.addon-checkbox:checked');
     addonCheckboxes.forEach(checkbox => {
       const price = parseFloat(checkbox.dataset.price) || 0;
@@ -484,21 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add rush fee if rush is Yes
     const rushInput = inquiryForm.querySelector('input[name="rush"]');
     if (rushInput && rushInput.value === 'Yes') {
-      // Calculate rush fee based on items
-      let rushFee = 0;
-      itemRows.forEach(row => {
-        const select = row.querySelector('.item-flower');
-        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
-        const opt = select && select.selectedOptions && select.selectedOptions[0];
-        const productId = opt && opt.dataset && opt.dataset.productId;
-        if (!productId) return;
-        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
-        const cat = prod && prod.category ? String(prod.category).trim() : '';
-        const key = String(cat || '').trim().toLowerCase();
-        const fee = _categoriesCache[key] || 0;
-        if (fee) rushFee += fee * qty;
-      });
-      total += rushFee;
+      total += getRushFeeTotal();
     }
     
     // Update total display using voucher handler if available
@@ -534,119 +799,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const inquiryModal = document.getElementById('inquiryModal');
   if (inquiryModal) {
     inquiryModal.addEventListener('shown.bs.modal', () => {
-      setTimeout(calculateOrderTotal, 100);
+      setTimeout(() => {
+        calculateOrderTotal();
+        if (itemsContainer) {
+          itemsContainer.querySelectorAll('.order-item').forEach(row => updateQuantityLimits(row));
+        }
+      }, 100);
+    });
+
+    // Blur any focused descendant before Bootstrap applies aria-hidden=true in
+    // _hideModal(), so the "Blocked aria-hidden" console warning never fires.
+    // Covers: map picker auto-hide (clicking a [data-bs-toggle] opens the
+    // picker and hides this modal), form submit, backdrop click, and Escape.
+    inquiryModal.addEventListener('hide.bs.modal', () => {
+      if (inquiryModal.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
     });
   }
 
   // --- end auto-fetch logic ---
 
-  inquiryForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // Pending order data awaiting final confirmation on the home page summary modal
+  let pendingOrderData = null;
 
-    // Submit the inquiry form to server. reCAPTCHA removed (server-side anti-abuse can be added later).
-    const submitBtn = inquiryForm.querySelector('button[type="submit"]');
-    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
-    // Build data object explicitly to support multiple items
-    const data = {};
-    const form = e.target;
-
-    // run HTML5 validation (form has `novalidate` so we invoke reportValidity manually)
-    try {
-      if (typeof form.reportValidity === 'function') {
-        if (!form.reportValidity()) return; // user will see which fields are missing/invalid
-      } else if (!form.checkValidity || !form.checkValidity()) {
-        return;
-      }
-    } catch (valErr) { /* ignore validation errors and continue; we'll still validate required fields below */ }
-    
-    // Check if user has entered voucher code but hasn't applied it
-    const voucherInput = document.getElementById('voucherCodeInput');
-    const hasVoucherCode = voucherInput && voucherInput.value.trim() !== '';
-    const voucherApplied = window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher();
-    
-    if (hasVoucherCode && !voucherApplied) {
-      const proceed = await showVoucherWarningModal();
-      if (!proceed) {
-        return;
-      }
-    }
-    data.user_name = form.querySelector('input[name="user_name"]').value;
-    data.user_email = form.querySelector('input[name="user_email"]').value;
-    data.fb_link = form.querySelector('input[name="fb_link"]')?.value || '';
-    data.message = form.querySelector('textarea[name="message"]').value;
-    data.rush = form.querySelector('input[name="rush"]').value;
-    data.expected_delivery_date = form.querySelector('input[name="expected_delivery_date"]').value;
-    data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
-
-    // Collect items
-    const items = [];
-    const itemRows = itemsContainer.querySelectorAll('.order-item');
-    itemRows.forEach((row, i) => {
-      const flower = row.querySelector('.item-flower').value;
-      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
-      const colorEl = row.querySelector('.item-color');
-      const colorValue = colorEl ? (colorEl.value || '') : '';
-      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
-      if (!flower) return;
-      const itemObj = { flower_type: flower, quantity: qty };
-      if (colorValue) itemObj.color = { name: colorName, value: colorValue };
-      items.push(itemObj);
-    });
-    if (!items.length) {
-      alertWarning('Please add at least one item to your order');
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml; }
-      return;
-    }
-
-    data.items = items;
-    // For backwards-compatibility keep flower_type and quantity as summary
-    data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
-    data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
-    // Include client-side timestamps so orders can preserve user's local time
-    try {
-      const now = new Date();
-      // UTC ISO (legacy/canonical)
-      data.created_at = now.toISOString();
-      // human-friendly local string for visibility
-      data.created_at_local = now.toLocaleString();
-      // numeric offset in minutes (local -> UTC)
-      data.tz_offset_minutes = now.getTimezoneOffset();
-      // local ISO-like value (YYYY-MM-DDTHH:MM:SS) — this reflects the user's OS local time
-      const pad = (n) => String(n).padStart(2, '0');
-      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    } catch (e) { /* ignore */ }
-
-    // Add voucher information if applied
-    if (window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher()) {
-      const voucherData = window.regularVoucherHandler.getAppliedVoucher();
-      data.voucher_code = voucherData.voucher.code;
-      data.voucher_id = voucherData.voucher.id;
-      data.voucher_discount = voucherData.discountAmount;
-      data.original_total = voucherData.originalTotal;
-    }
-
+  // Actually place the order by POSTing to /api/inquiry. Used both for the
+  // direct admin flow and for the home page "Finalize Order" button.
+  async function submitOrder(data, btn) {
+    const originalBtnHtml = btn ? btn.innerHTML : null;
     try {
       // show loading state
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.setAttribute('aria-busy', 'true');
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Placing...';
+      if (btn) {
+        btn.disabled = true;
+        btn.setAttribute('aria-busy', 'true');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Placing...';
       }
-      
+
       // Check authentication (optional for orders)
       const token = localStorage.getItem('auth_token') || localStorage.getItem('adminToken');
-      
+
       // Prepare headers with auth token if available
-      const headers = { 
+      const headers = {
         'Content-Type': 'application/json'
       };
-      
+
       // Only add auth header if token exists
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      
-      // minimal debug
+
       const response = await fetch('/api/inquiry', {
         method: 'POST',
         headers: headers,
@@ -655,6 +856,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = await response.json();
 
       if (response.ok) {
+        // Save delivery details to localStorage for next time
+        try {
+          if (data.delivery_address) {
+            localStorage.setItem('customer_delivery_address', data.delivery_address);
+          }
+          if (data.preferred_meetup_place) {
+            localStorage.setItem('customer_preferred_meetup_place', data.preferred_meetup_place);
+          } else {
+            localStorage.removeItem('customer_preferred_meetup_place');
+          }
+        } catch (e) {}
+
         // Record voucher usage if voucher was applied
         if (data.voucher_id && data.voucher_code) {
           try {
@@ -682,11 +895,21 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         } catch (hideErr) {}
 
+        // Hide the order summary modal if visible
+        try {
+          const summaryModalEl = document.getElementById('orderSummaryModal');
+          if (summaryModalEl) {
+            const summaryModalInstance = bootstrap.Modal.getInstance(summaryModalEl) || new bootstrap.Modal(summaryModalEl);
+            summaryModalInstance.hide();
+          }
+        } catch (hideSummaryErr) {}
+
         // redirect to success page with orderId in querystring
         try {
           const orderId = result.orderId || result.order_id || '';
           if (orderId) {
-            e.target.reset();
+            const formEl = document.getElementById('inquiryForm');
+            if (formEl) formEl.reset();
             if (window.location.pathname.includes('/admin/')) {
               alertSuccess(`Order created successfully! Order ID: ${orderId}`);
               if (typeof loadOrders === 'function') {
@@ -722,13 +945,763 @@ document.addEventListener('DOMContentLoaded', () => {
       alertError('Failed to send inquiry. Please try again.');
     } finally {
       // restore button
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.removeAttribute('aria-busy');
-        if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml;
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        if (originalBtnHtml !== null) btn.innerHTML = originalBtnHtml;
       }
     }
+  }
+
+  // Render the order summary into the home page confirmation modal
+  function renderOrderSummary(data) {
+    const container = document.getElementById('orderSummaryContent');
+    if (!container) return;
+
+    const money = (n) => '₱' + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ---- Items breakdown ----
+    let itemsHtml = '';
+    let itemsTotal = 0;
+    let customizationFee = 0;
+    const itemRows = itemsContainer.querySelectorAll('.order-item');
+    itemRows.forEach(row => {
+      const selectEl = row.querySelector('.item-flower');
+      if (!selectEl || !selectEl.value || !selectEl.selectedOptions || !selectEl.selectedOptions[0]) return;
+      const opt = selectEl.selectedOptions[0];
+      const qty = parseInt(row.querySelector('.item-quantity')?.value) || 1;
+      const optionText = opt.textContent || '';
+      const priceMatch = optionText.match(/₱([\d,]+(?:\.\d{2})?)/);
+      const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0;
+      let name = optionText.replace(/₱[\d,]+(?:\.\d{2})?/g, '').replace(/\s*-\s*$/, '').trim();
+      if (!name) name = opt.value;
+      const colorEl = row.querySelector('.item-color');
+      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0]
+        ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent.replace(/^●\s*/, '')) : '';
+      itemsTotal += price * qty;
+
+      // Flat customization fee (first customizable product only)
+      const productId = opt.dataset && opt.dataset.productId;
+      if (productId && !customizationFee) {
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const fee = prod ? parseFloat(prod.customization_fee) : 0;
+        if (fee > 0) customizationFee = fee;
+      }
+
+      itemsHtml += `
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-slate-100">
+          <div class="pe-3">
+            <div class="fw-semibold text-slate-800 text-sm">${escapeHtml(name)}</div>
+            <div class="text-[11px] text-slate-500">${colorName ? escapeHtml(colorName) + ' &bull; ' : ''}Qty: ${qty}${price ? ' &bull; ₱' + price.toFixed(2) + ' each' : ''}</div>
+          </div>
+          <div class="fw-bold text-slate-800 text-sm shrink-0">${price ? money(price * qty) : ''}</div>
+        </div>`;
+    });
+
+    // ---- Add-ons ----
+    let addonsTotal = 0;
+    let addonsHtml = '';
+    document.querySelectorAll('.addon-checkbox:checked').forEach(cb => {
+      const price = parseFloat(cb.dataset.price) || 0;
+      addonsTotal += price;
+      const label = cb.dataset.name || cb.value || '';
+      addonsHtml += `
+        <div class="d-flex justify-content-between align-items-center py-1">
+          <span class="text-sm text-slate-600">${escapeHtml(label)}</span>
+          <span class="text-sm fw-semibold text-slate-800">${price ? money(price) : ''}</span>
+        </div>`;
+    });
+
+    // ---- Rush fee ----
+    const rushInput = inquiryForm.querySelector('input[name="rush"]');
+    const isRush = rushInput && rushInput.value === 'Yes';
+    const rushFee = isRush ? getRushFeeTotal() : 0;
+
+    // ---- Voucher discount ----
+    let voucherDiscount = 0;
+    if (window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher()) {
+      voucherDiscount = parseFloat(window.regularVoucherHandler.getAppliedVoucher().discountAmount) || 0;
+    }
+
+    const subtotal = itemsTotal + customizationFee + addonsTotal + rushFee;
+    const finalTotal = Math.max(0, subtotal - voucherDiscount);
+
+    // ---- Customer / delivery summary ----
+    const fieldValue = (name) => {
+      const el = inquiryForm.querySelector(`[name="${name}"]`);
+      return el ? (el.value || '') : '';
+    };
+    const deliveryAddress = fieldValue('delivery_address');
+    const expectedDate = fieldValue('expected_delivery_date');
+    const meetupPlace = fieldValue('preferred_meetup_place');
+
+    container.innerHTML = `
+      <div class="space-y-3.5 sm:space-y-4">
+
+        <!-- Customer -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4">
+          <h6 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2"><i class="fa-solid fa-user me-1.5 text-rose-500"></i>Customer Details</h6>
+          <div class="text-sm text-slate-700">${escapeHtml(data.user_name || '')}</div>
+          <div class="text-xs text-slate-500">${escapeHtml(data.user_email || '')}</div>
+        </div>
+
+        <!-- Items -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4">
+          <h6 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2"><i class="fa-solid fa-bag-shopping me-1.5 text-rose-500"></i>Order Items</h6>
+          ${itemsHtml || '<div class="text-xs text-slate-400 py-1">No items</div>'}
+        </div>
+
+        <!-- Delivery -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4">
+          <h6 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2"><i class="fa-solid fa-truck me-1.5 text-rose-500"></i>Delivery</h6>
+          <div class="text-sm text-slate-700">${escapeHtml(deliveryAddress || '—')}</div>
+          <div class="text-xs text-slate-500">${expectedDate ? 'Expected delivery: ' + escapeHtml(expectedDate) : ''}${isRush ? ' &bull; <span class="badge bg-amber-100 text-amber-700">Rush</span>' : ''}</div>
+          ${meetupPlace ? `<div class="text-xs text-slate-500 mt-1">Meetup: ${escapeHtml(meetupPlace)}</div>` : ''}
+        </div>
+
+        <!-- Price breakdown -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4">
+          <h6 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2"><i class="fa-solid fa-receipt me-1.5 text-rose-500"></i>Price Summary</h6>
+          <div class="d-flex justify-content-between py-1"><span class="text-sm text-slate-600">Items</span><span class="text-sm fw-semibold text-slate-800">${money(itemsTotal)}</span></div>
+          ${customizationFee > 0 ? `
+          <div class="d-flex justify-content-between py-1">
+            <span class="text-sm text-slate-600">Customization Fee <span class="text-[11px] text-slate-400">(one-time)</span></span>
+            <span class="text-sm fw-semibold text-rose-600">${money(customizationFee)}</span>
+          </div>` : ''}
+          ${addonsHtml ? `<div class="mt-1 pt-2 border-top border-slate-100">${addonsHtml}</div>` : ''}
+          ${rushFee > 0 ? `
+          <div class="d-flex justify-content-between py-1">
+            <span class="text-sm text-slate-600">Rush Fee</span>
+            <span class="text-sm fw-semibold text-slate-800">${money(rushFee)}</span>
+          </div>` : ''}
+          ${voucherDiscount > 0 ? `
+          <div class="d-flex justify-content-between py-1">
+            <span class="text-sm text-slate-600">Voucher Discount</span>
+            <span class="text-sm fw-semibold text-emerald-600">− ${money(voucherDiscount)}</span>
+          </div>` : ''}
+          <div class="d-flex justify-content-between align-items-center mt-2 pt-2.5 border-top border-slate-200">
+            <span class="font-bold text-slate-800">Total</span>
+            <span class="text-xl font-bold text-rose-600">${money(finalTotal)}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Finalize order from the summary modal (home page)
+  const finalizeOrderBtn = document.getElementById('finalizeOrderBtn');
+  if (finalizeOrderBtn) {
+    finalizeOrderBtn.addEventListener('click', async () => {
+      const orderData = pendingOrderData;
+      if (!orderData) return;
+      // Double-submission is prevented by the button's disabled state inside
+      // submitOrder, so we keep pendingOrderData intact here to allow retrying
+      // if the submission fails. It is cleared when the modal hides.
+      await submitOrder(orderData, finalizeOrderBtn);
+    });
+  }
+
+  // Blur any focused descendant before Bootstrap applies aria-hidden=true, and
+  // clear pending data when the summary modal closes without finalizing.
+  const orderSummaryModalRef = document.getElementById('orderSummaryModal');
+  if (orderSummaryModalRef) {
+    orderSummaryModalRef.addEventListener('shown.bs.modal', () => {
+      // Keep the summary modal above BOTH its own backdrop and the still-open
+      // order modal underneath. The modal must always beat its backdrop's
+      // z-index, otherwise the dark backdrop paints on top of it (black
+      // screen, nothing clickable).
+      orderSummaryModalRef.style.zIndex = '1070';
+      const backdrops = document.querySelectorAll('.modal-backdrop');
+      if (backdrops.length) backdrops[backdrops.length - 1].style.zIndex = '1065';
+    });
+    orderSummaryModalRef.addEventListener('hide.bs.modal', () => {
+      if (orderSummaryModalRef.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      pendingOrderData = null;
+    });
+  }
+
+  inquiryForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Submit the inquiry form to server. reCAPTCHA removed (server-side anti-abuse can be added later).
+    const submitBtn = inquiryForm.querySelector('button[type="submit"]');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
+    // Build data object explicitly to support multiple items
+    const data = {};
+    const form = e.target;
+
+    // --- Delivery details validation (manual) ---
+    // The delivery address is readonly (filled via the map picker), so the
+    // browser skips its native `required` check entirely. The meetup place is
+    // only required for Muntinlupa addresses. Validate both explicitly so the
+    // customer always sees a clear alert before the order can proceed.
+    const deliveryAddressEl = form.querySelector('input[name="delivery_address"]');
+    const meetupPlaceEl = form.querySelector('input[name="preferred_meetup_place"]');
+    const meetupSectionEl = document.getElementById('meetupPlaceSection');
+
+    // Only enforce this on the customer-facing flow; the admin "Add Order"
+    // modal reuses inquiryForm and must keep its existing behavior.
+    if (!isAdminDashboardPage && deliveryAddressEl && !deliveryAddressEl.value.trim()) {
+      alertWarning('Please search and pin your delivery address on the map before placing your order.');
+      return;
+    }
+
+    const isMuntinlupa = !!(meetupSectionEl && meetupSectionEl.style.display !== 'none') ||
+      (deliveryAddressEl && /muntinlupa/i.test(deliveryAddressEl.value));
+    if (isMuntinlupa && meetupPlaceEl && !meetupPlaceEl.value.trim()) {
+      alertWarning('Please enter your preferred meetup place for deliveries within Muntinlupa.');
+      meetupPlaceEl.focus();
+      return;
+    }
+
+    // run HTML5 validation (form has `novalidate` so we invoke reportValidity manually)
+    try {
+      if (typeof form.reportValidity === 'function') {
+        if (!form.reportValidity()) return; // user will see which fields are missing/invalid
+      } else if (!form.checkValidity || !form.checkValidity()) {
+        return;
+      }
+    } catch (valErr) { /* ignore validation errors and continue; we'll still validate required fields below */ }
+    
+    // Check if user has entered voucher code but hasn't applied it
+    const voucherInput = document.getElementById('voucherCodeInput');
+    const hasVoucherCode = voucherInput && voucherInput.value.trim() !== '';
+    const voucherApplied = window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher();
+    
+    if (hasVoucherCode && !voucherApplied) {
+      const proceed = await showVoucherWarningModal();
+      if (!proceed) {
+        return;
+      }
+    }
+    data.user_name = form.querySelector('input[name="user_name"]').value;
+    data.user_email = form.querySelector('input[name="user_email"]').value;
+    data.fb_link = form.querySelector('input[name="fb_link"]')?.value || '';
+    data.message = form.querySelector('textarea[name="message"]').value;
+    data.rush = form.querySelector('input[name="rush"]').value;
+    data.expected_delivery_date = form.querySelector('input[name="expected_delivery_date"]').value;
+    data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
+    data.delivery_address = form.querySelector('input[name="delivery_address"]').value;
+    data.preferred_meetup_place = form.querySelector('input[name="preferred_meetup_place"]')?.value || null;
+
+    // Collect items
+    const items = [];
+    const itemRows = itemsContainer.querySelectorAll('.order-item');
+    itemRows.forEach((row, i) => {
+      const flower = row.querySelector('.item-flower').value;
+      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
+      const colorEl = row.querySelector('.item-color');
+      const colorValue = colorEl ? (colorEl.value || '') : '';
+      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
+      const selectEl = row.querySelector('.item-flower');
+      const selectedOption = selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0];
+      const productId = selectedOption ? selectedOption.dataset.productId : null;
+      let customized = false;
+      if (productId) {
+        const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
+        const fee = prod ? parseFloat(prod.customization_fee) : 0;
+        if (fee > 0) {
+          customized = true;
+        }
+      }
+
+      if (!flower) return;
+      const itemObj = { flower_type: flower, quantity: qty, customized: customized };
+      if (colorValue) itemObj.color = { name: colorName, value: colorValue };
+      items.push(itemObj);
+    });
+    if (!items.length) {
+      alertWarning('Please add at least one item to your order');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml; }
+      return;
+    }
+
+    // Enforce per-product min/max quantity (e.g. minimum stems for a bouquet).
+    // The order cannot proceed if any selected item is below its minimum or
+    // above its maximum allowed quantity.
+    const qtyErrors = validateOrderQuantities();
+    if (qtyErrors.length) {
+      alertWarning(qtyErrors[0]);
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.removeAttribute('aria-busy'); if (originalBtnHtml !== null) submitBtn.innerHTML = originalBtnHtml; }
+      return;
+    }
+
+    data.items = items;
+    // For backwards-compatibility keep flower_type and quantity as summary
+    data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
+    data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
+    // Include client-side timestamps so orders can preserve user's local time
+    try {
+      const now = new Date();
+      // UTC ISO (legacy/canonical)
+      data.created_at = now.toISOString();
+      // human-friendly local string for visibility
+      data.created_at_local = now.toLocaleString();
+      // numeric offset in minutes (local -> UTC)
+      data.tz_offset_minutes = now.getTimezoneOffset();
+      // local ISO-like value (YYYY-MM-DDTHH:MM:SS) — this reflects the user's OS local time
+      const pad = (n) => String(n).padStart(2, '0');
+      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    } catch (e) { /* ignore */ }
+
+    // Add voucher information if applied
+    if (window.regularVoucherHandler && window.regularVoucherHandler.hasVoucher()) {
+      const voucherData = window.regularVoucherHandler.getAppliedVoucher();
+      data.voucher_code = voucherData.voucher.code;
+      data.voucher_id = voucherData.voucher.id;
+      data.voucher_discount = voucherData.discountAmount;
+      data.original_total = voucherData.originalTotal;
+    }
+
+    // On the home page, show an order summary confirmation modal before placing
+    // the order. On the admin dashboard (no summary modal in the DOM), submit directly.
+    const orderSummaryModalEl = document.getElementById('orderSummaryModal');
+    if (orderSummaryModalEl && !isAdminDashboardPage) {
+      pendingOrderData = data;
+      renderOrderSummary(data);
+      try {
+        const summaryModal = bootstrap.Modal.getOrCreateInstance(orderSummaryModalEl);
+        summaryModal.show();
+      } catch (modalErr) {
+        // Fallback: place the order directly if the summary modal fails to open
+        await submitOrder(data, submitBtn);
+      }
+      return;
+    }
+    await submitOrder(data, submitBtn);
   });
+
+// --- Leaflet Map Picker Modal Integration ---
+  let activeAddressInput = null;
+  let pickerMapInstance = null;
+  let pickerMarker = null;
+
+  const mapPickerModalEl = document.getElementById('mapPickerModal');
+  const modalMapCurrentAddress = document.getElementById('modalMapCurrentAddress');
+  const confirmLocationBtn = document.getElementById('confirmLocationBtn');
+
+  function checkMuntinlupaForInput(input, addressText) {
+    if (!input) return;
+    
+    let meetupSection, meetupInput;
+    if (input.id === 'deliveryAddressInput') {
+      meetupSection = document.getElementById('meetupPlaceSection');
+      meetupInput = document.getElementById('meetupPlaceInput');
+    } else if (input.id === 'customDeliveryAddressInput') {
+      meetupSection = document.getElementById('customMeetupPlaceSection');
+      meetupInput = document.getElementById('customMeetupPlaceInput');
+    }
+    
+    if (!meetupSection) return;
+
+    if (!addressText) {
+      meetupSection.style.display = 'none';
+      if (meetupInput) meetupInput.value = '';
+      return;
+    }
+    
+    const isMunt = addressText.toLowerCase().includes('muntinlupa');
+    if (isMunt) {
+      meetupSection.style.display = 'block';
+    } else {
+      meetupSection.style.display = 'none';
+      if (meetupInput) meetupInput.value = '';
+    }
+  }
+  window.checkMuntinlupaForInput = checkMuntinlupaForInput;
+
+  if (mapPickerModalEl) {
+    // Listen for modal show event (fired immediately when show is called, before transition starts)
+    mapPickerModalEl.addEventListener('show.bs.modal', (event) => {
+      if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+    });
+
+    // Listen for modal shown event (fired after fade transitions are complete)
+    mapPickerModalEl.addEventListener('shown.bs.modal', (event) => {
+      try {
+        console.log('mapPickerModal shown.bs.modal event triggered.');
+        const initialVal = activeAddressInput ? activeAddressInput.value : '';
+        const currentAddrEl = document.getElementById('modalMapCurrentAddress');
+        if (currentAddrEl) {
+          currentAddrEl.textContent = initialVal || 'No location pinned yet';
+        }
+        
+        // Initialize map on show
+        initPickerMap(initialVal);
+      } catch (err) {
+        console.error('Error inside mapPickerModal shown.bs.modal:', err);
+      }
+    });
+
+    // Listen for modal hidden event to restore previously hidden parent order modal
+    mapPickerModalEl.addEventListener('hidden.bs.modal', () => {
+      try {
+        const reopenId = mapPickerModalEl.dataset.reopenModal;
+        if (reopenId) {
+          delete mapPickerModalEl.dataset.reopenModal;
+          const targetModalEl = document.getElementById(reopenId);
+          if (targetModalEl) {
+            setTimeout(() => {
+              const targetModal = bootstrap.Modal.getOrCreateInstance(targetModalEl);
+              targetModal.show();
+            }, 150); // wait for mapPickerModal to completely fade out
+          }
+        }
+      } catch (err) {
+        console.error('Error inside mapPickerModal hidden.bs.modal:', err);
+      }
+    });
+
+    // Programmatic trigger handler to avoid nested Bootstrap overlay transition races
+    function openMapPickerFromInput(input) {
+      console.log('openMapPickerFromInput called for:', input.id);
+      activeAddressInput = input;
+      
+      const mapModalEl = document.getElementById('mapPickerModal');
+      if (!mapModalEl) {
+        console.error('mapPickerModal element not found in DOM!');
+        return;
+      }
+
+      let parentModalEl = null;
+      if (input.id === 'deliveryAddressInput') {
+        parentModalEl = document.getElementById('inquiryModal');
+      } else if (input.id === 'customDeliveryAddressInput') {
+        parentModalEl = document.getElementById('customizeOrderModal');
+      }
+
+      const mapPickerModal = bootstrap.Modal.getOrCreateInstance(mapModalEl);
+
+      if (parentModalEl) {
+        const parentModal = bootstrap.Modal.getOrCreateInstance(parentModalEl);
+        
+        // Check if the parent modal is actually visible/shown
+        const isShown = parentModalEl.classList.contains('show');
+        
+        if (isShown) {
+          let hasFired = false;
+          
+          // Safety timeout: if transition events are dropped, force open map picker after 400ms
+          const safetyTimeout = setTimeout(() => {
+            if (!hasFired) {
+              hasFired = true;
+              console.log('Safety timeout triggered: opening map modal.');
+              mapModalEl.dataset.reopenModal = parentModalEl.id;
+              mapPickerModal.show();
+            }
+          }, 400);
+
+          // Wait for the parent order modal to fully hide BEFORE opening the map picker modal
+          parentModalEl.addEventListener('hidden.bs.modal', function onParentHidden() {
+            parentModalEl.removeEventListener('hidden.bs.modal', onParentHidden);
+            clearTimeout(safetyTimeout);
+            
+            if (!hasFired) {
+              hasFired = true;
+              console.log('Parent modal hidden. Opening map modal.');
+              mapModalEl.dataset.reopenModal = parentModalEl.id;
+              mapPickerModal.show();
+            }
+          });
+          
+          parentModal.hide();
+        } else {
+          console.log('Parent modal is not visible. Opening map modal directly.');
+          mapPickerModal.show();
+        }
+      } else {
+        console.log('No parent modal found. Opening map modal directly.');
+        mapPickerModal.show();
+      }
+    }
+
+    // Initialize tabindex once on load to comply with ARIA focus rules
+    ['deliveryAddressInput', 'customDeliveryAddressInput'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('tabindex', '-1');
+    });
+
+    // Replaced with a global event delegation listener to guarantee clicks are caught even under dynamic modifications
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target && (target.id === 'deliveryAddressInput' || target.id === 'customDeliveryAddressInput')) {
+        console.log('Programmatic click intercepted on address input:', target.id);
+        event.preventDefault();
+        openMapPickerFromInput(target);
+      }
+    });
+
+    // Handle Confirm button
+    if (confirmLocationBtn) {
+      confirmLocationBtn.addEventListener('click', () => {
+        const address = modalMapCurrentAddress ? modalMapCurrentAddress.textContent : '';
+        if (address && address !== 'No location pinned yet') {
+          if (activeAddressInput) {
+            activeAddressInput.value = address;
+            checkMuntinlupaForInput(activeAddressInput, address);
+          }
+          const bsModal = bootstrap.Modal.getOrCreateInstance(mapPickerModalEl);
+          if (bsModal) bsModal.hide();
+        } else {
+          alertWarning('Please pin a location on the map first.');
+        }
+      });
+    }
+  }
+
+  function initPickerMap(initialVal) {
+    if (pickerMapInstance) {
+      pickerMapInstance.invalidateSize();
+      if (initialVal) {
+        geocodeSearchPicker(initialVal);
+      }
+      return;
+    }
+
+    // Default centered on the Philippines (lat: 12.8797, lng: 121.7740, zoom: 6)
+    const defaultLat = 12.8797;
+    const defaultLng = 121.7740;
+    const defaultZoom = 6;
+
+    pickerMapInstance = L.map('modalMap', {
+      center: [defaultLat, defaultLng],
+      zoom: defaultZoom
+    });
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(pickerMapInstance);
+
+    // Click map to place/move marker
+    pickerMapInstance.on('click', async (e) => {
+      placeMarker(e.latlng.lat, e.latlng.lng);
+      await reverseGeocodePicker(e.latlng.lat, e.latlng.lng);
+    });
+
+// Handle search input
+    const searchBtn = document.getElementById('modalMapSearchBtn');
+    const searchInput = document.getElementById('modalMapSearchInput');
+    const suggestionsEl = document.getElementById('modalMapSuggestions');
+
+    // Debounce helper to avoid excessive API calls while typing
+    let suggestionTimer = null;
+    function debounceSuggestions(fn, delay) {
+      clearTimeout(suggestionTimer);
+      suggestionTimer = setTimeout(fn, delay);
+    }
+
+    async function fetchSuggestions(query) {
+      try {
+        // Use Nominatim autocomplete endpoint; bias results toward the Philippines
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1&countrycodes=ph`;
+        const response = await fetch(url);
+        if (!response.ok) return [];
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.error('Suggestions fetch error:', err);
+        return [];
+      }
+    }
+
+    function renderSuggestions(suggestions) {
+      if (!suggestionsEl) return;
+      if (!suggestions || !suggestions.length) {
+        suggestionsEl.style.display = 'none';
+        suggestionsEl.innerHTML = '';
+        return;
+      }
+      suggestionsEl.innerHTML = suggestions.map((s, i) => {
+        const name = escapeHtml(s.display_name || '');
+        const lat = s.lat;
+        const lon = s.lon;
+        return `<div data-idx="${i}" data-lat="${lat}" data-lon="${lon}"
+          style="padding: 9px 12px; cursor: pointer; font-size: 13px; color: #334155; border-bottom: 1px solid #f1f5f9; background: #fff;"
+          onmouseover="this.style.background='#fff0f5'" onmouseout="this.style.background='#fff'">
+          <i class="fa fa-map-marker-alt" style="color: #ff6f9b; margin-right: 7px; font-size: 12px;"></i>${name}
+        </div>`;
+      }).join('');
+      suggestionsEl.style.display = 'block';
+
+      // Attach click handlers to each suggestion
+      suggestionsEl.querySelectorAll('[data-idx]').forEach(el => {
+        el.addEventListener('click', () => {
+          const lat = parseFloat(el.dataset.lat);
+          const lon = parseFloat(el.dataset.lon);
+          const idx = parseInt(el.dataset.idx);
+          const suggestion = suggestions[idx];
+          if (suggestion) {
+            searchInput.value = suggestion.display_name || '';
+            if (pickerMapInstance) pickerMapInstance.setView([lat, lon], 15);
+            placeMarker(lat, lon);
+            if (modalMapCurrentAddress) {
+              modalMapCurrentAddress.textContent = suggestion.display_name || '';
+            }
+            checkMuntinlupaForInput(activeAddressInput, suggestion.display_name || '');
+          }
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+        });
+      });
+    }
+
+    if (searchInput) {
+      // Show live suggestions as the user types
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        if (q.length < 2) {
+          if (suggestionsEl) { suggestionsEl.style.display = 'none'; suggestionsEl.innerHTML = ''; }
+          return;
+        }
+        debounceSuggestions(async () => {
+          const results = await fetchSuggestions(q);
+          renderSuggestions(results);
+        }, 300);
+      });
+
+      // Hide suggestions when clicking outside the search box
+      document.addEventListener('click', (e) => {
+        if (suggestionsEl && e.target !== searchInput && !suggestionsEl.contains(e.target)) {
+          suggestionsEl.style.display = 'none';
+          suggestionsEl.innerHTML = '';
+        }
+      });
+    }
+
+    if (searchBtn && searchInput) {
+      searchBtn.onclick = async () => {
+        const q = searchInput.value.trim();
+        if (q) {
+          if (suggestionsEl) { suggestionsEl.style.display = 'none'; suggestionsEl.innerHTML = ''; }
+          await geocodeSearchPicker(q);
+        }
+      };
+      searchInput.onkeypress = async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const q = searchInput.value.trim();
+          if (q) {
+            if (suggestionsEl) { suggestionsEl.style.display = 'none'; suggestionsEl.innerHTML = ''; }
+            await geocodeSearchPicker(q);
+          }
+        }
+      };
+    }
+
+    if (initialVal) {
+      geocodeSearchPicker(initialVal);
+    }
+
+    pickerMapInstance.invalidateSize();
+  }
+
+  function placeMarker(lat, lng) {
+    const pinkMarkerIcon = L.divIcon({
+      html: `
+        <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));">
+          <path d="M16 0C7.16 0 0 7.16 0 16C0 28 16 42 16 42C16 42 32 28 32 16C32 7.16 24.84 0 16 0ZM16 22C12.68 22 10 19.32 10 16C10 12.68 12.68 10 16 10C19.32 10 22 12.68 22 16C22 19.32 19.32 22 16 22Z" fill="#ff6f9b"/>
+          <circle cx="16" cy="16" r="4" fill="white"/>
+        </svg>
+      `,
+      className: 'custom-pink-marker',
+      iconSize: [32, 42],
+      iconAnchor: [16, 42]
+    });
+
+    if (pickerMarker) {
+      pickerMarker.setLatLng([lat, lng]);
+    } else {
+      pickerMarker = L.marker([lat, lng], {
+        draggable: true,
+        icon: pinkMarkerIcon
+      }).addTo(pickerMapInstance);
+
+      pickerMarker.on('dragend', async () => {
+        const latlng = pickerMarker.getLatLng();
+        await reverseGeocodePicker(latlng.lat, latlng.lng);
+      });
+    }
+  }
+
+  async function reverseGeocodePicker(lat, lng) {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      if (response.ok) {
+        const data = await response.json();
+        const address = data.display_name || '';
+        const countryCode = data.address && data.address.country_code;
+        const country = data.address && data.address.country;
+        
+        // Validation: must be within the Philippines
+        const isPH = (countryCode && countryCode.toLowerCase() === 'ph') || 
+                     (country && country.toLowerCase().includes('philippines')) ||
+                     address.toLowerCase().includes('philippines');
+        
+        if (!isPH) {
+          alertWarning('Delivery address must be within the Philippines. Location declined.');
+          if (modalMapCurrentAddress) {
+            modalMapCurrentAddress.textContent = 'No location pinned yet';
+          }
+          if (pickerMarker) {
+            pickerMarker.remove();
+            pickerMarker = null;
+          }
+          return;
+        }
+
+        if (modalMapCurrentAddress) {
+          modalMapCurrentAddress.textContent = address;
+        }
+      }
+    } catch (err) {
+      console.error('Picker reverse geocoding error:', err);
+    }
+  }
+
+  async function geocodeSearchPicker(query) {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          const address = data[0].display_name || '';
+          const countryCode = data[0].address && data[0].address.country_code;
+          const country = data[0].address && data[0].address.country;
+          
+          // Validation: must be within the Philippines
+          const isPH = (countryCode && countryCode.toLowerCase() === 'ph') || 
+                       (country && country.toLowerCase().includes('philippines')) ||
+                       address.toLowerCase().includes('philippines');
+          
+          if (!isPH) {
+            alertWarning('Delivery address must be within the Philippines. Location declined.');
+            return;
+          }
+
+          if (pickerMapInstance) {
+            pickerMapInstance.setView([lat, lng], 15);
+            setTimeout(() => {
+              try { pickerMapInstance.invalidateSize(); } catch (e) {}
+            }, 300);
+          }
+          placeMarker(lat, lng);
+          if (modalMapCurrentAddress) {
+            modalMapCurrentAddress.textContent = address;
+          }
+        } else {
+          alertWarning('Location not found. Please try another search term.');
+        }
+      }
+    } catch (err) {
+      console.error('Picker geocoding search error:', err);
+    }
+  }
 
   const trackForm = document.getElementById('trackForm');
   if (!trackForm) {
@@ -1137,6 +2110,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  // Call prefill function now that all helpers are declared
+  prefillCustomerInfo();
 
   // Floating chat functionality removed - now in dashboard.html only
 });

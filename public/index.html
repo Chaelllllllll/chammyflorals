@@ -18,6 +18,9 @@
     crossorigin="anonymous" />
   <link rel="stylesheet" href="/css/delivery-calendar.css">
   <link rel="stylesheet" href="styles.css">
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Force Light Mode for Homepage -->
   <script>
@@ -72,7 +75,7 @@
           <i class="fa fa-star text-amber-400"></i>
           <span>Reviews</span>
         </a>
-        <button type="button"
+        <button type="button" id="navCustomizeBtn" style="display: none !important;"
           class="btn-shadcn-ghost flex items-center gap-2 text-decoration-none text-sm px-3 py-2 text-slate-700"
           data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
           <i class="fa fa-palette text-rose-500"></i>
@@ -104,7 +107,7 @@
         <i class="fa fa-star text-amber-400 text-base"></i>
         <span>Reviews</span>
       </a>
-      <button type="button" onclick="closeMobileNavDrawer(); openCustomOrderModal();"
+      <button type="button" id="mobileNavCustomizeBtn" style="display: none !important;" onclick="closeMobileNavDrawer(); openCustomOrderModal();"
         class="w-full flex items-center gap-3 p-3 rounded-xl bg-slate-100/90 hover:bg-slate-200/90 text-slate-800 font-semibold text-sm text-decoration-none text-start border-0">
         <i class="fa fa-palette text-rose-500 text-base"></i>
         <span>Custom Order</span>
@@ -154,7 +157,7 @@
               <button class="btn-shadcn-primary w-full sm:w-auto sm:flex-1 py-3 text-sm sm:text-base" id="heroOrderBtn">
                 <i class="fa fa-shopping-bag me-2"></i>Order Now
               </button>
-              <button class="btn-shadcn-outline w-full sm:w-auto sm:flex-1 py-3 text-sm sm:text-base"
+              <button class="btn-shadcn-outline w-full sm:w-auto sm:flex-1 py-3 text-sm sm:text-base" style="display: none !important;"
                 id="heroCustomizeBtn" data-bs-toggle="modal" data-bs-target="#customizeOrderModal">
                 <i class="fa fa-palette me-2"></i>Custom Order
               </button>
@@ -409,24 +412,39 @@
               <div id="itemsContainer" class="space-y-3">
                 <div class="order-item">
                   <div
-                    class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 w-full transition-all">
-                    <span
-                      class="badge bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold text-center shrink-0">Item
-                      1</span>
-                    <select class="form-select item-flower flex-1 text-sm sm:text-base py-2" name="flower_type_0"
-                      required>
-                      <option value="">Select Bouquet / Item</option>
-                    </select>
-                    <select class="form-select item-color w-full sm:w-36 text-sm sm:text-base py-2" name="color_0"
-                      aria-label="Color">
-                      <option value="">Color</option>
-                    </select>
-                    <input type="number"
-                      class="form-control item-quantity text-center w-full sm:w-24 text-sm sm:text-base py-2"
-                      name="quantity_0" min="1" value="1" required placeholder="Qty">
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-item p-2" style="display: none;">
-                      <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    class="flex flex-col gap-2.5 p-3 bg-slate-50/90 rounded-xl border border-slate-200/80 w-full transition-all flex-wrap">
+                    <div class="flex items-center gap-2.5 w-full flex-col sm:flex-row">
+                      <span
+                        class="badge bg-rose-600 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold text-center shrink-0">Item
+                        1</span>
+                      <select class="form-select item-flower flex-1 text-sm sm:text-base py-2" name="flower_type_0"
+                        required>
+                        <option value="">Select Bouquet / Item</option>
+                      </select>
+                      <select class="form-select item-color w-full sm:w-36 text-sm sm:text-base py-2" name="color_0"
+                        aria-label="Color">
+                        <option value="">Color</option>
+                      </select>
+                      <input type="number"
+                        class="form-control item-quantity text-center w-full sm:w-24 text-sm sm:text-base py-2"
+                        name="quantity_0" min="1" value="1" required placeholder="Qty">
+                      <button type="button" class="btn btn-sm btn-outline-danger remove-item p-2" style="display: none;">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Customization Fee Card Alert Container -->
+              <div id="customizationFeeAlertContainer" class="mb-3" style="display: none;">
+                <div class="p-3 bg-rose-50/70 border border-rose-100/50 rounded-xl flex items-start gap-3">
+                  <div class="shrink-0 text-rose-500 mt-0.5">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm sm:text-base"></i>
+                  </div>
+                  <div>
+                    <h6 class="font-bold text-xs sm:text-sm text-slate-800 mb-0.5">Customization Fee Applied</h6>
+                    <p class="text-[11px] sm:text-xs text-slate-500 mb-0">A flat customization fee of (+₱<span id="customizationFeeAlertAmount">0.00</span>) is applied once to your order total, no matter how many items you add.</p>
                   </div>
                 </div>
               </div>
@@ -500,6 +518,20 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div class="col-span-1 sm:col-span-2">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-map-marker-alt text-rose-500 me-1.5"></i>Delivery Address
+                  </label>
+                  <input type="text" id="deliveryAddressInput" name="delivery_address" class="shadcn-input text-sm sm:text-base cursor-pointer bg-slate-50" placeholder="Click to search & pin your address on map..." required readonly>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2" id="meetupPlaceSection" style="display: none;">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-handshake text-rose-500 me-1.5"></i>Preferred Meetup Place (Muntinlupa only)
+                  </label>
+                  <input type="text" name="preferred_meetup_place" id="meetupPlaceInput" class="shadcn-input text-sm sm:text-base" placeholder="Enter preferred meetup place (e.g. Alabang Town Center)">
+                </div>
+
                 <div>
                   <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
                     <i class="fa-solid fa-calendar text-rose-500 me-1.5"></i>Expected Delivery Date
@@ -547,6 +579,56 @@
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Summary Confirmation Modal -->
+  <div class="modal fade" id="orderSummaryModal" tabindex="-1" aria-labelledby="orderSummaryModalLabel"
+    aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl rounded-3xl">
+
+        <!-- Compact Header -->
+        <div class="bg-gradient-to-r from-rose-600 via-rose-500 to-rose-400 px-4 py-3.5 sm:p-5 text-white relative">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base sm:text-xl shrink-0 shadow-sm">
+              <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+            <div class="pr-6">
+              <h5 class="modal-title font-display font-bold text-base sm:text-xl text-white mb-0 leading-tight"
+                id="orderSummaryModalLabel">Review Your Order</h5>
+              <p class="text-white/90 text-[11px] sm:text-xs mb-0 leading-tight mt-0.5">Please review your order summary
+                before finalizing</p>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white absolute top-3.5 right-3.5 sm:top-5 sm:right-5 text-xs"
+            data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <!-- Body (populated by function.js) -->
+        <div class="modal-body p-3.5 sm:p-5 bg-slate-50/50" id="orderSummaryContent">
+          <div class="text-center py-6 text-slate-400">
+            <i class="fa-solid fa-spinner fa-spin text-rose-500 mb-2"></i>
+            <div class="text-xs sm:text-sm">Preparing your order summary...</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div
+          class="modal-footer border-0 bg-slate-50/50 px-3.5 sm:px-5 py-3.5 flex flex-col sm:flex-row gap-2.5 justify-content-center">
+          <button type="button"
+            class="btn-shadcn-outline w-full sm:flex-1 py-2.5 text-xs sm:text-sm font-semibold"
+            data-bs-dismiss="modal">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back to Edit
+          </button>
+          <button type="button"
+            class="btn-shadcn-primary w-full sm:flex-1 py-2.5 text-xs sm:text-sm font-bold shadow-lg hover:shadow-xl hover:shadow-rose-500/25 active:scale-[0.98] transition-all"
+            id="finalizeOrderBtn">
+            <i class="fa-solid fa-check-circle me-2"></i>Finalize Order
+          </button>
         </div>
       </div>
     </div>
@@ -725,6 +807,20 @@
               </div>
 
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                <div class="col-span-1 sm:col-span-2">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-map-marker-alt text-rose-500 me-1.5"></i>Delivery Address
+                  </label>
+                  <input type="text" id="customDeliveryAddressInput" name="custom_delivery_address" class="shadcn-input text-sm sm:text-base cursor-pointer bg-slate-50" placeholder="Click to search & pin your address on map..." required readonly>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2" id="customMeetupPlaceSection" style="display: none;">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-handshake text-rose-500 me-1.5"></i>Preferred Meetup Place (Muntinlupa only)
+                  </label>
+                  <input type="text" name="custom_preferred_meetup_place" id="customMeetupPlaceInput" class="shadcn-input text-sm sm:text-base" placeholder="Enter preferred meetup place (e.g. Alabang Town Center)">
+                </div>
+
                 <div>
                   <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
                     <i class="fa-solid fa-calendar text-rose-500 me-1.5"></i>Delivery Date
@@ -851,6 +947,37 @@
     id="imageModal" role="dialog" aria-modal="true" aria-label="Review photo">
     <span class="image-modal-close absolute top-6 right-8 text-white text-4xl cursor-pointer hover:text-rose-400 transition-colors">&times;</span>
     <img id="modalImage" src="" alt="Review detail view" class="max-w-full rounded-2xl shadow-2xl">
+  </div>
+
+  <!-- Map Picker Modal -->
+  <div class="modal fade" id="mapPickerModal" tabindex="-1" aria-labelledby="mapPickerModalLabel" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+        <div class="modal-header border-0 text-white" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); padding: 1.5rem;">
+          <h5 class="modal-title fw-bold mb-0" id="mapPickerModalLabel">
+            <i class="fa-solid fa-map-location-dot me-2"></i>Pin Your Delivery Location
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0 position-relative" style="height: 450px;">
+<!-- Nominatim Search bar inside map picker -->
+          <div class="bg-white/95 backdrop-blur-sm border border-slate-200 shadow" style="position: absolute; z-index: 1500; width: calc(100% - 20px); margin: 10px; border-radius: 8px; left: 0; right: 0;">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px;">
+              <input type="text" id="modalMapSearchInput" class="form-control form-control-sm" placeholder="Search location (e.g. Alabang, Muntinlupa)..." style="height: 36px; border-radius: 8px;" autocomplete="off">
+              <button type="button" id="modalMapSearchBtn" class="btn btn-sm text-white font-semibold text-xs px-3 rounded-lg" style="background-color: #ff6f9b; border: none; height: 36px; white-space: nowrap; border-radius: 8px;">Search</button>
+            </div>
+            <div id="modalMapSuggestions" style="display: none; max-height: 220px; overflow-y: auto; border-top: 1px solid #eee; border-radius: 0 0 8px 8px;"></div>
+          </div>
+          <div id="modalMap" style="height: 100%; width: 100%;"></div>
+        </div>
+        <div class="modal-footer border-0 bg-light justify-content-between p-3" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div class="text-truncate me-2 small text-muted text-start" id="modalMapCurrentAddress" style="max-width: 60%;">No location pinned yet</div>
+          <button type="button" class="btn btn-pink rounded-pill px-4 text-white font-semibold" id="confirmLocationBtn" style="background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%); border: none; border-radius: 50px; padding: 10px 24px;">
+            Confirm Location
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Scripts -->

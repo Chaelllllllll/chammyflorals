@@ -133,8 +133,8 @@ document.getElementById('confirmDeleteButton').addEventListener('click', (e) => 
 });
 
 // logout handling (same as admin-dashboard.js)
-const logoutBtn = document.getElementById('logoutButton');
-if (logoutBtn) logoutBtn.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
+const reviewsLogoutBtn = document.getElementById('logoutButton');
+if (reviewsLogoutBtn) reviewsLogoutBtn.addEventListener('click', () => { localStorage.removeItem('adminToken'); window.location.href = '/customer-login.html'; });
 
 // initialize
 document.addEventListener('DOMContentLoaded', () => {

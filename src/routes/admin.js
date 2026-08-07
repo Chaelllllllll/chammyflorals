@@ -1022,7 +1022,7 @@ router.get('/products', auth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at')
+      .select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,customization_fee,min_qty,max_qty,created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data || []);
@@ -1105,7 +1105,7 @@ router.patch('/orders/:orderId', auth, sanitizeBody, async (req, res) => {
     
     const updates = {};
     // Allow updating common order fields safely
-  const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at','expected_delivery_date'];
+  const allowed = ['name','email','fb_link','flower_type','quantity','addons','message','rush','total_fee','status','items','created_at','expected_delivery_date','delivery_address','preferred_meetup_place'];
     for (const k of allowed) {
       if (Object.prototype.hasOwnProperty.call(req.body, k)) {
         updates[k] = req.body[k];
@@ -1587,9 +1587,15 @@ router.delete('/reviews/:id', auth, async (req, res) => {
 // Create product
 router.post('/products', auth, async (req, res) => {
   try {
-    const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private } = req.body;
+    const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private, customization_fee, min_qty, max_qty } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null, images: images || null, images_paths: images_paths || null, is_private: is_private === true || is_private === 'true' };
+    // min_qty defaults to 1; max_qty defaults to null (unlimited)
+    const parsedMinQty = min_qty !== undefined && min_qty !== '' && min_qty !== null ? Math.max(1, parseInt(min_qty) || 1) : 1;
+    const parsedMaxQty = max_qty !== undefined && max_qty !== '' && max_qty !== null ? Math.max(1, parseInt(max_qty) || 1) : null;
+    if (parsedMaxQty !== null && parsedMaxQty < parsedMinQty) {
+      return res.status(400).json({ error: 'Max quantity must be greater than or equal to Min quantity' });
+    }
+    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null, images: images || null, images_paths: images_paths || null, is_private: is_private === true || is_private === 'true', customization_fee: parseFloat(customization_fee) || 0, min_qty: parsedMinQty, max_qty: parsedMaxQty };
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1608,7 +1614,7 @@ router.post('/products', auth, async (req, res) => {
   console.log('Admin: creating product with payload keys:', Object.keys(record));
   console.log('Admin: creating product record (preview):', JSON.stringify(record).slice(0,1000));
     try {
-    const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at');
+    const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,customization_fee,min_qty,max_qty,created_at');
       if (error) throw error;
       console.log('Admin: insert result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       
@@ -1721,7 +1727,7 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
 router.patch('/products/:id', auth, async (req, res) => {
   try {
   const { id } = req.params;
-  const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private } = req.body;
+  const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private, customization_fee, min_qty, max_qty } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     
@@ -1734,6 +1740,19 @@ router.patch('/products/:id', auth, async (req, res) => {
     if (images !== undefined) updates.images = images;
     if (images_paths !== undefined) updates.images_paths = images_paths;
     if (is_private !== undefined) updates.is_private = is_private === true || is_private === 'true';
+    if (customization_fee !== undefined) updates.customization_fee = parseFloat(customization_fee) || 0;
+    // Min/max quantity (empty string or null clears max back to unlimited)
+    if (min_qty !== undefined) {
+      updates.min_qty = (min_qty === '' || min_qty === null) ? 1 : Math.max(1, parseInt(min_qty) || 1);
+    }
+    if (max_qty !== undefined) {
+      updates.max_qty = (max_qty === '' || max_qty === null) ? null : Math.max(1, parseInt(max_qty) || 1);
+    }
+    const effMinQty = updates.min_qty !== undefined ? updates.min_qty : null;
+    const effMaxQty = updates.max_qty !== undefined ? updates.max_qty : null;
+    if (effMaxQty !== null && effMinQty !== null && effMaxQty < effMinQty) {
+      return res.status(400).json({ error: 'Max quantity must be greater than or equal to Min quantity' });
+    }
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1751,7 +1770,7 @@ router.patch('/products/:id', auth, async (req, res) => {
     try {
       console.log('Admin: updating product id=', id, 'updates keys:', Object.keys(updates));
       console.log('Admin: updates preview:', JSON.stringify(updates).slice(0,1000));
-      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at');
+      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,customization_fee,min_qty,max_qty,created_at');
       if (error) throw error;
       console.log('Admin: update result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       // Clear public product cache so storefront shows updated product immediately
@@ -2432,5 +2451,56 @@ router.put('/settings/rush-fee', auth, async (req, res) => {
   } catch (err) {
     console.error('Error updating rush fee:', err);
     return res.status(500).json({ error: 'Failed to update rush fee setting' });
+  }
+});
+
+// GET admin custom order status setting (protected)
+router.get('/settings/custom-order-status', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'custom_order_status')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    const status = data ? data.setting_value : 'open';
+    return res.json({ status });
+  } catch (err) {
+    console.error('Error fetching custom order status:', err);
+    return res.status(500).json({ error: 'Failed to fetch custom order status setting' });
+  }
+});
+
+// PUT admin custom order status setting (protected)
+router.put('/settings/custom-order-status', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    if (status !== 'open' && status !== 'closed') {
+      return res.status(400).json({ error: 'Invalid custom order status value (must be open or closed)' });
+    }
+    
+    // Upsert the setting
+    const { error } = await supabase
+      .from('settings')
+      .upsert({
+        setting_key: 'custom_order_status',
+        setting_value: status,
+        description: 'Status of Custom bouquet ordering (open/closed)',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'setting_key'
+      });
+    
+    if (error) throw error;
+    
+    return res.json({ success: true, status });
+  } catch (err) {
+    console.error('Error updating custom order status:', err);
+    return res.status(500).json({ error: 'Failed to update custom order status setting' });
   }
 });

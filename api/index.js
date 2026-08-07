@@ -103,7 +103,7 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
         // Allow Google Fonts stylesheet and common CDNs for styles
-        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', "'unsafe-inline'"],
+        styleSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://unpkg.com', "'unsafe-inline'"],
         // Allow scripts from self and common CDNs. 'unsafe-inline' is added here
         // as a pragmatic compatibility measure for existing inline scripts in
         // the static HTML files. For stronger security, move inline scripts to
@@ -112,15 +112,19 @@ app.use(
           "'self'",
           'https://cdn.jsdelivr.net',
           'https://www.gstatic.com',
+          'https://unpkg.com',
           "'unsafe-inline'",
           "'unsafe-hashes'",
         ],
         scriptSrcAttr: ["'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co', 'https://*.googleusercontent.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https://*.vercel.app', 'https://*.supabase.co', 'https://*.googleusercontent.com', 'https://*.tile.openstreetmap.org', 'https://tile.openstreetmap.org', 'https://unpkg.com'],
         connectSrc: [
           "'self'",
           'https://*.supabase.co',
           'https://cdn.jsdelivr.net',
+          'https://unpkg.com',
+          // OpenStreetMap Nominatim geocoding for the map picker
+          'https://nominatim.openstreetmap.org',
           // Web Push services (browser-managed network calls may rely on connect-src)
           'https://fcm.googleapis.com',
           'https://updates.push.services.mozilla.com',

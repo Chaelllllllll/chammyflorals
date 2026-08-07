@@ -490,9 +490,24 @@
     const specialInstructions = formData.get('custom_message')?.trim();
     const expectedDeliveryDate = formData.get('custom_expected_delivery_date')?.trim();
     const rush = formData.get('custom_rush')?.trim() || 'No';
+    const deliveryAddress = formData.get('custom_delivery_address')?.trim();
+    const preferredMeetupPlace = formData.get('custom_preferred_meetup_place')?.trim() || null;
     
     if (!fullName || !email || !facebookLink) {
       alertWarning('Please fill in your name, email, and Facebook profile link.');
+      return;
+    }
+
+    if (!deliveryAddress) {
+      alertWarning('Please enter your delivery address or pin it on the map.');
+      return;
+    }
+
+    // Preferred meetup place is required for Muntinlupa delivery addresses.
+    // The meetup input's `required` attribute can't be relied on here (this
+    // flow doesn't run native form validation), so enforce it explicitly.
+    if (/muntinlupa/i.test(deliveryAddress) && !preferredMeetupPlace) {
+      alertWarning('Please enter your preferred meetup place for deliveries within Muntinlupa.');
       return;
     }
 
@@ -533,7 +548,9 @@
         special_instructions: specialInstructions || null,
         expected_delivery_date: expectedDeliveryDate,
         rush: rush,
-        estimated_total: total
+        estimated_total: total,
+        delivery_address: deliveryAddress,
+        preferred_meetup_place: preferredMeetupPlace
       };
 
       // Add voucher information if applied
@@ -574,6 +591,18 @@
         } catch (voucherErr) {
         }
       }
+
+      // Save delivery details to localStorage for next time
+      try {
+        if (deliveryAddress) {
+          localStorage.setItem('customer_delivery_address', deliveryAddress);
+        }
+        if (preferredMeetupPlace) {
+          localStorage.setItem('customer_preferred_meetup_place', preferredMeetupPlace);
+        } else {
+          localStorage.removeItem('customer_preferred_meetup_place');
+        }
+      } catch (e) {}
 
       // Success!
       bootstrap.Modal.getInstance(document.getElementById('customizeOrderModal'))?.hide();
@@ -786,23 +815,45 @@
   function prefillUserInfo() {
     try {
       const customerData = localStorage.getItem('customer');
-      if (!customerData) return;
-      
-      const customer = JSON.parse(customerData);
-      
-      // Pre-fill name
-      const nameInput = document.querySelector('[name="custom_user_name"]');
-      if (nameInput && customer.name) {
-        nameInput.value = customer.name;
-      }
-      
-      // Pre-fill email
-      const emailInput = document.querySelector('[name="custom_user_email"]');
-      if (emailInput && customer.email) {
-        emailInput.value = customer.email;
+      if (customerData) {
+        const customer = JSON.parse(customerData);
+        
+        // Pre-fill name
+        const nameInput = document.querySelector('[name="custom_user_name"]');
+        if (nameInput && customer.name) {
+          nameInput.value = customer.name;
+        }
+        
+        // Pre-fill email
+        const emailInput = document.querySelector('[name="custom_user_email"]');
+        if (emailInput && customer.email) {
+          emailInput.value = customer.email;
+        }
       }
     } catch (error) {
     }
+
+    // Always pre-fill saved delivery address and preferred meetup place if they exist in localStorage
+    try {
+      const savedAddress = localStorage.getItem('customer_delivery_address');
+      if (savedAddress) {
+        const addressInput = document.querySelector('[name="custom_delivery_address"]');
+        if (addressInput) {
+          addressInput.value = savedAddress;
+          // Trigger Muntinlupa check for custom meetup section display
+          if (typeof window.checkMuntinlupaForInput === 'function') {
+            window.checkMuntinlupaForInput(addressInput, savedAddress);
+          }
+        }
+      }
+      const savedMeetup = localStorage.getItem('customer_preferred_meetup_place');
+      if (savedMeetup) {
+        const meetupInput = document.querySelector('[name="custom_preferred_meetup_place"]');
+        if (meetupInput) {
+          meetupInput.value = savedMeetup;
+        }
+      }
+    } catch (e) {}
   }
 
   // Run when DOM is ready

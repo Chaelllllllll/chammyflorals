@@ -7,7 +7,7 @@ async function loadOrders() {
 
   try {
     // Verify token
-  const verifyResponse = await fetch('/api/admin/verify-token', {
+    const verifyResponse = await fetch('/api/admin/verify-token', {
       headers: { Authorization: `Bearer ${token}` },
     });
     let verifyResult;
@@ -22,8 +22,8 @@ async function loadOrders() {
       return;
     }
 
-  // Load regular orders
-  const response = await fetch('/api/admin/orders', {
+    // Load regular orders
+    const response = await fetch('/api/admin/orders', {
       headers: { Authorization: `Bearer ${token}` },
     });
     let orders;
@@ -36,14 +36,14 @@ async function loadOrders() {
     if (response.ok) {
       // Filter out custom orders - they have their own management page
       const allOrders = (orders || []).filter(o => o.order_type !== 'custom');
-      
+
       // Check for new orders and trigger notification
       const storedOrderIds = localStorage.getItem('adminKnownOrderIds');
       let knownOrderIds = storedOrderIds ? JSON.parse(storedOrderIds) : [];
-      
+
       if (allOrders && allOrders.length > 0 && knownOrderIds.length > 0) {
         const newOrders = allOrders.filter(order => !knownOrderIds.includes(order.order_id));
-        
+
         // Trigger notification for each new order
         if (newOrders.length > 0 && window.notificationManager) {
           newOrders.forEach(order => {
@@ -54,26 +54,26 @@ async function loadOrders() {
           });
         }
       }
-      
+
       // Update known order IDs
       if (allOrders && allOrders.length > 0) {
         const allOrderIds = allOrders.map(o => o.order_id);
         localStorage.setItem('adminKnownOrderIds', JSON.stringify(allOrderIds));
       }
-      
+
       // keep full orders data in window for detail lookups and filtering
       window.ordersData = allOrders || [];
-        // pagination defaults
-        window.ordersPerPage = 10;
-        window.currentPage = 1;
-        window.orderStatusFilter = '';
-        // initialize filters UI and status badges
-        setupOrderFilters();
-        updateStatusCounts();
-        // render initial view (not-delivered)
-  applyOrderFilters();
-  // refresh global notifications badge
-  try { await refreshGlobalNotifCount(); } catch (e) { /* ignore */ }
+      // pagination defaults
+      window.ordersPerPage = 10;
+      window.currentPage = 1;
+      window.orderStatusFilter = '';
+      // initialize filters UI and status badges
+      setupOrderFilters();
+      updateStatusCounts();
+      // render initial view (not-delivered)
+      applyOrderFilters();
+      // refresh global notifications badge
+      try { await refreshGlobalNotifCount(); } catch (e) { /* ignore */ }
     } else {
       showErrorModal(orders.error || 'Failed to load orders');
     }
@@ -119,7 +119,7 @@ function setupOrderFilters() {
         }
         applyOrderFilters();
         // hide dropdown (Bootstrap handles, but ensure state)
-        try { bootstrap.Dropdown.getInstance(document.getElementById('notifToggleMobile'))?.hide(); } catch (err) {}
+        try { bootstrap.Dropdown.getInstance(document.getElementById('notifToggleMobile'))?.hide(); } catch (err) { }
       });
     });
   }
@@ -224,6 +224,9 @@ function renderOrdersPaged(list) {
           <div class="d-flex justify-content-end align-items-center" style="gap:.5rem;">
             <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
             <button class="btn btn-sm btn-success edit-order-button" data-order-id="${order.order_id}">Edit</button>
+            <button class="btn btn-sm btn-outline-pink receipt-button" data-order-id="${order.order_id}" title="Generate Receipt">
+              <i class="fa-solid fa-receipt"></i>
+            </button>
           </div>
         </td>
       </tr>
@@ -237,9 +240,16 @@ function renderOrdersPaged(list) {
   document.querySelectorAll('.edit-order-button').forEach(button => {
     button.addEventListener('click', (e) => openEditModal(e.currentTarget.dataset.orderId));
   });
+  document.querySelectorAll('.receipt-button').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const orderId = e.currentTarget.dataset.orderId;
+      const order = list.find(o => o.order_id === orderId);
+      if (order) generateReceiptImage(order);
+    });
+  });
 
   // update counts and pagination
-  try { updateStatusCounts(); } catch (e) {}
+  try { updateStatusCounts(); } catch (e) { }
   renderPagination(totalPages);
 }
 
@@ -268,7 +278,7 @@ function toDateTimeLocal(v) {
     const d = new Date(v);
     if (isNaN(d.getTime())) return '';
     const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } catch (e) { return ''; }
 }
 
@@ -352,7 +362,7 @@ function updateStatusCounts() {
     if (typeof n === 'number' && n === 0) {
       el.style.display = 'none';
       // dispose tooltip if exists
-      try { const tt = bootstrap.Tooltip.getInstance(el); if (tt) tt.dispose(); } catch (e) {}
+      try { const tt = bootstrap.Tooltip.getInstance(el); if (tt) tt.dispose(); } catch (e) { }
       return;
     }
     el.style.display = '';
@@ -372,20 +382,20 @@ function updateStatusCounts() {
   // update mobile dropdown counts and bell total if present
   try {
     const ddAll = document.getElementById('ddCountAll'); if (ddAll) { if (counts.All === 0) ddAll.style.display = 'none'; else { ddAll.style.display = ''; ddAll.textContent = fmt(counts.All); } }
-  } catch (e) {}
+  } catch (e) { }
   try {
     const ddPending = document.getElementById('ddCountPending'); if (ddPending) { if (counts.Pending === 0) ddPending.style.display = 'none'; else { ddPending.style.display = ''; ddPending.textContent = fmt(counts.Pending); } }
-  } catch (e) {}
+  } catch (e) { }
   try {
     const ddProcessing = document.getElementById('ddCountProcessing'); if (ddProcessing) { if (counts.Processing === 0) ddProcessing.style.display = 'none'; else { ddProcessing.style.display = ''; ddProcessing.textContent = fmt(counts.Processing); } }
-  } catch (e) {}
+  } catch (e) { }
   try {
     const ddCustom = document.getElementById('ddCountCustom'); if (ddCustom) { if (counts.Custom === 0) ddCustom.style.display = 'none'; else { ddCustom.style.display = ''; ddCustom.textContent = fmt(counts.Custom); } }
-  } catch (e) {}
+  } catch (e) { }
   try {
     const ddToReceive = document.getElementById('ddCountToReceive'); if (ddToReceive) { if (counts['To Receive'] === 0) ddToReceive.style.display = 'none'; else { ddToReceive.style.display = ''; ddToReceive.textContent = fmt(counts['To Receive']); } }
-  } catch (e) {}
-  try { const notifTotalEl = document.getElementById('notifTotal'); if (notifTotalEl) { if (counts.All === 0) notifTotalEl.style.display = 'none'; else { notifTotalEl.style.display = ''; notifTotalEl.textContent = fmt(counts.All); } } } catch (e) {}
+  } catch (e) { }
+  try { const notifTotalEl = document.getElementById('notifTotal'); if (notifTotalEl) { if (counts.All === 0) notifTotalEl.style.display = 'none'; else { notifTotalEl.style.display = ''; notifTotalEl.textContent = fmt(counts.All); } } } catch (e) { }
   // update mobile notification badge
   try {
     const mobileNotifBadge = document.getElementById('mobileNotifBadge');
@@ -397,7 +407,7 @@ function updateStatusCounts() {
         mobileNotifBadge.textContent = fmt(counts.All);
       }
     }
-  } catch (e) {}
+  } catch (e) { }
   // update optional dashboard metric cards if present
   try {
     const elTotal = document.getElementById('metricTotalOrders'); if (elTotal) elTotal.textContent = String(counts.All || 0);
@@ -416,11 +426,11 @@ function applyOrderFilters() {
     const status = String((o.status || '')).toLowerCase();
     return status !== 'delivered' && status !== 'to receive';
   });
-  
+
   if (statusVal) {
     list = list.filter(o => String(o.status || '') === statusVal);
   }
-  
+
   if (searchVal) {
     list = list.filter(o => {
       return String(o.order_id || '').toLowerCase().includes(searchVal)
@@ -487,38 +497,296 @@ function viewDetails(orderId) {
     ? order.items.reduce((s, it) => s + (Number(it.quantity || it.qty || 1) || 0), 0)
     : (Number(order.quantity) || 0);
 
+  const statusColors = {
+    'Pending': 'bg-amber-50 text-amber-800 border-amber-100',
+    'Processing': 'bg-blue-50 text-blue-800 border-blue-100',
+    'To Receive': 'bg-indigo-50 text-indigo-800 border-indigo-100',
+    'To Deliver': 'bg-indigo-50 text-indigo-800 border-indigo-100',
+    'Delivered': 'bg-emerald-50 text-emerald-800 border-emerald-100',
+    'Cancelled': 'bg-rose-50 text-rose-800 border-rose-100'
+  };
+  const statusColorClass = statusColors[order.status] || 'bg-slate-50 text-slate-800 border-slate-100';
+
+  const itemsRowsHtml = (order.items || []).map(it => {
+    const isCustomized = it.customized === true || it.customized === 'true';
+    const cname = it.color && it.color.name ? it.color.name : '';
+    const cval = it.color && it.color.value ? it.color.value : '';
+    const swatch = cval ? `<span class="d-inline-block rounded-circle me-1.5 border border-slate-200 shadow-sm" style="width:12px; height:12px; background-color:${cval}; vertical-align:middle;"></span>` : '';
+
+    return `
+      <tr class="border-b border-slate-100/50">
+        <td class="ps-3 py-3 font-semibold text-slate-800 text-sm">${escapeHtml(it.flower_type || it.flower || '')}</td>
+        <td class="py-3 text-center text-slate-600 text-sm font-semibold">${escapeHtml(String(it.quantity || it.qty || 1))}</td>
+        <td class="py-3 text-sm">
+          ${cname ? `<div class="d-inline-flex align-items-center gap-1">${swatch}<span class="text-slate-600 font-medium">${escapeHtml(cname)}</span></div>` : '<span class="text-slate-400 font-medium">-</span>'}
+        </td>
+        <td class="pe-3 py-3 text-end text-sm">
+          ${isCustomized ? '<span class="badge bg-pink text-white font-semibold px-2 py-1 rounded" style="font-size:0.7rem;">Customized</span>' : '<span class="text-slate-400 font-medium">-</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
   modalContent.innerHTML = `
-    <p><strong>Order ID:</strong> ${order.order_id}</p>
-    <p><strong>Name:</strong> ${order.name}</p>
-    <p><strong>Email:</strong> ${order.email}</p>
-    <p><strong>Facebook Link:</strong> <a href="${order.fb_link}" target="_blank">${order.fb_link}</a></p>
-  <p><strong>Flower Type:</strong> ${escapeHtml(order.flower_type || '')} ${hasAnyItems ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-items-btn" data-order-id="${order.order_id}">View</button>` : ''}</p>
-    <p><strong>Quantity:</strong> ${escapeHtml(String(totalQty))}</p>
-    <!-- Inline items and color details intentionally omitted; use the View button to open the Items modal -->
-  <p><strong>Add-ons:</strong> ${order.addons?.length ? escapeHtml(order.addons.join(', ')) : 'None'} ${hasAddonsAvailable ? `<button type="button" class="btn btn-sm btn-pink ms-2 view-order-addons-btn" data-order-id="${order.order_id}">View</button>` : ''}</p>
-    <p><strong>Message:</strong> ${escapeHtml(order.message || 'Not provided')}</p>
-    <p><strong>Rush Order:</strong> ${escapeHtml(order.rush || '')}</p>
-    ${order.voucher_code ? `
-      <hr style="margin: 15px 0; border-top: 2px solid #e0e0e0;">
-      <div style="background: #e8f5e9; padding: 12px; border-radius: 8px; border-left: 4px solid #28a745; margin-bottom: 10px;">
-        <p style="margin-bottom: 8px;"><strong><i class="fas fa-ticket-alt me-2"></i>Voucher Applied:</strong> <span class="badge bg-success">${escapeHtml(order.voucher_code)}</span></p>
-        <p style="margin-bottom: 5px;"><strong>Original Total:</strong> <span style="text-decoration: line-through; color: #999;">₱${escapeHtml(String(order.original_total || order.total_fee))}</span></p>
-        <p style="margin-bottom: 5px;"><strong>Discount:</strong> <span style="color: #28a745; font-weight: 600;">-₱${escapeHtml(String(order.voucher_discount || '0.00'))}</span></p>
+    <!-- Header Summary Block -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3 mb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Order ID</span>
+          <span class="text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-md">${order.order_id}</span>
+        </div>
+        <div class="text-xs text-slate-400 mt-1">Placed on ${escapeHtml(formatDateTime(order.created_at || order.createdAt || Date.now()))}</div>
       </div>
-    ` : ''}
-    <p><strong>Total Fee:</strong> ₱${escapeHtml(String(order.total_fee || '0'))}</p>
-    <p><strong>Status:</strong> ${escapeHtml(order.status || '')}</p>
-    <p><strong>Order Date:</strong> ${escapeHtml(formatDateTime(order.created_at || order.createdAt || Date.now()))}</p>
+      <div class="flex gap-2">
+        <span class="px-3 py-1 rounded-full text-xs font-bold border ${statusColorClass}">
+          ${order.status}
+        </span>
+        ${order.rush === 'Yes' ? `
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-100">
+            ⚡ Rush Order
+          </span>
+        ` : ''}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <!-- Customer Information Card -->
+      <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center gap-2 border-b border-slate-100/50 pb-2 mb-3">
+          <i class="fa-solid fa-user text-rose-500 text-sm"></i>
+          <h6 class="font-bold text-sm text-slate-800 mb-0">Customer Details</h6>
+        </div>
+        <div class="space-y-3 text-sm text-slate-600">
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Name</span>
+            <span class="font-bold text-slate-800 text-base">${escapeHtml(order.name)}</span>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Email</span>
+            <span class="font-semibold text-slate-800 break-all">${escapeHtml(order.email)}</span>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Facebook Link</span>
+            ${order.fb_link ? `
+              <a href="${order.fb_link}" target="_blank" class="text-rose-500 hover:text-rose-600 inline-flex items-center gap-1 font-semibold break-all">
+                ${escapeHtml(order.fb_link)} <i class="fa-solid fa-external-link text-[10px]"></i>
+              </a>
+            ` : '<span class="text-slate-400 font-medium">Not provided</span>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery / Meetup Details Card -->
+      <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center gap-2 border-b border-slate-100/50 pb-2 mb-3">
+          <i class="fa-solid fa-truck text-rose-500 text-sm"></i>
+          <h6 class="font-bold text-sm text-slate-800 mb-0">Delivery Details</h6>
+        </div>
+        <div class="space-y-3 text-sm text-slate-600">
+          <div>
+            <span class="text-xs text-slate-400 block font-medium">Delivery Address</span>
+            <span class="font-semibold text-slate-800 block leading-relaxed">${escapeHtml(order.delivery_address || 'Not provided')}</span>
+            ${order.delivery_address ? `
+              <button type="button" class="btn btn-sm btn-outline-pink px-2.5 py-1 text-[11px] font-bold mt-2" id="btnShowMapInDetails">
+                <i class="fa-solid fa-map-location-dot me-1"></i>View Location on Map
+              </button>
+            ` : ''}
+          </div>
+          ${order.preferred_meetup_place ? `
+            <div class="mt-3 pt-2.5 border-t border-slate-100/50">
+              <span class="text-xs text-slate-400 block font-medium">Preferred Meetup Place</span>
+              <span class="badge bg-rose-50 text-rose-700 border border-rose-100 font-bold px-2.5 py-1.5 text-xs mt-1.5 rounded-lg">
+                <i class="fa-solid fa-handshake me-1"></i>${escapeHtml(order.preferred_meetup_place)}
+              </span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Order Items Card -->
+    <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm mb-4">
+      <div class="flex justify-between items-center border-b border-slate-100/50 pb-2 mb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-seedling text-rose-500 text-sm"></i>
+          <h6 class="font-bold text-sm text-slate-800 mb-0">Order Items</h6>
+        </div>
+        <button type="button" class="btn btn-sm btn-pink px-3 py-1.5 text-xs font-semibold view-order-items-btn" data-order-id="${order.order_id}">
+          <i class="fa-solid fa-edit me-1"></i>Edit Items
+        </button>
+      </div>
+
+      ${hasAnyItems ? `
+        <div class="table-responsive rounded-xl border border-slate-150 overflow-hidden">
+          <table class="table table-borderless align-middle mb-0">
+            <thead class="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+              <tr>
+                <th class="ps-3 py-2 text-xs uppercase tracking-wider">Bouquet / Description</th>
+                <th class="text-center py-2 text-xs uppercase tracking-wider">Qty</th>
+                <th class="py-2 text-xs uppercase tracking-wider">Color</th>
+                <th class="pe-3 text-end py-2 text-xs uppercase tracking-wider">Customization</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      ` : `
+        <p class="text-slate-600 text-sm mb-0"><strong>Flower Type:</strong> ${escapeHtml(order.flower_type || '')}</p>
+        <p class="text-slate-600 text-sm mb-0"><strong>Quantity:</strong> ${escapeHtml(String(totalQty))}</p>
+      `}
+    </div>
+
+    <!-- Optional Add-ons & Notes Card -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <!-- Add-ons -->
+      <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-slate-100/50 pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid fa-gift text-rose-500 text-sm"></i>
+            <h6 class="font-bold text-sm text-slate-800 mb-0">Selected Add-ons</h6>
+          </div>
+          ${hasAddonsAvailable ? `
+            <button type="button" class="btn btn-sm btn-pink px-3 py-1.5 text-xs font-semibold view-order-addons-btn" data-order-id="${order.order_id}">
+              <i class="fa-solid fa-edit me-1"></i>Manage
+            </button>
+          ` : ''}
+        </div>
+        <div class="text-sm">
+          ${(function() {
+            const getAddonName = (addon) => {
+              if (!addon) return '';
+              let name = typeof addon === 'object' ? (addon.name || addon.label || '') : String(addon);
+              name = name.replace(/\s*-\s*₱\s?\d+(?:\.\d+)?\s*$/, '');
+              return name.trim().toLowerCase() === 'on' ? '' : name;
+            };
+            const validAddons = (order.addons || []).map(getAddonName).filter(Boolean);
+            if (validAddons.length) {
+              return `
+                <div class="flex flex-wrap gap-1.5">
+                  ${validAddons.map(addon => `<span class="badge bg-slate-100 text-slate-700 px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200/50">${escapeHtml(addon)}</span>`).join('')}
+                </div>
+              `;
+            }
+            return '<span class="text-slate-400 font-semibold">No add-ons selected</span>';
+          })()}
+        </div>
+      </div>
+
+      <!-- Message / Notes -->
+      <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+        <div class="flex items-center gap-2 border-b border-slate-100/50 pb-2 mb-3">
+          <i class="fa-solid fa-comment-dots text-rose-500 text-sm"></i>
+          <h6 class="font-bold text-sm text-slate-800 mb-0">Card Message</h6>
+        </div>
+        <div class="bg-slate-50 rounded-xl p-3 text-sm text-slate-700 border border-slate-100 italic min-h-[60px] flex items-center">
+          "${escapeHtml(order.message || 'Not provided')}"
+        </div>
+      </div>
+    </div>
+
+    <!-- Voucher & Pricing Invoice Card -->
+    <div class="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm">
+      <div class="flex justify-between items-center border-b border-slate-100/50 pb-2 mb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-file-invoice-dollar text-rose-500 text-sm"></i>
+          <h6 class="font-bold text-sm text-slate-800 mb-0">Billing Summary</h6>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-pink px-2.5 py-1.5 text-xs font-bold generate-receipt-btn" data-order-id="${order.order_id}">
+          <i class="fa-solid fa-receipt me-1"></i>Generate Receipt
+        </button>
+      </div>
+      <div class="space-y-2 text-sm text-slate-600">
+        ${order.voucher_code ? `
+          <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100/50 flex justify-between items-center mb-3">
+            <div>
+              <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Voucher Applied</span>
+              <span class="badge bg-emerald-600 text-white font-bold text-xs mt-0.5">${escapeHtml(order.voucher_code)}</span>
+            </div>
+            <div class="text-end">
+              <div class="text-xs text-slate-400 font-semibold">Discount Amount</div>
+              <div class="font-bold text-emerald-700">-₱${escapeHtml(String(order.voucher_discount || '0.00'))}</div>
+            </div>
+          </div>
+          <div class="flex justify-between font-semibold">
+            <span>Original Total:</span>
+            <span class="text-slate-400 line-through">₱${escapeHtml(String(order.original_total || order.total_fee))}</span>
+          </div>
+        ` : ''}
+        <div class="flex justify-between items-center pt-2.5 border-t border-slate-150 mt-2.5">
+          <span class="font-bold text-slate-800 text-base">Final Total Fee:</span>
+          <span class="text-2xl font-black text-rose-600">₱${escapeHtml(String(order.total_fee || '0'))}</span>
+        </div>
+      </div>
+    </div>
   `;
+
+  // wire the map button View Location on Map
+  const btnShowMap = modalContent.querySelector('#btnShowMapInDetails');
+  if (btnShowMap) {
+    btnShowMap.addEventListener('click', () => {
+      // Hide the current order details modal
+      const detailsModalEl = document.getElementById('orderDetailsModal');
+      const detailsModal = bootstrap.Modal.getInstance(detailsModalEl);
+      if (detailsModal) {
+        detailsModalEl.addEventListener('hidden.bs.modal', function onDetailsHiddenForMap() {
+          detailsModalEl.removeEventListener('hidden.bs.modal', onDetailsHiddenForMap);
+
+          // Open mapPickerModal in read-only view
+          const mapPickerModalEl = document.getElementById('mapPickerModal');
+          if (mapPickerModalEl) {
+            const mapPickerModal = bootstrap.Modal.getOrCreateInstance(mapPickerModalEl);
+            mapPickerModalEl.dataset.reopenModal = 'orderDetailsModal';
+            mapPickerModal.show();
+            // Wait shown to load location
+            mapPickerModalEl.addEventListener('shown.bs.modal', function onMapShown() {
+              mapPickerModalEl.removeEventListener('shown.bs.modal', onMapShown);
+              // Set the modal text and marker
+              const addr = order.delivery_address || '';
+              const modalMapCurrentAddress = document.getElementById('modalMapCurrentAddress');
+              if (modalMapCurrentAddress) {
+                modalMapCurrentAddress.textContent = addr || 'No location pinned yet';
+              }
+              // Hide confirm button since it's view-only
+              const confirmBtn = document.getElementById('confirmLocationBtn');
+              if (confirmBtn) confirmBtn.style.display = 'none';
+
+              // Load the map in function.js
+              if (typeof initPickerMap === 'function') {
+                initPickerMap(addr);
+              }
+            }, { once: true });
+
+            // Restore confirm button when closed
+            mapPickerModalEl.addEventListener('hidden.bs.modal', function onMapClosed() {
+              mapPickerModalEl.removeEventListener('hidden.bs.modal', onMapClosed);
+              const confirmBtn = document.getElementById('confirmLocationBtn');
+              if (confirmBtn) confirmBtn.style.display = 'block';
+            }, { once: true });
+          }
+        });
+        detailsModal.hide();
+      }
+    });
+  }
 
   // wire the view items buttons inside the details view (if any)
   modalContent.querySelectorAll('.view-order-items-btn').forEach(btn => {
-    btn.addEventListener('click', () => openOrderItemsModal(order));
+    btn.addEventListener('click', () => openOrderItemsModal(order, true));
   });
   // wire the view addons button to a separate addons modal
   modalContent.querySelectorAll('.view-order-addons-btn').forEach(btn => {
     btn.addEventListener('click', () => openOrderAddonsModal(order));
   });
+
+  // wire the generate receipt button
+  const generateReceiptBtn = modalContent.querySelector('.generate-receipt-btn');
+  if (generateReceiptBtn) {
+    generateReceiptBtn.addEventListener('click', () => {
+      generateReceiptImage(order);
+    });
+  }
 
   // If we don't yet have a products cache, fetch it on-demand so we can
   // determine whether Add-ons are available and show the Add-ons View button.
@@ -564,6 +832,174 @@ function viewDetails(orderId) {
   detailsModal.show();
 }
 
+// Generate a beautiful retail receipt image from an order and trigger download
+async function generateReceiptImage(order) {
+  // Load html2canvas dynamically if not already loaded
+  if (typeof html2canvas === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    document.head.appendChild(script);
+    await new Promise((resolve) => {
+      script.onload = resolve;
+    });
+  }
+
+  // Create absolute receipt element off-screen
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.zIndex = '-9999';
+
+  // Format dates and lists
+  const dateStr = formatDateTime(order.created_at || order.createdAt || Date.now());
+
+  const itemsListHtml = (order.items || []).map(it => `
+    <tr style="border-bottom: 1px solid #f1f5f9;">
+      <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
+        ${escapeHtml(it.flower_type || it.flower || '')}
+        ${it.color && it.color.name ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">Color: ${escapeHtml(it.color.name)}</div>` : ''}
+      </td>
+      <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(it.quantity || it.qty || 1))}</td>
+      <td style="padding: 10px 0; text-align: right; color: #334155;">
+        ${it.customized === true || it.customized === 'true' ? '<span style="font-size: 9px; background: #ffe4e8; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Custom</span>' : '-'}
+      </td>
+    </tr>
+  `).join('');
+
+  const addonsHtml = (function() {
+    const getAddonName = (addon) => {
+      if (!addon) return '';
+      let name = typeof addon === 'object' ? (addon.name || addon.label || '') : String(addon);
+      name = name.replace(/\s*-\s*₱\s?\d+(?:\.\d+)?\s*$/, '');
+      return name.trim().toLowerCase() === 'on' ? '' : name;
+    };
+    const validAddons = (order.addons || []).map(getAddonName).filter(Boolean);
+    if (validAddons.length) {
+      return `
+        <div style="margin-bottom: 20px; font-size: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+          <div style="font-weight: 700; color: #334155; margin-bottom: 6px; text-align: left;">Selected Add-ons:</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; text-align: left;">
+            ${validAddons.map(addon => `<span style="background: #f8fafc; color: #475569; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0; font-weight: 600; font-size: 10px;">${escapeHtml(addon)}</span>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+    return '';
+  })();
+
+  const discountHtml = order.voucher_code ? `
+    <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #059669;">
+      <span>Voucher Discount (${escapeHtml(order.voucher_code)}):</span>
+      <span>-₱${parseFloat(order.voucher_discount || 0).toFixed(2)}</span>
+    </div>
+  ` : '';
+
+  container.innerHTML = `
+    <div id="receiptImageCapture" style="width: 450px; font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif; background: #ffffff; color: #1e293b; padding: 35px; box-sizing: border-box; border-radius: 20px; border: 1px solid #e2e8f0;">
+      <!-- Shop Header -->
+      <div style="text-align: center; border-bottom: 2px dashed #f1f5f9; padding-bottom: 20px; margin-bottom: 20px;">
+        <div style="font-size: 24px; font-weight: 800; color: #f43f5e; margin-bottom: 6px;">
+          Chammy Florals
+        </div>
+      </div>
+      
+      <!-- Receipt Info -->
+      <div style="margin-bottom: 20px; font-size: 12px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #64748b;">Receipt No:</span>
+          <strong style="color: #0f172a;">${order.order_id}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #64748b;">Date Placed:</span>
+          <span style="color: #0f172a;">${dateStr}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #64748b;">Customer Name:</span>
+          <strong style="color: #0f172a;">${escapeHtml(order.name)}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+          <span style="color: #64748b;">Delivery Address:</span>
+          <span style="color: #0f172a; text-align: right; max-width: 250px; display: inline-block;">${escapeHtml(order.delivery_address || 'N/A')}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: #64748b;">Delivery / Meetup:</span>
+          <span style="color: #0f172a;">${escapeHtml(order.preferred_meetup_place || 'Delivery')}</span>
+        </div>
+      </div>
+      
+      <!-- Items Table -->
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+        <thead>
+          <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #64748b;">
+            <th style="padding: 8px 0; font-weight: 600; text-align: left;">Description</th>
+            <th style="padding: 8px 0; text-align: center; font-weight: 600; width: 60px;">Qty</th>
+            <th style="padding: 8px 0; text-align: right; font-weight: 600; width: 80px;">Custom</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsListHtml || `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
+                ${escapeHtml(order.flower_type || '')}
+              </td>
+              <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(order.quantity || 1))}</td>
+              <td style="padding: 10px 0; text-align: right; color: #334155;">-</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+      
+      <!-- Addons -->
+      ${addonsHtml}
+      
+      <!-- Pricing Breakdowns -->
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 13px; text-align: left;">
+        ${discountHtml}
+        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; color: #f43f5e; margin-top: 8px; padding-top: 12px; border-top: 2px dashed #f1f5f9;">
+          <span>Total Paid:</span>
+          <span>₱${parseFloat(order.total_fee || 0).toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <!-- Footer Message -->
+      <div style="text-align: center; margin-top: 35px; border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 11px; color: #94a3b8; font-style: italic;">
+        Thank you for choosing Chammy Florals!
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+
+  try {
+    // Generate image from element using html2canvas
+    const element = document.getElementById('receiptImageCapture');
+    const canvas = await html2canvas(element, {
+      scale: 2, // Retinal display high resolution
+      backgroundColor: '#ffffff',
+      useCORS: true
+    });
+
+    // Create download link and trigger download
+    const imgData = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `receipt-${order.order_id}.png`;
+    link.href = imgData;
+    link.click();
+
+    if (typeof showAlert === 'function') {
+      showAlert('Receipt image generated successfully!', 'success');
+    }
+  } catch (error) {
+    console.error('Error generating receipt image:', error);
+    if (typeof showAlert === 'function') {
+      showAlert('Failed to generate receipt image.', 'danger');
+    }
+  } finally {
+    document.body.removeChild(container);
+  }
+}
+
 // Ensure that when showing details (not editing) the modal footer contains the default Close button
 function resetDetailsModalFooter() {
   const modalFooter = document.querySelector('#orderDetailsModal .modal-footer');
@@ -588,7 +1024,8 @@ function openOrderItemsModal(order, editable = false) {
       const prods = await res.json();
       window._adminProductsCache = prods || [];
       return window._adminProductsCache;
-    } catch (err) {window._adminProductsCache = [];
+    } catch (err) {
+      window._adminProductsCache = [];
       return window._adminProductsCache;
     }
   }
@@ -647,10 +1084,10 @@ function openOrderItemsModal(order, editable = false) {
         if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
           const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
           if (m) {
-            const r = Math.max(0, Math.min(255, Number(m[1]||0)));
-            const g = Math.max(0, Math.min(255, Number(m[2]||0)));
-            const b = Math.max(0, Math.min(255, Number(m[3]||0)));
-            value = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+            const r = Math.max(0, Math.min(255, Number(m[1] || 0)));
+            const g = Math.max(0, Math.min(255, Number(m[2] || 0)));
+            const b = Math.max(0, Math.min(255, Number(m[3] || 0)));
+            value = '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('').toLowerCase();
           }
         }
         const name = c.name || value || '';
@@ -667,15 +1104,15 @@ function openOrderItemsModal(order, editable = false) {
         if (typeof sel === 'string' && sel.trim().toLowerCase().startsWith('rgb')) {
           const m2 = sel.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
           if (m2) {
-            const r2 = Math.max(0, Math.min(255, Number(m2[1]||0)));
-            const g2 = Math.max(0, Math.min(255, Number(m2[2]||0)));
-            const b2 = Math.max(0, Math.min(255, Number(m2[3]||0)));
-            sel = '#' + [r2,g2,b2].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+            const r2 = Math.max(0, Math.min(255, Number(m2[1] || 0)));
+            const g2 = Math.max(0, Math.min(255, Number(m2[2] || 0)));
+            const b2 = Math.max(0, Math.min(255, Number(m2[3] || 0)));
+            sel = '#' + [r2, g2, b2].map(n => n.toString(16).padStart(2, '0')).join('').toLowerCase();
           }
         }
         colorSelect.value = sel;
       }
-    } catch (err) {}
+    } catch (err) { }
   }
 
   // Helper to create one editable row HTML (uses flower select and color select)
@@ -683,16 +1120,22 @@ function openOrderItemsModal(order, editable = false) {
     const flowerVal = escapeHtml(it.flower_type || it.flower || '');
     const qty = escapeHtml(String(it.quantity || it.qty || 1));
     const colorVal = (it.color && it.color.value) ? escapeHtml(it.color.value) : '';
+    const customized = it.customized === true || it.customized === 'true';
     let html = `
       <tr data-idx="${idx}">
         <td>
           <select class="form-select form-select-sm item-flower-select">${buildFlowerOptionsHtml()}</select>
         </td>
-        <td style="width:110px;"><input type="number" min="1" class="form-control form-control-sm item-qty" value="${qty}"></td>
-        <td style="width:220px;">
+        <td style="width:90px;"><input type="number" min="1" class="form-control form-control-sm item-qty" value="${qty}"></td>
+        <td style="width:180px;">
           <select class="form-select form-select-sm item-color-select" style="width:100%;">
             <option value="">Select Color</option>
           </select>
+        </td>
+        <td style="width:120px; text-align: center; vertical-align: middle;">
+          <div class="form-check form-switch d-inline-block">
+            <input class="form-check-input item-customize-checkbox" type="checkbox" ${customized ? 'checked' : ''}>
+          </div>
         </td>
         <td style="width:80px;"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">Remove</button></td>
       </tr>
@@ -706,9 +1149,9 @@ function openOrderItemsModal(order, editable = false) {
     if (!items.length && !editable) {
       body.innerHTML = '<div class="p-3">No items for this order</div>';
     } else {
-  if (editable) {
+      if (editable) {
         const rowsHtml = items.map((it, i) => makeRowEditable(it, i)).join('');
-        
+
         // Display voucher info if present
         let voucherNoticeHtml = '';
         if (order && order.voucher_code) {
@@ -722,12 +1165,12 @@ function openOrderItemsModal(order, editable = false) {
             </div>
           `;
         }
-        
+
         body.innerHTML = `
           ${voucherNoticeHtml}
           <div class="table-responsive">
             <table class="table table-sm table-bordered" id="orderItemsEditTable">
-              <thead class="table-light"><tr><th>Item</th><th style="width:110px;">Qty</th><th style="width:220px;">Color</th><th></th></tr></thead>
+              <thead class="table-light"><tr><th>Item</th><th style="width:90px;">Qty</th><th style="width:180px;">Color</th><th style="width:120px;">Customize</th><th></th></tr></thead>
               <tbody>${rowsHtml}</tbody>
             </table>
           </div>
@@ -798,7 +1241,8 @@ function openOrderItemsModal(order, editable = false) {
             const cval = colorSel ? colorSel.value : '';
             const cname = colorSel && colorSel.selectedOptions && colorSel.selectedOptions[0] ? (colorSel.selectedOptions[0].dataset.colorName || colorSel.selectedOptions[0].textContent) : '';
             const colorObj = (cval || cname) ? { name: cname, value: cval } : null;
-            newItems.push({ flower_type: flower, quantity: qty, color: colorObj });
+            const customized = r.querySelector('.item-customize-checkbox')?.checked || false;
+            newItems.push({ flower_type: flower, quantity: qty, color: colorObj, customized: customized });
           });
 
           // copy back to hidden input in edit form if present
@@ -822,10 +1266,10 @@ function openOrderItemsModal(order, editable = false) {
               }
               window.ordersData[idx].flower_type = flowerTypeSummary;
               // update top-level quantity as the sum of item quantities
-              totalQty = (newItems || []).reduce((s,it) => s + (Number(it.quantity || it.qty || 1) || 0), 0);
+              totalQty = (newItems || []).reduce((s, it) => s + (Number(it.quantity || it.qty || 1) || 0), 0);
               window.ordersData[idx].quantity = totalQty;
               // reflect changes in the current `order` reference as well
-              try { order.items = newItems; order.flower_type = flowerTypeSummary; order.quantity = totalQty; } catch (e) {}
+              try { order.items = newItems; order.flower_type = flowerTypeSummary; order.quantity = totalQty; } catch (e) { }
             }
           }
 
@@ -845,7 +1289,8 @@ function openOrderItemsModal(order, editable = false) {
               })
             });
 
-            if (!updateResp.ok) {showErrorModal('Failed to save items to database');
+            if (!updateResp.ok) {
+              showErrorModal('Failed to save items to database');
               return;
             }
 
@@ -868,7 +1313,8 @@ function openOrderItemsModal(order, editable = false) {
                 editFormTotalFee.value = newTotalFee;
               }
             }
-          } catch (err) {showErrorModal('Failed to save items: ' + (err.message || 'Unknown error'));
+          } catch (err) {
+            showErrorModal('Failed to save items: ' + (err.message || 'Unknown error'));
             return;
           }
 
@@ -876,8 +1322,8 @@ function openOrderItemsModal(order, editable = false) {
           try {
             const editFormFlower = document.querySelector('#orderDetailsContent input[name="flower_type"]');
             const editFormQty = document.querySelector('#orderDetailsContent input[name="quantity"]');
-            if (editFormFlower) editFormFlower.value = window.ordersData?.find(o=>o.order_id===order.order_id)?.flower_type || '';
-            if (editFormQty) editFormQty.value = String(window.ordersData?.find(o=>o.order_id===order.order_id)?.quantity || '0');
+            if (editFormFlower) editFormFlower.value = window.ordersData?.find(o => o.order_id === order.order_id)?.flower_type || '';
+            if (editFormQty) editFormQty.value = String(window.ordersData?.find(o => o.order_id === order.order_id)?.quantity || '0');
             // also update the hidden editItemsJson if present (again)
             const hidden = document.getElementById('editItemsJson'); if (hidden) hidden.value = JSON.stringify(newItems);
           } catch (e) { /* ignore */ }
@@ -891,7 +1337,7 @@ function openOrderItemsModal(order, editable = false) {
             }
           } catch (e) { /* ignore */ }
 
-          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) {}
+          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { }
         });
 
       } else {
@@ -900,11 +1346,13 @@ function openOrderItemsModal(order, editable = false) {
           const color = it.color || it.colour || null;
           const swatch = color && color.value ? `<div style="width:28px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,0.08);background:${escapeHtml(color.value)}"></div>` : '';
           const cname = color && color.name ? escapeHtml(color.name) : (color && color.value ? escapeHtml(color.value) : '');
-          return `<tr><td>${escapeHtml(it.flower_type||it.flower||'')}</td><td>${escapeHtml(String(it.quantity||it.qty||1))}</td><td class="text-center">${swatch}${cname ? ' ' + cname : ''}</td></tr>`;
+          const isCustomized = it.customized === true || it.customized === 'true' ? '<span class="badge bg-primary text-white">Yes</span>' : '<span class="text-muted">No</span>';
+          return `<tr><td>${escapeHtml(it.flower_type || it.flower || '')}</td><td>${escapeHtml(String(it.quantity || it.qty || 1))}</td><td><div class="d-flex align-items-center gap-1">${swatch}<span>${cname}</span></div></td><td class="text-center">${isCustomized}</td></tr>`;
         }).join('');
         body.innerHTML = `
           <div class="table-responsive">
             <table class="table table-sm table-bordered">
+              <thead class="table-light"><tr><th>Item</th><th style="width:90px;">Qty</th><th style="width:180px;">Color</th><th style="width:120px; text-align: center;">Customize</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -915,7 +1363,7 @@ function openOrderItemsModal(order, editable = false) {
       }
     }
 
-    try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) {}
+    try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) { }
   })();
 }
 
@@ -1001,7 +1449,7 @@ function openOrderAddonsModal(order, editable = false) {
   } else if (!available.length && editable) {
     body.innerHTML = `<div class="p-3">No add-ons configured for the selected product(s).</div>`;
   } else {
-      if (editable) {
+    if (editable) {
       // render checkboxes for each available addon (use normalized keys)
       const html = availableMap.map(a => {
         const checked = selectedKeys.includes(a.key) ? 'checked' : '';
@@ -1044,7 +1492,8 @@ function openOrderAddonsModal(order, editable = false) {
               body: JSON.stringify({ addons: chosen })
             });
 
-            if (!updateResp.ok) {showErrorModal('Failed to save add-ons to database');
+            if (!updateResp.ok) {
+              showErrorModal('Failed to save add-ons to database');
               return;
             }
 
@@ -1067,11 +1516,12 @@ function openOrderAddonsModal(order, editable = false) {
                 editFormTotalFee.value = newTotalFee;
               }
             }
-          } catch (err) {showErrorModal('Failed to save add-ons: ' + (err.message || 'Unknown error'));
+          } catch (err) {
+            showErrorModal('Failed to save add-ons: ' + (err.message || 'Unknown error'));
             return;
           }
 
-          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) {}
+          try { bootstrap.Modal.getInstance(modalEl).hide(); } catch (e) { }
         });
       }
     } else {
@@ -1088,7 +1538,7 @@ function openOrderAddonsModal(order, editable = false) {
     }
   }
 
-  try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) {}
+  try { const m = new bootstrap.Modal(modalEl); m.show(); } catch (e) { }
 }
 
 function openEditModal(orderId) {
@@ -1101,7 +1551,7 @@ function openEditModal(orderId) {
     ? order.items.reduce((s, it) => s + (Number(it.quantity || it.qty || 1) || 0), 0)
     : (Number(order.quantity) || 1);
   // detect whether any of the order's items map to products that have add-ons
-  const hasAddonsAvailable = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || (function() {
+  const hasAddonsAvailable = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || (function () {
     try {
       const prods = window._adminProducts || window._adminProductsCache || [];
       if (!Array.isArray(prods) || !order || !Array.isArray(order.items)) return false;
@@ -1149,16 +1599,24 @@ function openEditModal(orderId) {
         </div>
         <div class="col-md-6">
           <label class="form-label">Rush</label>
-          <select class="form-select" name="rush"><option ${order.rush==='No'?'selected':''}>No</option><option ${order.rush==='Yes'?'selected':''}>Yes</option></select>
+          <select class="form-select" name="rush"><option ${order.rush === 'No' ? 'selected' : ''}>No</option><option ${order.rush === 'Yes' ? 'selected' : ''}>Yes</option></select>
         </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Delivery Address</label>
+        <input class="form-control" name="delivery_address" value="${order.delivery_address || ''}">
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Preferred Meetup Place (Muntinlupa only)</label>
+        <input class="form-control" name="preferred_meetup_place" value="${order.preferred_meetup_place || ''}">
       </div>
       <div class="mb-2"><label class="form-label">Total Fee</label><input type="number" step="0.01" class="form-control" name="total_fee" value="${order.total_fee || 0}"></div>
       <div class="mb-2"><label class="form-label">Status</label>
         <select class="form-select" name="status">
-          <option ${order.status==='Pending' ? 'selected' : ''}>Pending</option>
-          <option ${order.status==='Processing' ? 'selected' : ''}>Processing</option>
-          <option ${order.status==='To Receive' ? 'selected' : ''}>To Receive</option>
-          <option ${order.status==='Cancelled' ? 'selected' : ''}>Cancelled</option>
+          <option ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
+          <option ${order.status === 'Processing' ? 'selected' : ''}>Processing</option>
+          <option ${order.status === 'To Receive' ? 'selected' : ''}>To Receive</option>
+          <option ${order.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
         </select>
       </div>
       <div class="mb-2"><label class="form-label">Order Date</label>
@@ -1193,7 +1651,8 @@ function openEditModal(orderId) {
           body: JSON.stringify({ rush: rushSelect.value })
         });
 
-        if (!updateResp.ok) {return;
+        if (!updateResp.ok) {
+          return;
         }
 
         // Update the order object with the new rush value
@@ -1221,7 +1680,7 @@ function openEditModal(orderId) {
             editFormTotalFee.value = newTotalFee;
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     });
   }
 
@@ -1236,7 +1695,7 @@ function openEditModal(orderId) {
       const prods = await res.json();
       window._adminProductsCache = prods || [];
       // recompute availability
-      const nowHas = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || (function() {
+      const nowHas = (order.addons && Array.isArray(order.addons) && order.addons.length > 0) || (function () {
         try {
           const prods2 = window._adminProducts || window._adminProductsCache || [];
           if (!Array.isArray(prods2) || !order || !Array.isArray(order.items)) return false;
@@ -1290,8 +1749,8 @@ function openEditModal(orderId) {
     e.preventDefault();
     const formData = new FormData(editForm);
     const payload = {};
-    formData.forEach((v,k)=>{ payload[k]=v; });
-    
+    formData.forEach((v, k) => { payload[k] = v; });
+
     // Format expected_delivery_date properly (must be YYYY-MM-DD or null)
     if (payload.expected_delivery_date) {
       try {
@@ -1306,9 +1765,9 @@ function openEditModal(orderId) {
         payload.expected_delivery_date = null;
       }
     }
-    
+
     // convert addons back to array
-    if (payload.addons) payload.addons = payload.addons.split(',').map(s=>s.trim()).filter(Boolean);
+    if (payload.addons) payload.addons = payload.addons.split(',').map(s => s.trim()).filter(Boolean);
     // include items if provided via the modal (items_json)
     if (payload.items_json) {
       try { payload.items = JSON.parse(payload.items_json); } catch (e) { payload.items = []; }
@@ -1356,7 +1815,7 @@ function openEditModal(orderId) {
 
   const detailsModal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   detailsModal.show();
-  
+
   // Initialize delivery calendar after modal is shown
   setTimeout(() => {
     if (document.getElementById('adminEditDeliveryDate') && typeof DeliveryCalendar !== 'undefined') {
@@ -1369,21 +1828,21 @@ function openEditModal(orderId) {
           if (window.adminEditCalendar.calendar && window.adminEditCalendar.calendar.parentNode) {
             window.adminEditCalendar.calendar.parentNode.removeChild(window.adminEditCalendar.calendar);
           }
-        } catch (e) {}
+        } catch (e) { }
       }
-      
+
       window.adminEditCalendar = new DeliveryCalendar('adminEditDeliveryDate', {
         minDate: new Date(),
         onChange: (dateStr) => {
           document.getElementById('adminEditDeliveryDate').value = dateStr;
-          
+
           // Auto-set rush based on selected date (3 days from today)
           const selectedDate = new Date(dateStr);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
           selectedDate.setHours(0, 0, 0, 0);
           const diffDays = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
-          
+
           const rushSelect = document.querySelector('#editOrderForm select[name="rush"]');
           if (rushSelect) {
             if (diffDays >= 1 && diffDays <= 3) {
@@ -1391,7 +1850,7 @@ function openEditModal(orderId) {
             } else {
               rushSelect.value = 'No';
             }
-            
+
             // Trigger change event to recalculate total if needed
             rushSelect.dispatchEvent(new Event('change'));
           }
@@ -1404,7 +1863,7 @@ function openEditModal(orderId) {
 async function changeStatus(orderId) {
   const token = localStorage.getItem('adminToken');
   const status = document.getElementById('orderStatus').value;
-  
+
   try {
     // Simple status update
     const response = await fetch(`/api/admin/orders/${orderId}`, {
@@ -1441,7 +1900,8 @@ async function changeStatus(orderId) {
 
 async function deleteOrder(orderId) {
   const token = localStorage.getItem('adminToken');
-  try {const response = await fetch(`/api/admin/orders/${orderId}`, {
+  try {
+    const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1491,8 +1951,8 @@ function logout() {
 }
 
 // Event listeners
-const logoutBtn = document.getElementById('logoutButton');
-if (logoutBtn) logoutBtn.addEventListener('click', logout);
+const dashboardLogoutBtn = document.getElementById('logoutButton');
+if (dashboardLogoutBtn) dashboardLogoutBtn.addEventListener('click', logout);
 
 // Notifications removed: replace with safe no-op implementations to avoid network calls
 async function fetchNotifications(since) {
@@ -1532,8 +1992,8 @@ if (globalNotifBtns && globalNotifBtns.length) {
 // refresh the global notifications count (run during load)
 async function refreshGlobalNotifCount() {
   // notifications removed — ensure any badge elements are hidden
-  try { const bd = document.getElementById('globalNotifCount'); if (bd) bd.style.display = 'none'; } catch (e) {}
-  try { const bm = document.getElementById('globalNotifCountMobile'); if (bm) bm.style.display = 'none'; } catch (e) {}
+  try { const bd = document.getElementById('globalNotifCount'); if (bd) bd.style.display = 'none'; } catch (e) { }
+  try { const bm = document.getElementById('globalNotifCountMobile'); if (bm) bm.style.display = 'none'; } catch (e) { }
   return { notifications: [], since: null };
 }
 
@@ -1573,18 +2033,27 @@ if (changeStatusForm) {
 }
 
 // Focus management for accessibility
-document.getElementById('errorModal').addEventListener('hidden.bs.modal', () => {
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) logoutButton.focus();
-});
-document.getElementById('successModal').addEventListener('hidden.bs.modal', () => {
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) logoutButton.focus();
-});
-document.getElementById('changeStatusModal').addEventListener('hidden.bs.modal', () => {
-  const logoutButton = document.getElementById('logoutButton');
-  if (logoutButton) logoutButton.focus();
-});
+const errModal = document.getElementById('errorModal');
+if (errModal) {
+  errModal.addEventListener('hidden.bs.modal', () => {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) logoutButton.focus();
+  });
+}
+const succModal = document.getElementById('successModal');
+if (succModal) {
+  succModal.addEventListener('hidden.bs.modal', () => {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) logoutButton.focus();
+  });
+}
+const chgStatusModal = document.getElementById('changeStatusModal');
+if (chgStatusModal) {
+  chgStatusModal.addEventListener('hidden.bs.modal', () => {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) logoutButton.focus();
+  });
+}
 
 // Initialize
 loadOrders();
@@ -1614,7 +2083,7 @@ function showNotifToast(count, items) {
   const manualAddItemBtn = document.getElementById('manualAddItemBtn');
   const manualAddonsContainer = document.getElementById('manualAddonsContainer');
   const manualAddonsSection = document.getElementById('manualAddonsSection');
-  
+
   let _productsCache = null;
   let _categoriesCache = null;
 
@@ -1667,7 +2136,7 @@ function showNotifToast(count, items) {
     selectEl.innerHTML = '<option value="">Select Flower Type</option>';
     const seen = new Set();
     const groups = {};
-    
+
     _productsCache.forEach(p => {
       const cat = p.category && String(p.category).trim() ? p.category : 'Uncategorized';
       if (!groups[cat]) groups[cat] = [];
@@ -1685,7 +2154,7 @@ function showNotifToast(count, items) {
         });
       }
     });
-    
+
     Object.keys(groups).sort().forEach(cat => {
       const og = document.createElement('optgroup');
       og.label = cat;
@@ -1708,22 +2177,22 @@ function showNotifToast(count, items) {
       if (!select || !colorSelect) return;
       const opt = select.selectedOptions && select.selectedOptions[0];
       const productId = opt && opt.dataset && opt.dataset.productId;
-      
+
       colorSelect.innerHTML = '<option value="">Select Color</option>';
       if (!productId || !_productsCache) return;
-      
+
       const prod = _productsCache.find(p => String(p.id) === String(productId));
       if (!prod || !Array.isArray(prod.colors) || !prod.colors.length) return;
-      
+
       prod.colors.forEach(c => {
         let value = c.value || c.hex || c.color || '';
         if (typeof value === 'string' && value.trim().toLowerCase().startsWith('rgb')) {
           const m = value.match(/rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
           if (m) {
-            const r = Math.max(0, Math.min(255, Number(m[1]||0)));
-            const g = Math.max(0, Math.min(255, Number(m[2]||0)));
-            const b = Math.max(0, Math.min(255, Number(m[3]||0)));
-            value = '#' + [r,g,b].map(n => n.toString(16).padStart(2,'0')).join('').toLowerCase();
+            const r = Math.max(0, Math.min(255, Number(m[1] || 0)));
+            const g = Math.max(0, Math.min(255, Number(m[2] || 0)));
+            const b = Math.max(0, Math.min(255, Number(m[3] || 0)));
+            value = '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('').toLowerCase();
           }
         }
         const name = c.name || value || '';
@@ -1749,7 +2218,7 @@ function showNotifToast(count, items) {
     try {
       const products = _productsCache || [];
       let match = null;
-      
+
       for (const p of products) {
         if (p.pricing && Array.isArray(p.pricing)) {
           const row = p.pricing.find(r => {
@@ -1771,7 +2240,7 @@ function showNotifToast(count, items) {
       }
 
       const { product } = match;
-      
+
       // Render add-ons
       if (manualAddonsContainer) {
         if (product.addons && Array.isArray(product.addons) && product.addons.length) {
@@ -1804,21 +2273,21 @@ function showNotifToast(count, items) {
       if (!_categoriesCache) return;
       const itemRows = manualItemsContainer.querySelectorAll('.order-item');
       let totalRush = 0;
-      
+
       itemRows.forEach(row => {
         const select = row.querySelector('.item-flower');
         const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
         const opt = select && select.selectedOptions && select.selectedOptions[0];
         const productId = opt && opt.dataset && opt.dataset.productId;
         if (!productId) return;
-        
+
         const prod = (_productsCache || []).find(p => String(p.id) === String(productId));
         const cat = prod && prod.category ? String(prod.category).trim() : '';
         const key = String(cat || '').trim().toLowerCase();
         const fee = _categoriesCache[key] || 0;
         if (fee) totalRush += fee * qty;
       });
-      
+
       const rushSelect = manualOrderForm.querySelector('select[name="rush"]');
       if (rushSelect) {
         const yesOpt = rushSelect.querySelector('option[value="Yes"]');
@@ -1849,27 +2318,27 @@ function showNotifToast(count, items) {
         </button>
       </div>
     `;
-    
+
     const selectEl = row.querySelector('.item-flower');
     populateItemSelect(selectEl);
-    
+
     setTimeout(() => {
       populateColorSelectForRow(row);
     }, 40);
-    
+
     selectEl.addEventListener('change', (ev) => {
       onFlowerTypeChange(ev);
       computeRushFee();
       populateColorSelectForRow(row);
     });
-    
+
     row.querySelector('.remove-item').addEventListener('click', () => {
       if (manualItemsContainer.children.length <= 1) return;
       row.remove();
       updateItemNumbers();
       computeRushFee();
     });
-    
+
     return row;
   }
 
@@ -1886,7 +2355,7 @@ function showNotifToast(count, items) {
   (async function init() {
     await loadProductsForManualOrder();
     await loadCategoriesForRush();
-    
+
     // Populate initial item selects
     const initialSelects = manualItemsContainer.querySelectorAll('.item-flower');
     initialSelects.forEach(s => {
@@ -1899,7 +2368,7 @@ function showNotifToast(count, items) {
       const row = s.closest('.order-item');
       if (row) populateColorSelectForRow(row);
     });
-    
+
     computeRushFee();
   })();
 
@@ -1923,10 +2392,10 @@ function showNotifToast(count, items) {
   // Form submission
   manualOrderForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const submitBtn = manualOrderForm.querySelector('button[type="submit"]');
     const originalBtnHtml = submitBtn ? submitBtn.innerHTML : null;
-    
+
     // Validate form
     try {
       if (typeof manualOrderForm.reportValidity === 'function') {
@@ -1934,8 +2403,8 @@ function showNotifToast(count, items) {
       } else if (!manualOrderForm.checkValidity || !manualOrderForm.checkValidity()) {
         return;
       }
-    } catch (valErr) {}
-    
+    } catch (valErr) { }
+
     const data = {};
     data.user_name = manualOrderForm.querySelector('input[name="user_name"]').value;
     data.user_email = manualOrderForm.querySelector('input[name="user_email"]').value;
@@ -1943,7 +2412,9 @@ function showNotifToast(count, items) {
     data.message = manualOrderForm.querySelector('textarea[name="message"]').value;
     data.rush = manualOrderForm.querySelector('select[name="rush"]').value;
     data.addons = Array.from(manualOrderForm.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
-    
+    data.delivery_address = manualOrderForm.querySelector('input[name="delivery_address"]')?.value || '';
+    data.preferred_meetup_place = manualOrderForm.querySelector('input[name="preferred_meetup_place"]')?.value || null;
+
     // Collect items
     const items = [];
     const itemRows = manualItemsContainer.querySelectorAll('.order-item');
@@ -1952,25 +2423,25 @@ function showNotifToast(count, items) {
       const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
       const colorEl = row.querySelector('.item-color');
       const colorValue = colorEl ? (colorEl.value || '') : '';
-      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? 
+      const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ?
         (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
-      
+
       if (!flower) return;
-      
+
       const itemObj = { flower_type: flower, quantity: qty };
       if (colorValue) itemObj.color = { name: colorName, value: colorValue };
       items.push(itemObj);
     });
-    
+
     if (!items.length) {
       alertWarning('Please add at least one item to the order');
       return;
     }
-    
+
     data.items = items;
     data.flower_type = items.map(it => `${it.flower_type} x${it.quantity}`).join('; ');
     data.quantity = items.reduce((s, it) => s + (parseInt(it.quantity) || 0), 0) || 1;
-    
+
     // Add timestamps
     try {
       const now = new Date();
@@ -1978,47 +2449,47 @@ function showNotifToast(count, items) {
       data.created_at_local = now.toLocaleString();
       data.tz_offset_minutes = now.getTimezoneOffset();
       const pad = (n) => String(n).padStart(2, '0');
-      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    } catch (e) {}
-    
+      data.created_at_local_iso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    } catch (e) { }
+
     try {
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.setAttribute('aria-busy', 'true');
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating...';
       }
-      
+
       const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/inquiry', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(data),
       });
-      
+
       const result = await response.json();
-      
+
       if (response.ok) {
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('manualOrderModal'));
         if (modal) modal.hide();
-        
+
         // Show success
         showSuccessModal('Manual order created successfully!');
-        
+
         // Reset form
         manualOrderForm.reset();
-        
+
         // Reset items container to single item
         manualItemsContainer.innerHTML = '';
         const initialRow = createItemRow(0);
         manualItemsContainer.appendChild(initialRow);
-        
+
         // Hide addons
         if (manualAddonsSection) manualAddonsSection.style.display = 'none';
-        
+
         // Reload orders
         await loadOrders();
       } else {
@@ -2064,7 +2535,7 @@ async function loadAdminChatMessages(orderId) {
             hour: 'numeric',
             minute: '2-digit'
           });
-          
+
           return `
             <div class="mb-2 ${isAdmin ? 'text-end' : ''}">
               <div class="d-inline-block ${isAdmin ? 'bg-pink text-white' : 'bg-white border'} rounded px-3 py-2" style="max-width: 80%;">
@@ -2075,7 +2546,7 @@ async function loadAdminChatMessages(orderId) {
             </div>
           `;
         }).join('');
-        
+
         // Scroll to bottom
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }
@@ -2098,7 +2569,7 @@ async function loadAdminChatMessages(orderId) {
 async function sendAdminChatMessage(orderId) {
   const chatInput = document.getElementById('adminChatInput');
   const chatForm = document.getElementById('adminChatForm');
-  
+
   if (!chatInput || !chatForm) return;
 
   const message = chatInput.value.trim();
@@ -2116,7 +2587,7 @@ async function sendAdminChatMessage(orderId) {
     const token = localStorage.getItem('adminToken');
     const response = await fetch('/api/chat/send', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
@@ -2132,7 +2603,7 @@ async function sendAdminChatMessage(orderId) {
     if (response.ok) {
       // Clear input
       chatInput.value = '';
-      
+
       // Reload messages
       await loadAdminChatMessages(orderId);
     } else {
@@ -2154,7 +2625,7 @@ async function sendAdminChatMessage(orderId) {
   const messagesNavLink = document.getElementById('messagesNavLink');
   const messagesModal = document.getElementById('adminMessagesModal');
   const conversationModal = document.getElementById('adminChatConversationModal');
-  
+
   let currentChatOrderId = null;
   let chatRefreshInterval = null;
 
@@ -2168,12 +2639,12 @@ async function sendAdminChatMessage(orderId) {
 
     try {
       const token = localStorage.getItem('adminToken');
-      
+
       // Get all undelivered orders
       const ordersResponse = await fetch('/api/admin/orders', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!ordersResponse.ok) {
         messagesList.innerHTML = '<div class="alert alert-danger">Failed to load orders</div>';
         return;
@@ -2185,7 +2656,7 @@ async function sendAdminChatMessage(orderId) {
       // Get message counts for each order
       const ordersWithData = [];
       let totalMessagesCount = 0;
-      
+
       for (const order of undeliveredOrders) {
         try {
           const chatResponse = await fetch(`/api/chat/${encodeURIComponent(order.order_id)}`);
@@ -2193,13 +2664,13 @@ async function sendAdminChatMessage(orderId) {
             const chatData = await chatResponse.json();
             const messageCount = chatData.messages ? chatData.messages.length : 0;
             const lastMessage = chatData.messages && chatData.messages.length > 0 ? chatData.messages[chatData.messages.length - 1] : null;
-            
+
             ordersWithData.push({
               ...order,
               messageCount,
               lastMessage
             });
-            
+
             if (messageCount > 0) totalMessagesCount++;
           }
         } catch (err) {
@@ -2252,7 +2723,7 @@ async function sendAdminChatMessage(orderId) {
           } else {
             messagePreview = '<div class="small text-muted">No messages yet</div>';
           }
-          
+
           return `
             <div class="order-message-item" data-order-id="${order.order_id}">
               <div class="d-flex justify-content-between align-items-start mb-2">
@@ -2297,11 +2768,11 @@ async function sendAdminChatMessage(orderId) {
 
   function openChatInModal(order) {
     currentChatOrderId = order.order_id;
-    
+
     // Hide order list and show chat section
     const messagesList = document.getElementById('adminMessagesList');
     messagesList.style.display = 'none';
-    
+
     // Create chat section
     const chatSection = document.createElement('div');
     chatSection.id = 'adminChatSection';
@@ -2331,9 +2802,9 @@ async function sendAdminChatMessage(orderId) {
         </button>
       </form>
     `;
-    
+
     messagesList.parentElement.appendChild(chatSection);
-    
+
     // Back button handler
     document.getElementById('backToOrdersList').addEventListener('click', () => {
       const section = document.getElementById('adminChatSection');
@@ -2345,16 +2816,16 @@ async function sendAdminChatMessage(orderId) {
         chatRefreshInterval = null;
       }
     });
-    
+
     // Form submit handler
     document.getElementById('adminFloatingChatForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       await sendFloatingChatMessage();
     });
-    
+
     // Load messages
     loadFloatingChatMessages();
-    
+
     // Start auto-refresh
     if (chatRefreshInterval) clearInterval(chatRefreshInterval);
     chatRefreshInterval = setInterval(loadFloatingChatMessages, 10000);
@@ -2390,7 +2861,7 @@ async function sendAdminChatMessage(orderId) {
             });
             const senderName = isAdmin ? 'You' : 'Customer';
             const avatarIcon = isAdmin ? '<i class="fas fa-user-shield"></i>' : '<i class="fas fa-user"></i>';
-            
+
             // Determine message status (for admin messages only)
             let statusHtml = '';
             if (isAdmin) {
@@ -2405,7 +2876,7 @@ async function sendAdminChatMessage(orderId) {
                 statusHtml = '<div class="chat-status status-sent"><i class="fas fa-check"></i></div>';
               }
             }
-            
+
             return `
               <div class="chat-message-wrapper ${isAdmin ? 'customer' : 'seller'}">
                 <div class="chat-avatar ${isAdmin ? 'customer' : 'seller'}">${avatarIcon}</div>
@@ -2436,12 +2907,12 @@ async function sendAdminChatMessage(orderId) {
     const input = document.getElementById('adminFloatingChatInput');
     const form = document.getElementById('adminFloatingChatForm');
     const message = input.value.trim();
-    
+
     if (!message) return;
 
     const submitBtn = form.querySelector('button[type="submit"]');
     const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
-    
+
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -2471,7 +2942,7 @@ async function sendAdminChatMessage(orderId) {
       const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/chat/send', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -2533,7 +3004,7 @@ async function sendAdminChatMessage(orderId) {
               hour: 'numeric',
               minute: '2-digit'
             });
-            
+
             return `
               <div class="mb-3 ${isAdmin ? 'text-end' : ''}">
                 <div class="d-inline-block ${isAdmin ? 'bg-pink text-white' : 'bg-white'} rounded px-3 py-2" style="max-width: 80%;">
@@ -2558,17 +3029,17 @@ async function sendAdminChatMessage(orderId) {
   if (conversationForm) {
     conversationForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       if (!currentChatOrderId) return;
 
       const input = document.getElementById('adminChatConversationInput');
       const message = input.value.trim();
-      
+
       if (!message) return;
 
       const submitBtn = conversationForm.querySelector('button[type="submit"]');
       const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
-      
+
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -2578,7 +3049,7 @@ async function sendAdminChatMessage(orderId) {
         const token = localStorage.getItem('adminToken');
         const response = await fetch('/api/chat/send', {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
@@ -2616,11 +3087,11 @@ async function sendAdminChatMessage(orderId) {
         chatRefreshInterval = null;
       }
       currentChatOrderId = null;
-      
+
       // Clean up chat section if exists
       const chatSection = document.getElementById('adminChatSection');
       if (chatSection) chatSection.remove();
-      
+
       // Show orders list
       const messagesList = document.getElementById('adminMessagesList');
       if (messagesList) messagesList.style.display = 'block';

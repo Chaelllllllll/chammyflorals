@@ -770,7 +770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
           const inquiryEl = document.getElementById('inquiryModal');
           if (!inquiryEl) return;
-          const inquiryModal = new bootstrap.Modal(inquiryEl);
+          const inquiryModal = bootstrap.Modal.getOrCreateInstance(inquiryEl);
 
           // hide the product price modal first so it doesn't remain on top of the inquiry modal
           try { const current = bootstrap.Modal.getInstance(modalEl); if (current) current.hide(); } catch (e) {}

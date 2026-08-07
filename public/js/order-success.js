@@ -1,3 +1,14 @@
+// Helper function to escape HTML
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // small currency formatter used by the receipt canvas
 function formatPHP(n) {
   try {
@@ -102,7 +113,7 @@ function formatColor(c) {
           }
 
           itemsHtml += `
-            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mb-2">
+            <div class="d-flex justify-content-between align-items-center os-item-row">
               <div class="d-flex align-items-center">
                 <span class="badge bg-pink text-white me-2">${idx + 1}</span>
                 <span class="fw-semibold">${itemName}</span>
@@ -134,7 +145,7 @@ function formatColor(c) {
         }
 
         itemsHtml = `
-          <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded mb-2">
+          <div class="d-flex justify-content-between align-items-center os-item-row">
             <div class="d-flex align-items-center">
               <span class="badge bg-pink text-white me-2">1</span>
               <span class="fw-semibold">${itemName}</span>
@@ -148,11 +159,38 @@ function formatColor(c) {
       itemsListEl.innerHTML = itemsHtml;
     }
 
+    // Display addons if present
+    const addonsSection = document.getElementById('os-addons-section');
+    const addonsListEl = document.getElementById('os-addons-list');
+    if (addonsSection && addonsListEl) {
+      const getAddonName = (addon) => {
+        if (!addon) return '';
+        let name = typeof addon === 'object' ? (addon.name || addon.label || '') : String(addon);
+        name = name.replace(/\s*-\s*₱\s?\d+(?:\.\d+)?\s*$/, '');
+        return name.trim().toLowerCase() === 'on' ? '' : name;
+      };
+      const validAddons = (data.addons || []).map(getAddonName).filter(Boolean);
+      if (validAddons.length) {
+        addonsSection.style.display = '';
+        addonsListEl.innerHTML = validAddons.map(addon => `<span class="badge bg-light text-dark px-2.5 py-1.5 text-xs font-bold rounded-lg border border-slate-200">${escapeHtml(addon)}</span>`).join('');
+      } else {
+        addonsSection.style.display = 'none';
+      }
+    }
+
     // Set total quantity
     setText('os-total-quantity', totalQuantity);
 
     // Set total amount
     setText('os-total', (typeof data.total_fee !== 'undefined' && data.total_fee !== null) ? formatPHP(data.total_fee).replace(/^[^0-9-]+/, '') : '-');
+
+    // Show customization fee line when the order has one (flat one-time fee)
+    const customizationFee = Number(data.customization_fee);
+    if (customizationFee > 0) {
+      const feeRow = document.getElementById('os-customization-fee-row');
+      if (feeRow) feeRow.style.display = '';
+      setText('os-customization-fee', formatPHP(customizationFee).replace(/^[^0-9-]+/, ''));
+    }
 
     // Set status with appropriate badge color
     const statusEl = document.getElementById('os-status');

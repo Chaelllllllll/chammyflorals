@@ -480,6 +480,21 @@
       `;
     }
 
+    // Delivery Details
+    if (order.delivery_address || order.preferred_meetup_place) {
+      html += `
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-bottom">
+            <h6 class="mb-0 text-pink fw-semibold"><i class="fas fa-map-marker-alt me-2"></i>Delivery / Meetup Details</h6>
+          </div>
+          <div class="card-body">
+            ${order.delivery_address ? `<p class="mb-2"><strong>Address:</strong> ${order.delivery_address}</p>` : ''}
+            ${order.preferred_meetup_place ? `<p class="mb-0"><strong>Preferred Meetup Place:</strong> ${order.preferred_meetup_place}</p>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     // Special Instructions
     if (order.special_instructions) {
       html += `
@@ -513,6 +528,8 @@
     document.getElementById('editName').value = order.name || '';
     document.getElementById('editEmail').value = order.email || '';
     document.getElementById('editFbLink').value = order.fb_link || '';
+    document.getElementById('editDeliveryAddress').value = order.delivery_address || '';
+    document.getElementById('editPreferredMeetupPlace').value = order.preferred_meetup_place || '';
     document.getElementById('editDeliveryDate').value = order.expected_delivery_date || '';
     document.getElementById('editStatus').value = order.status || 'Pending';
     document.getElementById('editInstructions').value = order.special_instructions || '';
@@ -1244,7 +1261,9 @@
       stems: stems,
       fillers: fillers,
       wrapping: wrapping,
-      addons: addons
+      addons: addons,
+      delivery_address: document.getElementById('editDeliveryAddress').value,
+      preferred_meetup_place: document.getElementById('editPreferredMeetupPlace').value
     };
 
     if (!orderId || !updatedData.name || !updatedData.email) {

@@ -363,11 +363,12 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
 
     // Compute total using products/pricing stored in the DB (pricing is an array of rows per product).
   let totalFee = 0;
+  let appliedCustomizationFee = 0;
   // helpers to collect matched categories for rush fee calculation
   let matchedCategories = [];
   let singleMatchedCategory = null;
     try {
-  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category,customization_fee,min_qty,max_qty');
       if (products && Array.isArray(products)) {
         // Helper to compute price for a single item
         // Normalize a code by removing non-alphanumeric chars and uppercasing
@@ -439,11 +440,54 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
             // reuse the outer `matchedCategories` (do not redeclare) so it is available
             // later when applying rush fees
             matchedCategories = [];
+            const quantityErrors = [];
+            const productQuantities = {};
+            let customizationFeeApplied = false;
+
             for (const it of req.body.items) {
               if (!it || !it.flower_type) continue;
               const info = computeFor(it.flower_type, it.quantity || 1);
               totalFee += info.itemTotal || 0;
               if (info.matchedCategory) matchedCategories.push({ category: info.matchedCategory, qty: parseInt(it.quantity) || 1 });
+              const matchedProd = info.matchedProduct ? products.find(p => p.name === info.matchedProduct) : null;
+              
+              if (matchedProd) {
+                const prodId = matchedProd.id;
+                if (!productQuantities[prodId]) {
+                  productQuantities[prodId] = {
+                    product: matchedProd,
+                    totalQty: 0
+                  };
+                }
+                productQuantities[prodId].totalQty += parseInt(it.quantity) || 0;
+              }
+              
+              // Customization fee is a FLAT one-time charge for the whole order:
+              // applied once (not per added item, not per quantity) when a matched
+              // product has a customization fee. The server decides based on the
+              // product record (authoritative), not only on the client's flag.
+              if (!customizationFeeApplied && matchedProd && matchedProd.customization_fee) {
+                appliedCustomizationFee = parseFloat(matchedProd.customization_fee) || 0;
+                totalFee += appliedCustomizationFee;
+                customizationFeeApplied = true;
+              }
+            }
+
+            // Enforce min/max quantity based on total sum per product
+            for (const prodId of Object.keys(productQuantities)) {
+              const { product, totalQty } = productQuantities[prodId];
+              const minQ = parseInt(product.min_qty) || 1;
+              const maxQ = product.max_qty != null && product.max_qty !== '' ? parseInt(product.max_qty) : null;
+              
+              if (totalQty < minQ) {
+                quantityErrors.push(`"${product.name}" requires a total of at least ${minQ} item(s) — you selected ${totalQty}.`);
+              } else if (maxQ !== null && totalQty > maxQ) {
+                quantityErrors.push(`"${product.name}" allows a total of at most ${maxQ} item(s) — you selected ${totalQty}.`);
+              }
+            }
+
+            if (quantityErrors.length) {
+              return res.status(400).json({ error: quantityErrors[0], quantityErrors });
             }
           // Debug: show matched categories from products// if rush, we'll add category-specific rush fees below using matchedCategories
         } else {
@@ -506,24 +550,39 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
           }
           // record matched category for single-item orders
           singleMatchedCategory = found && found.product ? found.product.category : null;
+          // Enforce per-product min/max quantity (e.g. minimum stems for a bouquet)
+          if (found && found.product) {
+            const minQ = parseInt(found.product.min_qty) || 1;
+            const maxQ = found.product.max_qty != null && found.product.max_qty !== '' ? parseInt(found.product.max_qty) : null;
+            if (qty < minQ) {
+              return res.status(400).json({ error: `${String(flower_type).trim()} requires at least ${minQ} item(s) — you selected ${qty}.` });
+            }
+            if (maxQ !== null && qty > maxQ) {
+              return res.status(400).json({ error: `${String(flower_type).trim()} allows at most ${maxQ} item(s) — you selected ${qty}.` });
+            }
+          }
+          // Customization fee is a FLAT one-time charge for the whole order
+          if (found && found.product && found.product.customization_fee) {
+            appliedCustomizationFee = parseFloat(found.product.customization_fee) || 0;
+            totalFee += appliedCustomizationFee;
+          }
         }
 
         // parse addon prices if present (attempt to extract numeric ₱ value from addon label)
-        // Multiply addon prices by total quantity
+        // Add addon prices as a flat fee for the order
         if (addons && Array.isArray(addons)) {
-          const totalQuantity = parseInt(quantity) || 1;
           for (const a of addons) {
             if (!a) continue;
             const str = String(a);
             const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
             if (m && m[1]) {
               const num = Number(m[1].replace(/,/g, ''));
-              if (!Number.isNaN(num)) totalFee += num * totalQuantity;
+              if (!Number.isNaN(num)) totalFee += num;
             } else {
               const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
               if (mm && mm[1]) {
                 const num = Number(mm[1].replace(/,/g, ''));
-                if (!Number.isNaN(num)) totalFee += num * totalQuantity;
+                if (!Number.isNaN(num)) totalFee += num;
               }
             }
           }
@@ -587,15 +646,21 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       rush,
       expected_delivery_date: req.body.expected_delivery_date || null,
       total_fee: totalFee,
+      customization_fee: appliedCustomizationFee || 0,
+      delivery_address: req.body.delivery_address ? sanitizeString(req.body.delivery_address, 1000) : null,
+      preferred_meetup_place: req.body.preferred_meetup_place ? sanitizeString(req.body.preferred_meetup_place, 1000) : null,
     };
     
     // Add voucher information if provided
     if (req.body.voucher_code) {
       orderData.voucher_code = String(req.body.voucher_code).trim().toUpperCase();
       orderData.voucher_discount = parseFloat(req.body.voucher_discount) || 0;
-      orderData.original_total = parseFloat(req.body.original_total) || totalFee;
+      // Use the server-computed total (which already includes the flat
+      // customization fee) as the authoritative pre-discount base, so the fee
+      // can never be dropped by a stale client-side original_total.
+      orderData.original_total = totalFee;
       // Adjust total_fee to include discount
-      orderData.total_fee = orderData.original_total - orderData.voucher_discount;
+      orderData.total_fee = Math.max(0, totalFee - orderData.voucher_discount);
     }
     
     // Set status to Delivered for manual orders (from admin dashboard)
@@ -647,6 +712,11 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
         const flower_type = String(it.flower_type || it.flower || '').trim();
         const quantity = parseInt(it.quantity || it.qty || 1) || 1;
         const item = { flower_type, quantity };
+        // Preserve the customized flag so recompute-total and admin views
+        // can still apply/show the flat customization fee.
+        if (it.customized === true || it.customized === 'true') {
+          item.customized = true;
+        }
         if (it.color && (it.color.value || it.color.name)) {
           // sanitize color fields
           const colorName = String(it.color.name || '').replace(/<[^>]*>?/gm, '').trim();
@@ -775,6 +845,7 @@ router.get('/track/:orderId', async (req, res) => {
       quantity: data.quantity,
       addons: data.addons,
       total_fee: data.total_fee == null ? 0 : data.total_fee,
+      customization_fee: data.customization_fee == null ? 0 : data.customization_fee,
       status: data.status,
       // Return only the stored created_at field (user requested: save just the date/time)
       created_at: data.created_at,
@@ -981,7 +1052,7 @@ router.get('/recompute-total/:orderId', async (req, res) => {
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
 
-  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category,customization_fee,min_qty,max_qty');
     if (!products) return res.status(500).json({ error: 'Failed to load products' });
 
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -1022,10 +1093,22 @@ router.get('/recompute-total/:orderId', async (req, res) => {
 
     const details = [];
     let recomputed = 0;
+    let customizationFeeApplied = false;
     const itemsWithCategory = [];
     if (Array.isArray(order.items) && order.items.length) {
       for (const it of order.items) {
         const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
+        // Customization fee is a FLAT one-time charge for the whole order:
+        // applied once (not per added item, not per quantity) when an item is customized.
+        if (!customizationFeeApplied && (it.customized === true || it.customized === 'true')) {
+          if (d.matchedProductName) {
+            const prod = products.find(p => p.name === d.matchedProductName);
+            if (prod && prod.customization_fee) {
+              recomputed += parseFloat(prod.customization_fee);
+              customizationFeeApplied = true;
+            }
+          }
+        }
         recomputed += d.itemTotal || 0;
         details.push(d);
         // Track category for rush fee calculation
@@ -1141,7 +1224,7 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
     const { data: order, error: orderErr } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
     if (orderErr || !order) return res.status(404).json({ error: 'Order not found' });
 
-  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category');
+  const { data: products } = await supabase.from('products').select('id,name,pricing,addons,category,min_qty,max_qty');
     if (!products) return res.status(500).json({ error: 'Failed to load products' });
 
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
@@ -1190,7 +1273,12 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
         const d = computeForDebug(it.flower_type || it.flower || '', it.quantity || it.qty || 1);
         recomputed += d.itemTotal || 0;
         details.push(d);
-        itemsArr.push({ flower_type: d.flower_type, quantity: d.qty, category: d.matchedProductCategory });
+        const savedItem = { flower_type: d.flower_type, quantity: d.qty, category: d.matchedProductCategory };
+        // Preserve the customized flag for flat customization fee consistency
+        if (it.customized === true || it.customized === 'true') {
+          savedItem.customized = true;
+        }
+        itemsArr.push(savedItem);
       }
     } else {
       const parts = String(order.flower_type || '').split(';').map(s => s.trim()).filter(Boolean);
@@ -1273,7 +1361,7 @@ router.get('/products', cacheMiddleware(600), async (req, res) => {
     console.log('Fetching products from Supabase...');
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths')
+      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths,customization_fee,min_qty,max_qty')
       .or('is_private.eq.false,is_private.is.null')
       .order('id', { ascending: true });
     
@@ -1299,7 +1387,7 @@ router.get('/products/:id', cacheMiddleware(600), async (req, res) => {
     
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths,is_private')
+      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths,is_private,customization_fee,min_qty,max_qty')
       .eq('id', id)
       .single();
     
@@ -1352,6 +1440,28 @@ router.get('/settings/rush-fee', cacheMiddleware(600), async (req, res) => {
   } catch (err) {
     console.error('Unexpected error fetching rush fee:', err);
     res.json({ rushFee: 50 }); // Return default on error
+  }
+});
+
+// GET public custom order status setting
+router.get('/settings/custom-order-status', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'custom_order_status')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching custom order status:', error);
+    }
+    
+    // Default to 'open' if not found
+    const status = data ? data.setting_value : 'open';
+    res.json({ status });
+  } catch (err) {
+    console.error('Unexpected error fetching custom order status:', err);
+    res.json({ status: 'open' }); // Default to open on error
   }
 });
 
@@ -2402,7 +2512,9 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
       expected_delivery_date: req.body.expected_delivery_date || null,
       rush: req.body.rush || 'No',
       total_fee: estimated_total || 0,
-      status: 'Pending'
+      status: 'Pending',
+      delivery_address: req.body.delivery_address ? sanitizeString(req.body.delivery_address, 1000) : null,
+      preferred_meetup_place: req.body.preferred_meetup_place ? sanitizeString(req.body.preferred_meetup_place, 1000) : null,
     };
     
     // Add voucher information if provided
@@ -2583,7 +2695,7 @@ router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
 router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { name, email, fb_link, status, total_fee, special_instructions, stems, fillers, wrapping, addons, expected_delivery_date, rush } = req.body;
+    const { name, email, fb_link, status, total_fee, special_instructions, stems, fillers, wrapping, addons, expected_delivery_date, rush, delivery_address, preferred_meetup_place } = req.body;
 
     console.log('Updating custom order:', orderId, 'with data:', req.body);
 
@@ -2613,6 +2725,8 @@ router.put('/admin/orders/custom/:orderId', adminAuth, async (req, res) => {
     if (fillers !== undefined) updateData.fillers = fillers;
     if (wrapping !== undefined) updateData.wrapping = wrapping;
     if (addons !== undefined) updateData.addons = addons;
+    if (delivery_address !== undefined) updateData.delivery_address = delivery_address;
+    if (preferred_meetup_place !== undefined) updateData.preferred_meetup_place = preferred_meetup_place;
 
     const { data, error } = await supabase
       .from('custom_orders')

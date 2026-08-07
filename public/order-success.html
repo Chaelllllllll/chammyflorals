@@ -8,6 +8,174 @@
   <link rel="shortcut icon" href="flowers/cherry-blossom.png" type="image/x-icon">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="/styles.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --primary-font: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+      --rose-primary: #f43f5e;
+      --rose-hover: #e11d48;
+      --rose-light: #ffe4e8;
+      --shadow-lg: 0 20px 40px -15px rgba(244, 63, 94, 0.08), 0 15px 30px -10px rgba(0, 0, 0, 0.04);
+      --shadow-hover: 0 30px 60px -15px rgba(244, 63, 94, 0.15), 0 20px 40px -10px rgba(0, 0, 0, 0.06);
+    }
+
+    body {
+      font-family: var(--primary-font) !important;
+      background-color: #fff9fc !important;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(255, 111, 155, 0.08) 0px, transparent 40%),
+        radial-gradient(at 50% 0%, rgba(244, 63, 94, 0.05) 0px, transparent 40%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.04) 0px, transparent 40%) !important;
+      background-attachment: fixed !important;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Glass Header styling */
+    .glass-header {
+      background: rgba(255, 255, 255, 0.65) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.015) !important;
+    }
+
+    /* Ambient card glow */
+    .receipt-card {
+      background: rgba(255, 255, 255, 0.75) !important;
+      backdrop-filter: blur(20px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.6) !important;
+      box-shadow: var(--shadow-lg) !important;
+      border-radius: 28px !important;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      transform: translateY(0);
+    }
+    
+    .receipt-card:hover {
+      transform: translateY(-4px) !important;
+      box-shadow: var(--shadow-hover) !important;
+      border-color: rgba(244, 63, 94, 0.15) !important;
+    }
+
+    /* Success check animation */
+    @keyframes scaleIn {
+      from { transform: scale(0); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+      100% { transform: translateY(0px); }
+    }
+    
+    .success-badge-container {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+      color: #ffffff;
+      box-shadow: 0 10px 25px rgba(244, 63, 94, 0.35);
+      animation: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both, float 4s ease-in-out infinite 0.5s;
+    }
+
+    /* Clean inputs & labels */
+    .info-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .alert-receipt {
+      background: linear-gradient(135deg, rgba(255, 241, 246, 0.8) 0%, rgba(255, 228, 232, 0.8) 100%) !important;
+      border: 1px dashed rgba(244, 63, 94, 0.2) !important;
+      border-radius: 18px !important;
+      padding: 1.25rem !important;
+    }
+
+    /* Button updates */
+    .btn-pink {
+      background: linear-gradient(135deg, var(--rose-primary) 0%, #e11d48 100%) !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 14px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 700 !important;
+      box-shadow: 0 8px 20px rgba(244, 63, 94, 0.2) !important;
+      transition: all 0.25s ease !important;
+    }
+    
+    .btn-pink:hover {
+      background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+      box-shadow: 0 10px 24px rgba(244, 63, 94, 0.3) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .btn-telegram {
+      background: #0088cc !important;
+      background: linear-gradient(135deg, #0088cc 0%, #0077b5 100%) !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 14px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 700 !important;
+      box-shadow: 0 8px 20px rgba(0, 136, 204, 0.2) !important;
+      transition: all 0.25s ease !important;
+    }
+
+    .btn-telegram:hover {
+      background: linear-gradient(135deg, #0077b5 0%, #006699 100%) !important;
+      box-shadow: 0 10px 24px rgba(0, 136, 204, 0.3) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .btn-outline-secondary {
+      border: 1.5px solid #cbd5e1 !important;
+      background: transparent !important;
+      color: #475569 !important;
+      border-radius: 14px !important;
+      padding: 0.72rem 1.5rem !important;
+      font-weight: 600 !important;
+      transition: all 0.25s ease !important;
+    }
+    
+    .btn-outline-secondary:hover {
+      background: rgba(100, 116, 139, 0.05) !important;
+      border-color: #94a3b8 !important;
+      color: #1e293b !important;
+    }
+
+    .os-item-row {
+      background: rgba(255, 255, 255, 0.45) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(244, 63, 94, 0.08) !important;
+      border-radius: 14px !important;
+      padding: 12px 16px !important;
+      margin-bottom: 8px !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.015) !important;
+      transition: all 0.3s ease !important;
+    }
+    .os-item-row:hover {
+      background: rgba(255, 255, 255, 0.75) !important;
+      border-color: rgba(244, 63, 94, 0.15) !important;
+      box-shadow: 0 8px 16px rgba(244, 63, 94, 0.03) !important;
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col font-sans overflow-x-hidden theme-cute">
 
@@ -44,58 +212,68 @@
     </div>
   </header>
 
-<main class="container py-5">
-  <div class="text-center mb-5">
-    <div
-      class="badge rounded-circle p-3 mb-3 bg-gradient-to-tr from-rose-500 to-rose-400 text-white shadow-lg shadow-rose-500/30"
-      style="display:inline-flex;align-items:center;justify-content:center;width:84px;height:84px;">
-      <i class="fa fa-check fa-2x" aria-hidden="true"></i>
-    </div>
-    <h1 class="fw-bold text-pink mb-2">Order Placed Successfully! 🎉</h1>
-    <p class="lead text-muted">Thank you for your order!</p>
-  </div>
+  <main class="container py-5 flex-grow-1 flex items-center justify-center">
+    <div class="w-100" style="max-width: 580px;">
+      <div class="text-center mb-4">
+        <div class="success-badge-container mb-3">
+          <i class="fa fa-check fa-2x" aria-hidden="true"></i>
+        </div>
+        <h2 class="font-display font-extrabold text-slate-900 mb-1">Order Placed Successfully! 🎉</h2>
+        <p class="text-slate-500 font-medium">Thank you for choosing Chammy Florals.</p>
+      </div>
 
-  <div id="orderContent" class="mt-4">
-    <div class="row justify-content-center">
-      <div class="col-12 col-md-7 col-lg-6">
-        <div class="card shadow-sm border-0" style="border-top:4px solid #ff77aa;">
-          <div class="card-body p-4">
+      <div id="orderContent" class="mt-2">
+        <div class="card receipt-card border-0">
+          <div class="card-body p-4 sm:p-5">
             <div class="text-center mb-4">
-              <h5 class="mb-3"><i class="fa fa-receipt text-pink me-2"></i>Order Details</h5>
-              <div class="alert" style="background:#fff7fb;border:1px solid #ffd7e8;">
-                <div class="small text-muted mb-1">Order ID</div>
-                <div class="fw-bold fs-4 text-pink" id="os-order-id"></div>
+              <h5 class="font-display font-bold text-slate-800 mb-3">
+                <i class="fa-solid fa-receipt text-rose-500 me-2"></i>Order Details
+              </h5>
+              <div class="alert alert-receipt">
+                <div class="info-label">Order ID</div>
+                <div class="font-display font-extrabold text-rose-600" style="font-size: 1.65rem; letter-spacing: -0.5px;" id="os-order-id"></div>
               </div>
             </div>
 
             <div class="mb-4">
-              <div class="small text-muted mb-2 fw-semibold">Items</div>
+              <div class="info-label mb-2">Bouquet Details</div>
               <div id="os-items-list" class="mb-3"></div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="mb-4" id="os-addons-section" style="display:none;">
+              <div class="info-label mb-2">Selected Add-ons</div>
+              <div id="os-addons-list" class="d-flex flex-wrap gap-1.5"></div>
+            </div>
+
+            <div class="row g-3 border-t border-slate-100 pt-3 mb-4">
               <div class="col-6">
-                <div class="small text-muted">Quantity</div>
-                <div class="fw-semibold" id="os-total-quantity"></div>
+                <div class="info-label">Quantity</div>
+                <div class="info-value text-slate-800 font-bold" id="os-total-quantity"></div>
               </div>
               <div class="col-6">
-                <div class="small text-muted">Status</div>
-                <span class="badge bg-warning text-dark" id="os-status"></span>
+                <div class="info-label">Status</div>
+                <div>
+                  <span class="badge bg-warning text-dark font-bold rounded-lg px-2.5 py-1.5" id="os-status"></span>
+                </div>
               </div>
-              <div class="col-12">
-                <div class="small text-muted">Total Amount</div>
-                <div class="fw-bold text-pink fs-3">₱<span id="os-total"></span></div>
+              <div class="col-12" id="os-customization-fee-row" style="display:none;">
+                <div class="info-label">Customization Fee</div>
+                <div class="info-value text-rose-500 font-bold">₱<span id="os-customization-fee"></span></div>
+              </div>
+              <div class="col-12 pt-3 border-t border-slate-150 flex justify-between items-center">
+                <span class="font-bold text-slate-800 text-base">Total Amount:</span>
+                <span class="font-display font-black text-rose-600" style="font-size: 1.85rem;">₱<span id="os-total"></span></span>
               </div>
             </div>
 
-            <div class="d-grid gap-2">
-              <a id="tg-track-btn" href="#" target="_blank" class="btn btn-info btn-lg text-white" style="background: #0088cc; border: none;">
+            <div class="d-grid gap-3">
+              <a id="tg-track-btn" href="#" target="_blank" class="btn btn-telegram text-center">
                 <i class="fa-brands fa-telegram me-2"></i>Track your order using our Telegram Bot
               </a>
-              <a href="/dashboard.html" class="btn btn-pink btn-lg">
+              <a href="/dashboard.html" class="btn btn-pink text-center">
                 <i class="fa fa-tachometer-alt me-2"></i>Go to Dashboard
               </a>
-              <a href="/" class="btn btn-outline-secondary">
+              <a href="/" class="btn btn-outline-secondary text-center">
                 <i class="fa fa-shopping-bag me-2"></i>Continue Shopping
               </a>
             </div>
@@ -103,27 +281,26 @@
         </div>
       </div>
     </div>
-  </div>
-</main>
+  </main>
 
-<footer class="text-center py-4">
-  <p>Follow us on:</p>
-  <p class="mb-0">
-    <a href="https://www.facebook.com/chammyfloralss/" target="_blank" class="text-decoration-none me-3">
-      <i class="fab fa-facebook-f" style="color: #3b5998; font-size: 24px;"></i>
-    </a>
-    <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="text-decoration-none me-3">
-      <i class="fa-brands fa-facebook-messenger" style="color: #79a4ff; font-size: 24px;"></i>
-    </a>
-    <a href="https://www.instagram.com/chammyflorals/" target="_blank" class="text-decoration-none me-3">
-      <i class="fa-brands fa-instagram" style="color: #ff6b57; font-size: 24px;"></i>
-    </a>
-  </p>
-  <p class="mt-3 mb-0">© 2025 Chammy Florals. All rights reserved.</p>
-</footer>
+  <footer class="text-center py-4 mt-auto">
+    <p class="text-slate-500 font-semibold mb-2">Follow us on:</p>
+    <p class="mb-0">
+      <a href="https://www.facebook.com/chammyfloralss/" target="_blank" class="text-decoration-none me-3">
+        <i class="fab fa-facebook-f" style="color: #3b5998; font-size: 24px;"></i>
+      </a>
+      <a href="https://www.messenger.com/t/847673415097754" target="_blank" class="text-decoration-none me-3">
+        <i class="fa-brands fa-facebook-messenger" style="color: #79a4ff; font-size: 24px;"></i>
+      </a>
+      <a href="https://www.instagram.com/chammyflorals/" target="_blank" class="text-decoration-none me-3">
+        <i class="fa-brands fa-instagram" style="color: #ff6b57; font-size: 24px;"></i>
+      </a>
+    </p>
+    <p class="mt-3 mb-0 text-slate-400 text-xs">© 2026 Chammy Florals. All rights reserved.</p>
+  </footer>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/js/alert.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/alert.js"></script>
   <script src="/js/order-success.js"></script>
   <link rel="stylesheet" href="/css/notify-prompt.css">
   

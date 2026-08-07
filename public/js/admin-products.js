@@ -623,6 +623,9 @@ async function onEdit(e) {
     renderGalleryPreview();
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
+    document.getElementById('productCustomizationFee').value = p.customization_fee != null ? p.customization_fee : '0.00';
+    document.getElementById('productMinQty').value = p.min_qty != null && p.min_qty !== '' ? p.min_qty : '1';
+    document.getElementById('productMaxQty').value = p.max_qty != null && p.max_qty !== '' ? p.max_qty : '';
     const isPrivateCheck = document.getElementById('productIsPrivate');
     if (isPrivateCheck) {
       isPrivateCheck.checked = p.is_private === true || p.is_private === 'true';
@@ -666,6 +669,11 @@ document.getElementById('addProductBtn').addEventListener('click', () => {
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('imagePreview').src = '';
   document.getElementById('productCategory').value = '';
+  document.getElementById('productCustomizationFee').value = '';
+  document.getElementById('productMinQty').value = '1';
+  document.getElementById('productMaxQty').value = '';
+  const minMaxQtyHint = document.getElementById('minMaxQtyHint');
+  if (minMaxQtyHint) minMaxQtyHint.style.display = 'none';
   const isPrivateCheck = document.getElementById('productIsPrivate');
   if (isPrivateCheck) {
     isPrivateCheck.checked = false;
@@ -693,9 +701,20 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
   const description = undefined;
   const category = document.getElementById('productCategory').value || null;
   const isPrivate = document.getElementById('productIsPrivate')?.checked || false;
+  const customizationFee = parseFloat(document.getElementById('productCustomizationFee').value) || 0;
+
+  // Min/max quantity validation
+  const rawMinQty = (document.getElementById('productMinQty')?.value || '').trim();
+  const rawMaxQty = (document.getElementById('productMaxQty')?.value || '').trim();
+  const minQty = rawMinQty === '' ? 1 : Math.max(1, parseInt(rawMinQty) || 1);
+  const maxQty = rawMaxQty === '' ? null : Math.max(1, parseInt(rawMaxQty) || 1);
+  if (maxQty !== null && maxQty < minQty) {
+    showToast('Max quantity must be greater than or equal to Min quantity', 'danger');
+    return;
+  }
 
   try {
-  let payload = { name, description, is_private: isPrivate };
+  let payload = { name, description, is_private: isPrivate, customization_fee: customizationFee, min_qty: minQty, max_qty: maxQty };
     if (category) payload.category = category;
     // include pricing and addons collected from the modal tables
   const pricing = readPricingFromForm();

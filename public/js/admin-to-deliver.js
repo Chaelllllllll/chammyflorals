@@ -316,11 +316,14 @@ async function viewOrderDetails(orderId) {
         const subtotal = price * qty;
         const img = getItemImage(it);
 
+        const isCustomized = it.customized === true || it.customized === 'true';
+        const badge = isCustomized ? '<span class="badge bg-pink text-white ms-2" style="font-size:0.7rem; font-weight: 500; vertical-align: middle;">Customized</span>' : '';
+
         itemsHtml += `
           <div class="order-item-row">
             ${img ? `<img src="${escapeHtml(img)}" alt="${name}" class="product-thumb me-3">` : `<div class="product-thumb placeholder me-3">*</div>`}
             <div style="flex:1">
-              <div class="fw-semibold">${name}</div>
+              <div class="fw-semibold">${name}${badge}</div>
               <div class="item-meta">${color ? color + ' • ' : ''}Qty: ${qty}${price ? ' • ₱' + price.toFixed(2) : ''}</div>
             </div>
             <div class="text-end fw-bold">${price ? '₱' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}</div>
@@ -629,14 +632,18 @@ async function loadProductsForManualOrder() {
       // Add change listener to populate colors and add-ons
       select.addEventListener('change', function(e) {
         const row = this.closest('.order-item');
-        if (row) populateColorSelectForRow(row);
+        if (row) {
+          populateColorSelectForRow(row);
+        }
         onManualFlowerTypeChange(e);
       });
       
       // Populate colors for initial item if already selected
       const row = select.closest('.order-item');
-      if (row && select.value) {
-        populateColorSelectForRow(row);
+      if (row) {
+        if (select.value) {
+          populateColorSelectForRow(row);
+        }
       }
     });
 
@@ -832,18 +839,20 @@ document.getElementById('manualAddItemBtn')?.addEventListener('click', function(
   const newItem = document.createElement('div');
   newItem.className = 'order-item mb-2';
   newItem.innerHTML = `
-    <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100">
-      <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${newIndex + 1}</span>
-      <select class="form-select form-select-sm item-flower" name="flower_type_${newIndex}" required style="flex: 3;">
-        <option value="">Flower Type</option>
-      </select>
-      <select class="form-select form-select-sm item-color" name="color_${newIndex}" aria-label="Color" style="flex: 2;">
-        <option value="">Color</option>
-      </select>
-      <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${newIndex}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
-      <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
-        <i class="fa fa-times"></i>
-      </button>
+    <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border w-100 flex-wrap">
+      <div class="d-flex align-items-center gap-2 w-100">
+        <span class="badge bg-pink text-white text-center" style="width: 65px; flex-shrink: 0;">Item ${newIndex + 1}</span>
+        <select class="form-select form-select-sm item-flower" name="flower_type_${newIndex}" required style="flex: 3;">
+          <option value="">Flower Type</option>
+        </select>
+        <select class="form-select form-select-sm item-color" name="color_${newIndex}" aria-label="Color" style="flex: 2;">
+          <option value="">Color</option>
+        </select>
+        <input type="number" class="form-control form-control-sm item-quantity text-center" name="quantity_${newIndex}" min="1" value="1" required style="width: 65px; flex-shrink: 0;" placeholder="Qty">
+        <button type="button" class="btn btn-sm btn-outline-danger remove-item" style="width: 36px; height: 31px; flex-shrink: 0; padding: 0;">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
     </div>
   `;
 
@@ -856,7 +865,9 @@ document.getElementById('manualAddItemBtn')?.addEventListener('click', function(
   // Add change listener to populate colors and add-ons
   newSelect.addEventListener('change', function(e) {
     const row = this.closest('.order-item');
-    if (row) populateColorSelectForRow(row);
+    if (row) {
+      populateColorSelectForRow(row);
+    }
     onManualFlowerTypeChange(e);
   });
 
@@ -914,6 +925,8 @@ document.getElementById('manualOrderForm')?.addEventListener('submit', async (e)
   data.message = ''; // No message field
   data.rush = 'No'; // No rush field
   data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
+  data.delivery_address = form.querySelector('input[name="delivery_address"]').value;
+  data.preferred_meetup_place = form.querySelector('input[name="preferred_meetup_place"]')?.value || null;
 
   // Collect items
   const items = [];
@@ -924,6 +937,7 @@ document.getElementById('manualOrderForm')?.addEventListener('submit', async (e)
     const colorEl = row.querySelector('.item-color');
     const colorValue = colorEl ? (colorEl.value || '') : '';
     const colorName = colorEl && colorEl.selectedOptions && colorEl.selectedOptions[0] ? (colorEl.selectedOptions[0].dataset.colorName || colorEl.selectedOptions[0].textContent) : '';
+
     if (!flower) return;
     const itemObj = { flower_type: flower, quantity: qty };
     if (colorValue) itemObj.color = { name: colorName, value: colorValue };
@@ -1019,3 +1033,232 @@ document.getElementById('manualOrderModal')?.addEventListener('shown.bs.modal', 
   }
   updateItemBadges();
 });
+
+// Admin Map Picker Modal Integration
+let adminPickerMapInstance = null;
+let adminPickerMarker = null;
+
+const mapPickerModalEl = document.getElementById('mapPickerModal');
+const modalMapCurrentAddress = document.getElementById('modalMapCurrentAddress');
+const confirmLocationBtn = document.getElementById('confirmLocationBtn');
+const deliveryAddressInput = document.getElementById('deliveryAddressInput');
+
+function checkManualMuntinlupa(addressText) {
+  const meetupSection = document.getElementById('manualMeetupPlaceSection');
+  const meetupInput = document.getElementById('manualMeetupPlaceInput');
+
+  if (!meetupSection) return;
+
+  if (!addressText) {
+    meetupSection.style.display = 'none';
+    if (meetupInput) meetupInput.value = '';
+    return;
+  }
+  
+  const isMunt = addressText.toLowerCase().includes('muntinlupa');
+  if (isMunt) {
+    meetupSection.style.display = 'block';
+  } else {
+    meetupSection.style.display = 'none';
+    if (meetupInput) meetupInput.value = '';
+  }
+}
+
+if (mapPickerModalEl) {
+  // Listen for modal show event (fired immediately when show is called, before transition starts)
+  mapPickerModalEl.addEventListener('show.bs.modal', (event) => {
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+  });
+
+  mapPickerModalEl.addEventListener('shown.bs.modal', () => {
+    if (deliveryAddressInput) {
+      deliveryAddressInput.blur(); // Blur focus to prevent focused descendant inside aria-hidden parent error
+    }
+    const initialVal = deliveryAddressInput ? deliveryAddressInput.value : '';
+    if (modalMapCurrentAddress) {
+      modalMapCurrentAddress.textContent = initialVal || 'No location pinned yet';
+    }
+    initAdminPickerMap(initialVal);
+  });
+
+  // Address inputs focus blur helper to comply with ARIA focus rules
+  if (deliveryAddressInput) {
+    deliveryAddressInput.addEventListener('focus', () => {
+      deliveryAddressInput.blur();
+    });
+  }
+
+  if (confirmLocationBtn) {
+    confirmLocationBtn.addEventListener('click', () => {
+      const address = modalMapCurrentAddress.textContent;
+      if (address && address !== 'No location pinned yet') {
+        if (deliveryAddressInput) {
+          deliveryAddressInput.value = address;
+          checkManualMuntinlupa(address);
+        }
+        const bsModal = bootstrap.Modal.getInstance(mapPickerModalEl);
+        if (bsModal) bsModal.hide();
+      } else {
+        alertWarning('Please pin a location on the map first.');
+      }
+    });
+  }
+}
+
+function initAdminPickerMap(initialVal) {
+  if (adminPickerMapInstance) {
+    adminPickerMapInstance.invalidateSize();
+    if (initialVal) {
+      geocodeSearchAdminPicker(initialVal);
+    }
+    return;
+  }
+
+  // Default centered on the Philippines (lat: 12.8797, lng: 121.7740, zoom: 6)
+  const defaultLat = 12.8797;
+  const defaultLng = 121.7740;
+  const defaultZoom = 6;
+
+  adminPickerMapInstance = L.map('modalMap', {
+    center: [defaultLat, defaultLng],
+    zoom: defaultZoom
+  });
+
+  L.tileLayer('https://tiles.openfreemap.org/styles/liberty/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://openfreemap.org/">OpenFreeMap</a> contributors'
+  }).addTo(adminPickerMapInstance);
+
+  adminPickerMapInstance.on('click', async (e) => {
+    placeAdminMarker(e.latlng.lat, e.latlng.lng);
+    await reverseGeocodeAdminPicker(e.latlng.lat, e.latlng.lng);
+  });
+
+  const searchBtn = document.getElementById('modalMapSearchBtn');
+  const searchInput = document.getElementById('modalMapSearchInput');
+
+  if (searchBtn && searchInput) {
+    searchBtn.onclick = async () => {
+      const q = searchInput.value.trim();
+      if (q) await geocodeSearchAdminPicker(q);
+    };
+    searchInput.onkeypress = async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = searchInput.value.trim();
+        if (q) await geocodeSearchAdminPicker(q);
+      }
+    };
+  }
+
+  if (initialVal) {
+    geocodeSearchAdminPicker(initialVal);
+  }
+
+  adminPickerMapInstance.invalidateSize();
+}
+
+function placeAdminMarker(lat, lng) {
+  const pinkMarkerIcon = L.divIcon({
+    html: `
+      <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));">
+        <path d="M16 0C7.16 0 0 7.16 0 16C0 28 16 42 16 42C16 42 32 28 32 16C32 7.16 24.84 0 16 0ZM16 22C12.68 22 10 19.32 10 16C10 12.68 12.68 10 16 10C19.32 10 22 12.68 22 16C22 19.32 19.32 22 16 22Z" fill="#ff6f9b"/>
+        <circle cx="16" cy="16" r="4" fill="white"/>
+      </svg>
+    `,
+    className: 'custom-pink-marker',
+    iconSize: [32, 42],
+    iconAnchor: [16, 42]
+  });
+
+  if (adminPickerMarker) {
+    adminPickerMarker.setLatLng([lat, lng]);
+  } else {
+    adminPickerMarker = L.marker([lat, lng], {
+      draggable: true,
+      icon: pinkMarkerIcon
+    }).addTo(adminPickerMapInstance);
+
+    adminPickerMarker.on('dragend', async () => {
+      const latlng = adminPickerMarker.getLatLng();
+      await reverseGeocodeAdminPicker(latlng.lat, latlng.lng);
+    });
+  }
+}
+
+async function reverseGeocodeAdminPicker(lat, lng) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+    if (response.ok) {
+      const data = await response.json();
+      const address = data.display_name || '';
+      const countryCode = data.address && data.address.country_code;
+      const country = data.address && data.address.country;
+      
+      // Validation: must be within the Philippines
+      const isPH = (countryCode && countryCode.toLowerCase() === 'ph') || 
+                   (country && country.toLowerCase().includes('philippines')) ||
+                   address.toLowerCase().includes('philippines');
+      
+      if (!isPH) {
+        alertWarning('Delivery address must be within the Philippines. Location declined.');
+        if (modalMapCurrentAddress) {
+          modalMapCurrentAddress.textContent = 'No location pinned yet';
+        }
+        if (adminPickerMarker) {
+          adminPickerMarker.remove();
+          adminPickerMarker = null;
+        }
+        return;
+      }
+
+      if (modalMapCurrentAddress) {
+        modalMapCurrentAddress.textContent = address;
+      }
+    }
+  } catch (err) {
+    console.error('Admin picker reverse geocoding error:', err);
+  }
+}
+
+async function geocodeSearchAdminPicker(query) {
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&addressdetails=1`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.length > 0) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        const address = data[0].display_name || '';
+        const countryCode = data[0].address && data[0].address.country_code;
+        const country = data[0].address && data[0].address.country;
+        
+        // Validation: must be within the Philippines
+        const isPH = (countryCode && countryCode.toLowerCase() === 'ph') || 
+                     (country && country.toLowerCase().includes('philippines')) ||
+                     address.toLowerCase().includes('philippines');
+        
+        if (!isPH) {
+          alertWarning('Delivery address must be within the Philippines. Location declined.');
+          return;
+        }
+
+        if (adminPickerMapInstance) {
+          adminPickerMapInstance.setView([lat, lng], 15);
+          setTimeout(() => {
+            try { adminPickerMapInstance.invalidateSize(); } catch (e) {}
+          }, 300);
+        }
+        placeAdminMarker(lat, lng);
+        if (modalMapCurrentAddress) {
+          modalMapCurrentAddress.textContent = address;
+        }
+      } else {
+        alertWarning('Location not found. Please try another search term.');
+      }
+    }
+  } catch (err) {
+    console.error('Admin picker geocoding search error:', err);
+  }
+}
