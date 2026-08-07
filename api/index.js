@@ -27,6 +27,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { ipKeyGenerator } = require('express-rate-limit');
 const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 
 // Try to load routes with error handling
 let passport, apiRoutes, adminRoutes, authRoutes, announcementsRoutes, vouchersRoutes;
@@ -222,6 +224,35 @@ const adminApiLimiter = rateLimit({
 
 // Apply public rate limiting
 app.use(publicLimiter);
+
+// Parse cookies for authentication checks
+app.use(cookieParser());
+
+// Protect admin pages from unauthorized direct access
+app.use('/admin', (req, res, next) => {
+  if (req.path === '/login.html') {
+    return next();
+  }
+
+  const token = req.cookies.adminToken;
+  if (token) {
+    try {
+      const JWT_SECRET = process.env.JWT_SECRET;
+      const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
+      const decoded = jwt.verify(token, JWT_SECRET_SAFE);
+      const adminId = decoded.id || decoded.adminId || decoded.user_id || decoded.userId;
+      if (adminId) {
+        return next();
+      }
+    } catch (err) {
+      // Invalid/expired token
+    }
+  }
+
+  // Not authenticated as admin: clear cookie and redirect
+  res.clearCookie('adminToken');
+  return res.redirect('/customer-login.html');
+});
 
 // Static files (optional)
 app.use(express.static('public'));

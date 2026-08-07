@@ -11,6 +11,8 @@ const adminRoutes = require('./routes/admin');
 const authRoutes = require('./routes/auth');
 const announcementsRoutes = require('./routes/announcements');
 const vouchersRoutes = require('./routes/vouchers');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -101,6 +103,35 @@ app.use((req, res, next) => {
 
   // Apply public rate limiter to everything else
   publicLimiter(req, res, next);
+});
+
+// Parse cookies for authentication checks
+app.use(cookieParser());
+
+// Protect admin pages from unauthorized direct access
+app.use('/admin', (req, res, next) => {
+  if (req.path === '/login.html') {
+    return next();
+  }
+
+  const token = req.cookies.adminToken;
+  if (token) {
+    try {
+      const JWT_SECRET = process.env.JWT_SECRET;
+      const JWT_SECRET_SAFE = JWT_SECRET || 'dev-jwt-secret-change-in-production';
+      const decoded = jwt.verify(token, JWT_SECRET_SAFE);
+      const adminId = decoded.id || decoded.adminId || decoded.user_id || decoded.userId;
+      if (adminId) {
+        return next();
+      }
+    } catch (err) {
+      // Invalid/expired token
+    }
+  }
+
+  // Not authenticated as admin: clear cookie and redirect
+  res.clearCookie('adminToken');
+  return res.redirect('/customer-login.html');
 });
 
 // Serve static files

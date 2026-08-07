@@ -1212,6 +1212,7 @@ router.get('/products', cacheMiddleware(600), async (req, res) => {
     const { data, error } = await supabase
       .from('products')
       .select('id,name,image_url,category,pricing,addons,colors,images,images_paths')
+      .or('is_private.eq.false,is_private.is.null')
       .order('id', { ascending: true });
     
     if (error) {
@@ -1236,15 +1237,16 @@ router.get('/products/:id', cacheMiddleware(600), async (req, res) => {
     
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths')
+      .select('id,name,image_url,category,pricing,addons,colors,images,images_paths,is_private')
       .eq('id', id)
       .single();
     
-    if (error) {
-      console.error('Supabase error fetching product:', error);
+    if (error || !data || data.is_private === true) {
+      console.error('Supabase error fetching product or product is private:', error);
       return res.status(404).json({ error: 'Product not found' });
     }
     
+    delete data.is_private;
     res.json(data);
   } catch (err) {
     console.error('Unexpected error fetching product:', err);

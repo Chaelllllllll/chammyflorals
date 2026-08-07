@@ -370,6 +370,11 @@ function applyProductFilters() {
         </div>
       </td>
       <td>
+        <span class="badge bg-${p.is_private ? 'secondary' : 'success'}">
+          ${p.is_private ? 'Private' : 'Public'}
+        </span>
+      </td>
+      <td>
         <div class="d-flex gap-2 justify-content-center">
           <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${p.id}" data-bs-toggle="tooltip" title="Edit">
             <svg class="icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 21l3-1 11-11a2 2 0 0 0-3-3L3 17v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -618,6 +623,10 @@ async function onEdit(e) {
     renderGalleryPreview();
   // description removed from modal
     document.getElementById('productCategory').value = p.category || '';
+    const isPrivateCheck = document.getElementById('productIsPrivate');
+    if (isPrivateCheck) {
+      isPrivateCheck.checked = p.is_private === true || p.is_private === 'true';
+    }
     // fill pricing and addons editors
   try { 
       console.log('Loading product colors:', p.colors);
@@ -657,6 +666,10 @@ document.getElementById('addProductBtn').addEventListener('click', () => {
   document.getElementById('imagePreview').style.display = 'none';
   document.getElementById('imagePreview').src = '';
   document.getElementById('productCategory').value = '';
+  const isPrivateCheck = document.getElementById('productIsPrivate');
+  if (isPrivateCheck) {
+    isPrivateCheck.checked = false;
+  }
   // clear pricing and addons editors
   try { fillPricingInForm([], [], []); } catch (e) { /* ignore */ }
   new bootstrap.Modal(document.getElementById('productModal')).show();
@@ -679,9 +692,10 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
   // description field removed; no longer collected
   const description = undefined;
   const category = document.getElementById('productCategory').value || null;
+  const isPrivate = document.getElementById('productIsPrivate')?.checked || false;
 
   try {
-  let payload = { name, description };
+  let payload = { name, description, is_private: isPrivate };
     if (category) payload.category = category;
     // include pricing and addons collected from the modal tables
   const pricing = readPricingFromForm();

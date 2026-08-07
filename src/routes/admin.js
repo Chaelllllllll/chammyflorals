@@ -324,6 +324,13 @@ router.post('/login', async (req, res) => {
     }
 
     // Success - return token
+    res.cookie('adminToken', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.json({
       token,
       user: { email: normEmail, name: adminRow?.name || 'Admin', role: 'admin' }
@@ -401,6 +408,13 @@ router.post('/login/enable-totp', async (req, res) => {
 
     const token = Buffer.from(`${normEmail}:${password}`).toString('base64');
     
+    res.cookie('adminToken', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
     res.json({
       success: true,
       token,
@@ -1008,7 +1022,7 @@ router.get('/products', auth, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('products')
-      .select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at')
+      .select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at')
       .order('created_at', { ascending: false });
     if (error) throw error;
     res.json(data || []);
@@ -1573,9 +1587,9 @@ router.delete('/reviews/:id', auth, async (req, res) => {
 // Create product
 router.post('/products', auth, async (req, res) => {
   try {
-    const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths } = req.body;
+    const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private } = req.body;
     if (!name) return res.status(400).json({ error: 'Name is required' });
-    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null, images: images || null, images_paths: images_paths || null };
+    const record = { name, image_url: image_url || null, image_path: image_path || null, category: category || null, pricing: pricing || null, addons: addons || null, colors: colors || null, images: images || null, images_paths: images_paths || null, is_private: is_private === true || is_private === 'true' };
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1594,7 +1608,7 @@ router.post('/products', auth, async (req, res) => {
   console.log('Admin: creating product with payload keys:', Object.keys(record));
   console.log('Admin: creating product record (preview):', JSON.stringify(record).slice(0,1000));
     try {
-    const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at');
+    const { data, error } = await supabase.from('products').insert([record]).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at');
       if (error) throw error;
       console.log('Admin: insert result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       
@@ -1707,7 +1721,7 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
 router.patch('/products/:id', auth, async (req, res) => {
   try {
   const { id } = req.params;
-  const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths } = req.body;
+  const { name, image_url, image_path, category, pricing, addons, colors, images, images_paths, is_private } = req.body;
     const updates = {};
     if (name !== undefined) updates.name = name;
     
@@ -1719,6 +1733,7 @@ router.patch('/products/:id', auth, async (req, res) => {
   if (colors !== undefined) updates.colors = colors;
     if (images !== undefined) updates.images = images;
     if (images_paths !== undefined) updates.images_paths = images_paths;
+    if (is_private !== undefined) updates.is_private = is_private === true || is_private === 'true';
 
     // Support legacy base64 payload under `image_data` if present in body
     const image_data = req.body.image_data || req.body.file || req.body.image;
@@ -1736,7 +1751,7 @@ router.patch('/products/:id', auth, async (req, res) => {
     try {
       console.log('Admin: updating product id=', id, 'updates keys:', Object.keys(updates));
       console.log('Admin: updates preview:', JSON.stringify(updates).slice(0,1000));
-      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,created_at');
+      const { data, error } = await supabase.from('products').update(updates).eq('id', id).select('id,name,image_url,image_path,category,pricing,addons,colors,images,images_paths,is_private,created_at');
       if (error) throw error;
       console.log('Admin: update result:', data && data[0] ? JSON.stringify(data[0]) : String(data));
       // Clear public product cache so storefront shows updated product immediately

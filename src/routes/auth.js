@@ -617,6 +617,13 @@ router.post('/detect-role', async (req, res) => {
         { expiresIn: '7d' }
       );
 
+      res.cookie('adminToken', adminToken, {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
+
       return res.json({
         role: 'admin',
         token: adminToken,

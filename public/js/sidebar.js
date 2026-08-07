@@ -95,3 +95,15 @@ document.addEventListener('DOMContentLoaded', initSidebar);
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
   initSidebar();
 }
+
+// Clear adminToken cookie and localStorage on logout button click
+document.addEventListener('DOMContentLoaded', () => {
+  const logoutBtn = document.getElementById('logoutButton');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('adminToken');
+      document.cookie = "adminToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      window.location.href = '/customer-login.html';
+    });
+  }
+});
