@@ -377,31 +377,59 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
           let itemTotal = 0;
           let found = null;
           const needle = normalizeCode(itemFlower);
+
+          // 1. Exact match pricing row
           for (const p of products) {
             if (p.pricing && Array.isArray(p.pricing)) {
               const row = p.pricing.find(r => {
                 const label = normalizeCode(r.label || r.set || '');
-                // match exact normalized code or allow contains
-                return label === needle || label.includes(needle) || needle.includes(label);
+                return label === needle;
               });
               if (row) { found = { product: p, row }; break; }
             }
-            const pname = normalizeCode(p.name || '');
-            if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
-              found = { product: p, row: null };
-              break;
+          }
+
+          // 2. Exact match product name
+          if (!found) {
+            for (const p of products) {
+              const pname = normalizeCode(p.name || '');
+              if (pname && pname === needle) {
+                found = { product: p, row: null };
+                break;
+              }
             }
           }
+
+          // 3. Substring match pricing row
+          if (!found) {
+            for (const p of products) {
+              if (p.pricing && Array.isArray(p.pricing)) {
+                const row = p.pricing.find(r => {
+                  const label = normalizeCode(r.label || r.set || '');
+                  return label.includes(needle) || needle.includes(label);
+                });
+                if (row) { found = { product: p, row }; break; }
+              }
+            }
+          }
+
+          // 4. Substring match product name
+          if (!found) {
+            for (const p of products) {
+              const pname = normalizeCode(p.name || '');
+              if (pname && (pname.includes(needle) || needle.includes(pname))) {
+                found = { product: p, row: null };
+                break;
+              }
+            }
+          }
+
           const qty = parseInt(itemQty) || 1;
           if (found && found.row && found.row.price != null) {
             itemTotal = Number(found.row.price) * qty;
           } else if (found && found.product && Array.isArray(found.product.pricing) && found.product.pricing.length) {
             const r = found.product.pricing.find(x => x.price != null);
             itemTotal = r ? Number(r.price) * qty : 0;
-          }
-          if (!itemTotal) {
-            // Debug: when no match, log the normalized needle and a sample of product labels to aid diagnosis
-            // Removed debug logging for production
           }
           return { itemTotal, matched: !!found, matchedProduct: found && found.product ? found.product.name : null, matchedRow: found && found.row ? (found.row.label || found.row.set) : null, matchedCategory: found && found.product ? found.product.category : null };
         };
@@ -421,20 +449,54 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
         } else {
           // single item fallback (backwards compatible)
           let found = null;
+          const ftUpper = String(flower_type || '').trim().toUpperCase();
+
+          // 1. Exact match pricing row
           for (const p of products) {
             if (Array.isArray(p.pricing)) {
               const row = p.pricing.find(r => {
-                const label = String(r.label || '').trim();
-                const set = String(r.set || '').trim();
-                return label === flower_type || set === flower_type || label.includes(flower_type) || set.includes(flower_type);
+                const label = String(r.label || '').trim().toUpperCase();
+                const set = String(r.set || '').trim().toUpperCase();
+                return label === ftUpper || set === ftUpper;
               });
               if (row) { found = { product: p, row }; break; }
             }
-            if (String(p.name || '').toUpperCase().includes(String(flower_type || '').toUpperCase())) {
-              found = { product: p, row: null };
-              break;
+          }
+
+          // 2. Exact match product name
+          if (!found) {
+            for (const p of products) {
+              if (String(p.name || '').trim().toUpperCase() === ftUpper) {
+                found = { product: p, row: null };
+                break;
+              }
             }
           }
+
+          // 3. Substring match pricing row
+          if (!found) {
+            for (const p of products) {
+              if (Array.isArray(p.pricing)) {
+                const row = p.pricing.find(r => {
+                  const label = String(r.label || '').trim().toUpperCase();
+                  const set = String(r.set || '').trim().toUpperCase();
+                  return label.includes(ftUpper) || ftUpper.includes(label) || set.includes(ftUpper) || ftUpper.includes(set);
+                });
+                if (row) { found = { product: p, row }; break; }
+              }
+            }
+          }
+
+          // 4. Substring match product name
+          if (!found) {
+            for (const p of products) {
+              if (String(p.name || '').toUpperCase().includes(ftUpper) || ftUpper.includes(String(p.name || '').toUpperCase())) {
+                found = { product: p, row: null };
+                break;
+              }
+            }
+          }
+
           const qty = parseInt(quantity) || 1;
           if (found && found.row && found.row.price != null) {
             totalFee = Number(found.row.price) * qty;

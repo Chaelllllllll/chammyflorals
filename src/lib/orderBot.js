@@ -87,6 +87,47 @@ async function findOrder(rawId) {
   return null;
 }
 
+async function registerAdminCommands(chatId) {
+  if (!chatId) return;
+  try {
+    // Register admin commands specifically for this admin chat ID
+    await fetch(`${API}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commands: [
+          { command: 'start', description: 'Start the tracking bot' },
+          { command: 'track', description: 'Track order status' },
+          { command: 'list', description: 'List all active orders' },
+          { command: 'status', description: 'Directly update an order status' }
+        ],
+        scope: { type: 'chat', chat_id: String(chatId) }
+      })
+    });
+  } catch (err) {
+    console.error('Failed to set admin commands menu:', err);
+  }
+}
+
+async function isAdmin(chatId) {
+  if (!chatId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('admins')
+      .select('id')
+      .eq('tgid', String(chatId))
+      .eq('status', 'Approved')
+      .maybeSingle();
+    if (!error && data && data.id) {
+      registerAdminCommands(chatId);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 function describeOrder(found) {
   const { table, data } = found;
   const isCustom = table === 'custom_orders';
@@ -186,11 +227,129 @@ Send your order number to track its status anytime:
 
 Or tap <i>Track Order</i> on your order confirmation and this chat opens automatically.`;
 
+async function sendActiveOrdersList(chatId, editMessageId = null) {
+  try {
+    const { data: std } = await supabase
+      .from('orders')
+      .select('order_id, status, flower_type, name')
+      .order('created_at', { ascending: false });
+
+    const { data: cust } = await supabase
+      .from('custom_orders')
+      .select('order_id, status, flower_type, name')
+      .order('created_at', { ascending: false });
+
+    const active = [];
+    const filterOut = ['delivered', 'completed', 'received', 'cancelled'];
+
+    if (std) {
+      std.forEach(o => {
+        const status = String(o.status || 'Pending').toLowerCase().trim();
+        if (!filterOut.includes(status)) {
+          active.push({ table: 'orders', ...o });
+        }
+      });
+    }
+
+    if (cust) {
+      cust.forEach(o => {
+        const status = String(o.status || 'Pending').toLowerCase().trim();
+        if (!filterOut.includes(status)) {
+          active.push({ table: 'custom_orders', ...o });
+        }
+      });
+    }
+
+    if (active.length === 0) {
+      const msg = "No active (undelivered) orders found.";
+      if (editMessageId) {
+        await editMessageText(chatId, editMessageId, msg);
+      } else {
+        await sendMessage(chatId, msg);
+      }
+      return;
+    }
+
+    const keyboard = [];
+    active.forEach(o => {
+      const label = o.flower_type || (o.table === 'custom_orders' ? 'Custom Bouquet' : 'Order');
+      const emoji = o.status === 'Processing' ? '' : (o.status === 'To Receive' ? '' : '');
+      keyboard.push([
+        {
+          text: `${emoji} #${o.order_id} [${o.name || 'No Name'}] - ${label} (${o.status || 'Pending'})`,
+          callback_data: `select_status:${o.table}:${o.order_id}`
+        }
+      ]);
+    });
+
+    const msg = ` <b>Active Orders (${active.length}):</b>\nSelect an order to change its status:`;
+    const opts = {
+      reply_markup: JSON.stringify({ inline_keyboard: keyboard })
+    };
+
+    if (editMessageId) {
+      await editMessageText(chatId, editMessageId, msg, opts);
+    } else {
+      await sendMessage(chatId, msg, opts);
+    }
+  } catch (err) {
+    console.error('sendActiveOrdersList error:', err);
+    if (chatId) {
+      await sendMessage(chatId, "Failed to retrieve active orders list.");
+    }
+  }
+}
+
 async function handleTextMessage(chatId, text) {
   const trimmed = String(text || '').trim();
 
   if (trimmed === '/start' || trimmed === '/help') {
     return sendMessage(chatId, WELCOME);
+  }
+
+  if (trimmed === '/list') {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      return sendMessage(chatId, "Unauthorized. You must be an approved administrator to use this command.");
+    }
+    return sendActiveOrdersList(chatId);
+  }
+
+  if (trimmed === '/status') {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      return sendMessage(chatId, "Unauthorized. You must be an approved administrator to use this command.");
+    }
+    return sendMessage(chatId, "Usage: <code>/status ORDERID</code>");
+  }
+
+  // /status <id> command
+  const statusMatch = trimmed.match(/^\/status\s+(.+)$/);
+  if (statusMatch) {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      return sendMessage(chatId, "Unauthorized. You must be an approved administrator to use this command.");
+    }
+    const orderId = statusMatch[1].trim();
+    const found = await findOrder(orderId);
+    if (!found) {
+      return sendMessage(chatId, `Could not find order <code>${escapeHtml(orderId)}</code>.`);
+    }
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'Pending', callback_data: `status:${found.table}:${found.data.order_id}:Pending` },
+          { text: 'Processing', callback_data: `status:${found.table}:${found.data.order_id}:Processing` }
+        ],
+        [
+          { text: 'To Receive', callback_data: `status:${found.table}:${found.data.order_id}:To Receive` },
+          { text: 'Delivered', callback_data: `status:${found.table}:${found.data.order_id}:Delivered` }
+        ]
+      ]
+    };
+    return sendMessage(chatId, `Select new status for Order <b>#${escapeHtml(found.data.order_id)}</b>:`, {
+      reply_markup: JSON.stringify(replyMarkup)
+    });
   }
 
   // Deep link: /start <payload> where payload is the order id
@@ -265,6 +424,125 @@ async function handleCallback(callback) {
     return;
   }
 
+  if (data.startsWith('status:')) {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      await answerCallback(callback.id, 'Unauthorized.');
+      return;
+    }
+    const parts = data.split(':');
+    const table = parts[1];
+    const newStatus = parts[parts.length - 1];
+    const orderId = parts.slice(2, parts.length - 1).join(':');
+
+    await answerCallback(callback.id, `Updating to ${newStatus}…`);
+    try {
+      // 1. Fetch previous status and details (including email) first
+      const { data: existing, error: fetchErr } = await supabase
+        .from(table)
+        .select('*')
+        .eq('order_id', orderId)
+        .single();
+
+      if (fetchErr || !existing) throw fetchErr || new Error('Order not found');
+
+      const previousStatus = existing.status || 'Pending';
+
+      // 2. Update status in the database
+      const { data: updatedRows, error } = await supabase
+        .from(table)
+        .update({ status: newStatus })
+        .eq('order_id', orderId)
+        .select();
+
+      if (error) throw error;
+
+      if (chatId && messageId) {
+        await editMessageText(chatId, messageId, `Order <b>#${escapeHtml(orderId)}</b> status updated to <b>${escapeHtml(newStatus)}</b>.`, {
+          reply_markup: JSON.stringify({
+            inline_keyboard: [[{ text: 'Back to Orders', callback_data: 'list_active_orders' }]]
+          })
+        });
+      }
+
+      // 3. Proactively notify the customer about status change
+      await notifyOrderStatusChange(orderId);
+
+      // 4. Send email notification (best-effort)
+      const updated = (updatedRows && updatedRows[0]) || null;
+      if (updated && previousStatus !== updated.status && updated.email) {
+        try {
+          const mailer = require('./mailer');
+          const emailTemplates = require('./email-templates');
+          if (String(updated.status || '').toLowerCase() === 'delivered') {
+            const mail = emailTemplates.deliveredTemplate(updated);
+            await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+            console.log('Delivered email sent successfully via Telegram bot status update');
+          } else {
+            const mail = emailTemplates.statusUpdateTemplate(updated, previousStatus);
+            await mailer.sendMail({ to: updated.email, subject: mail.subject, html: mail.html });
+            console.log('Status update email sent successfully via Telegram bot status update');
+          }
+        } catch (emailErr) {
+          console.error('Failed to send status update email from Telegram bot:', emailErr.message || emailErr);
+        }
+      }
+    } catch (err) {
+      console.error('Callback status update error:', err);
+      if (chatId) await sendMessage(chatId, `Failed to update status for order <code>${escapeHtml(orderId)}</code>.`);
+    }
+    return;
+  }
+
+  if (data.startsWith('select_status:')) {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      await answerCallback(callback.id, 'Unauthorized.');
+      return;
+    }
+    const parts = data.split(':');
+    const table = parts[1];
+    const orderId = parts.slice(2).join(':');
+
+    await answerCallback(callback.id, 'Loading status options…');
+
+    const replyMarkup = {
+      inline_keyboard: [
+        [
+          { text: 'Pending', callback_data: `status:${table}:${orderId}:Pending` },
+          { text: 'Processing', callback_data: `status:${table}:${orderId}:Processing` }
+        ],
+        [
+          { text: 'To Receive', callback_data: `status:${table}:${orderId}:To Receive` },
+          { text: 'Delivered', callback_data: `status:${table}:${orderId}:Delivered` }
+        ],
+        [
+          { text: 'Back to Orders', callback_data: 'list_active_orders' }
+        ]
+      ]
+    };
+
+    if (chatId && messageId) {
+      await editMessageText(chatId, messageId, `Select new status for Order <b>#${escapeHtml(orderId)}</b>:`, {
+        reply_markup: JSON.stringify(replyMarkup)
+      });
+    }
+    return;
+  }
+
+  if (data === 'list_active_orders') {
+    const userIsAdmin = await isAdmin(chatId);
+    if (!userIsAdmin) {
+      await answerCallback(callback.id, 'Unauthorized.');
+      return;
+    }
+    await answerCallback(callback.id, 'Loading list…');
+    if (chatId && messageId) {
+      await sendActiveOrdersList(chatId, messageId);
+    }
+    return;
+  }
+
   if (chatId) await answerCallback(callback.id, 'Unknown action');
 }
 
@@ -288,6 +566,23 @@ async function startOrderBot() {
   }
   polling = true;
   console.log('Order-tracking bot started (long-polling).');
+
+  // Set default commands for regular users
+  try {
+    await fetch(`${API}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commands: [
+          { command: 'start', description: 'Start the tracking bot' },
+          { command: 'track', description: 'Track your order status' }
+        ],
+        scope: { type: 'default' }
+      })
+    });
+  } catch (e) {
+    console.warn('Failed to register default commands menu:', e);
+  }
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
