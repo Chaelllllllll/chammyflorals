@@ -224,7 +224,7 @@ function renderOrdersPaged(list) {
           <div class="d-flex justify-content-end align-items-center" style="gap:.5rem;">
             <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
             <button class="btn btn-sm btn-success edit-order-button" data-order-id="${order.order_id}">Edit</button>
-            <button class="btn btn-sm btn-outline-pink receipt-button" data-order-id="${order.order_id}" title="Generate Receipt">
+            <button class="btn btn-sm btn-outline-pink receipt-button" data-order-id="${order.order_id}" title="Preview & Download Receipt">
               <i class="fa-solid fa-receipt"></i>
             </button>
           </div>
@@ -244,7 +244,7 @@ function renderOrdersPaged(list) {
     button.addEventListener('click', (e) => {
       const orderId = e.currentTarget.dataset.orderId;
       const order = list.find(o => o.order_id === orderId);
-      if (order) generateReceiptImage(order);
+      if (order) openReceiptPreview(order);
     });
   });
 
@@ -658,8 +658,17 @@ function viewDetails(orderId) {
             const getAddonName = (addon) => {
               if (!addon) return '';
               let name = typeof addon === 'object' ? (addon.name || addon.label || '') : String(addon);
-              name = name.replace(/\s*-\s*₱\s?\d+(?:\.\d+)?\s*$/, '');
-              return name.trim().toLowerCase() === 'on' ? '' : name;
+              name = String(name);
+              // keep a trailing " ×N" quantity while stripping the trailing
+              // " - ₱price" portion so badges read e.g. "Card ×2"
+              const qm = name.match(/[×x]\s*(\d+)\s*$/);
+              const qty = qm ? parseInt(qm[1]) : null;
+              name = name.replace(/\s*[×x]\s*\d+\s*$/, '')
+                         .replace(/\s*-\s*₱\s?[0-9,]+(?:\.\d+)?\s*$/, '')
+                         .trim();
+              if (name.toLowerCase() === 'on') return '';
+              if (qty && qty > 1) name = name + ' ×' + qty;
+              return name;
             };
             const validAddons = (order.addons || []).map(getAddonName).filter(Boolean);
             if (validAddons.length) {
@@ -694,7 +703,7 @@ function viewDetails(orderId) {
           <h6 class="font-bold text-sm text-slate-800 mb-0">Billing Summary</h6>
         </div>
         <button type="button" class="btn btn-sm btn-outline-pink px-2.5 py-1.5 text-xs font-bold generate-receipt-btn" data-order-id="${order.order_id}">
-          <i class="fa-solid fa-receipt me-1"></i>Generate Receipt
+          <i class="fa-solid fa-receipt me-1"></i>Preview Receipt
         </button>
       </div>
       <div class="space-y-2 text-sm text-slate-600">
@@ -784,7 +793,7 @@ function viewDetails(orderId) {
   const generateReceiptBtn = modalContent.querySelector('.generate-receipt-btn');
   if (generateReceiptBtn) {
     generateReceiptBtn.addEventListener('click', () => {
-      generateReceiptImage(order);
+      openReceiptPreview(order);
     });
   }
 
@@ -832,60 +841,97 @@ function viewDetails(orderId) {
   detailsModal.show();
 }
 
-// Generate a beautiful retail receipt image from an order and trigger download
-async function generateReceiptImage(order) {
-  // Load html2canvas dynamically if not already loaded
-  if (typeof html2canvas === 'undefined') {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-    document.head.appendChild(script);
-    await new Promise((resolve) => {
-      script.onload = resolve;
-    });
-  }
-
-  // Create absolute receipt element off-screen
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.zIndex = '-9999';
-
+// Build the receipt HTML markup for an order (shared by the on-screen preview
+// modal and the downloadable receipt image).
+async function buildReceiptHtml(order) {
   // Format dates and lists
   const dateStr = formatDateTime(order.created_at || order.createdAt || Date.now());
+  const money = (n) => '₱' + (Number(n) || 0).toFixed(2);
 
-  const itemsListHtml = (order.items || []).map(it => `
-    <tr style="border-bottom: 1px solid #f1f5f9;">
-      <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
-        ${escapeHtml(it.flower_type || it.flower || '')}
-        ${it.color && it.color.name ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">Color: ${escapeHtml(it.color.name)}</div>` : ''}
-      </td>
-      <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(it.quantity || it.qty || 1))}</td>
-      <td style="padding: 10px 0; text-align: right; color: #334155;">
-        ${it.customized === true || it.customized === 'true' ? '<span style="font-size: 9px; background: #ffe4e8; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Custom</span>' : '-'}
-      </td>
-    </tr>
-  `).join('');
-
-  const addonsHtml = (function() {
-    const getAddonName = (addon) => {
-      if (!addon) return '';
-      let name = typeof addon === 'object' ? (addon.name || addon.label || '') : String(addon);
-      name = name.replace(/\s*-\s*₱\s?\d+(?:\.\d+)?\s*$/, '');
-      return name.trim().toLowerCase() === 'on' ? '' : name;
-    };
-    const validAddons = (order.addons || []).map(getAddonName).filter(Boolean);
-    if (validAddons.length) {
-      return `
-        <div style="margin-bottom: 20px; font-size: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
-          <div style="font-weight: 700; color: #334155; margin-bottom: 6px; text-align: left;">Selected Add-ons:</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 4px; text-align: left;">
-            ${validAddons.map(addon => `<span style="background: #f8fafc; color: #475569; padding: 3px 8px; border-radius: 6px; border: 1px solid #e2e8f0; font-weight: 600; font-size: 10px;">${escapeHtml(addon)}</span>`).join('')}
-          </div>
-        </div>
-      `;
+  // Fetch authoritative per-item pricing from the server so the receipt can
+  // show a unit price and line total for every item. Falls back gracefully to
+  // totals-only if the request fails.
+  let recomputeDetails = [];
+  let rushFeeTotal = 0;
+  try {
+    const rc = await fetch(`/api/recompute-total/${encodeURIComponent(order.order_id)}`);
+    if (rc.ok) {
+      const rcData = await rc.json();
+      recomputeDetails = rcData.details || [];
+      rushFeeTotal = Number(rcData.rush_fee) || 0;
     }
-    return '';
+  } catch (e) { /* leave empty */ }
+
+  const hasItems = order.items && Array.isArray(order.items) && order.items.length;
+  let itemsSubtotal = 0;
+  const itemsListHtml = hasItems ? order.items.map((it, i) => {
+    const d = recomputeDetails[i] || {};
+    const qty = Number(it.quantity || it.qty || 1) || 1;
+    const line = Number(d.itemTotal) || 0;
+    const unit = line > 0 && qty ? (line / qty) : 0;
+    itemsSubtotal += line;
+    return `
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
+          ${escapeHtml(it.flower_type || it.flower || '')}
+          ${it.color && it.color.name ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">Color: ${escapeHtml(it.color.name)}</div>` : ''}
+          ${unit > 0 ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">${money(unit)} each</div>` : ''}
+        </td>
+        <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(qty))}</td>
+        <td style="padding: 10px 0; text-align: right; color: #334155; font-weight: 600;">${line > 0 ? money(line) : '-'}</td>
+        <td style="padding: 10px 0; text-align: right; color: #334155;">
+          ${it.customized === true || it.customized === 'true' ? '<span style="font-size: 9px; background: #ffe4e8; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Custom</span>' : '-'}
+        </td>
+      </tr>
+    `;
+  }).join('') : '';
+
+  // Legacy orders without a structured items array: total their parsed rows.
+  if (!hasItems) {
+    recomputeDetails.forEach(d => { itemsSubtotal += Number(d.itemTotal) || 0; });
+  }
+
+  let addonsSubtotal = 0;
+  const addonsHtml = (function() {
+    // Parse an add-on (string like "Card - ₱50 ×2" or object {name, price, quantity})
+    // into { name, unit, qty } so the receipt can show its price.
+    const parseAddon = (a) => {
+      if (a == null) return null;
+      let name = '';
+      let unit = 0;
+      let qty = 1;
+      if (typeof a === 'object') {
+        name = String(a.name || a.label || '');
+        unit = parseFloat(a.price) || 0;
+        qty = parseInt(a.quantity) || 1;
+      } else {
+        const str = String(a);
+        name = str.replace(/\s*-\s*₱\s?[0-9,]+(?:\.\d+)?(?:\s*[×x]\s*\d+)?\s*$/, '').trim();
+        const pm = str.match(/₱\s?([0-9,]+(?:\.[0-9]+)?)/);
+        if (pm) unit = parseFloat(pm[1].replace(/,/g, '')) || 0;
+        const qm = str.match(/[×x]\s*(\d+)\s*$/);
+        qty = qm ? (parseInt(qm[1]) || 1) : 1;
+      }
+      if (!name) return null;
+      return { name, unit, qty: Math.max(1, qty) };
+    };
+    const rows = (order.addons || []).map(parseAddon).filter(Boolean);
+    if (!rows.length) return '';
+    rows.forEach(r => { addonsSubtotal += r.unit * r.qty; });
+    return `
+      <div style="margin-bottom: 20px; font-size: 12px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+        <div style="font-weight: 700; color: #334155; margin-bottom: 6px; text-align: left;">Selected Add-ons:</div>
+        ${rows.map(r => `
+          <div style="display: flex; justify-content: space-between; padding: 3px 0; color: #475569;">
+            <span>
+              ${escapeHtml(r.name)}
+              ${r.qty > 1 ? ` ×${r.qty}` : ''}
+              ${r.unit > 0 && r.qty > 1 ? `<span style="color: #94a3b8; font-size: 10px;"> @ ${money(r.unit)} each</span>` : ''}
+            </span>
+            <span style="font-weight: 600; color: #334155;">${r.unit > 0 ? money(r.unit * r.qty) : ''}</span>
+          </div>`).join('')}
+      </div>
+    `;
   })();
 
   const discountHtml = order.voucher_code ? `
@@ -895,7 +941,7 @@ async function generateReceiptImage(order) {
     </div>
   ` : '';
 
-  container.innerHTML = `
+  return `
     <div id="receiptImageCapture" style="width: 450px; font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif; background: #ffffff; color: #1e293b; padding: 35px; box-sizing: border-box; border-radius: 20px; border: 1px solid #e2e8f0;">
       <!-- Shop Header -->
       <div style="text-align: center; border-bottom: 2px dashed #f1f5f9; padding-bottom: 20px; margin-bottom: 20px;">
@@ -933,8 +979,9 @@ async function generateReceiptImage(order) {
         <thead>
           <tr style="border-bottom: 1px solid #cbd5e1; text-align: left; color: #64748b;">
             <th style="padding: 8px 0; font-weight: 600; text-align: left;">Description</th>
-            <th style="padding: 8px 0; text-align: center; font-weight: 600; width: 60px;">Qty</th>
-            <th style="padding: 8px 0; text-align: right; font-weight: 600; width: 80px;">Custom</th>
+            <th style="padding: 8px 0; text-align: center; font-weight: 600; width: 44px;">Qty</th>
+            <th style="padding: 8px 0; text-align: right; font-weight: 600; width: 78px;">Amount</th>
+            <th style="padding: 8px 0; text-align: right; font-weight: 600; width: 60px;">Custom</th>
           </tr>
         </thead>
         <tbody>
@@ -944,6 +991,7 @@ async function generateReceiptImage(order) {
                 ${escapeHtml(order.flower_type || '')}
               </td>
               <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(order.quantity || 1))}</td>
+              <td style="padding: 10px 0; text-align: right; color: #334155; font-weight: 600;">${itemsSubtotal > 0 ? money(itemsSubtotal) : '-'}</td>
               <td style="padding: 10px 0; text-align: right; color: #334155;">-</td>
             </tr>
           `}
@@ -955,6 +1003,22 @@ async function generateReceiptImage(order) {
       
       <!-- Pricing Breakdowns -->
       <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 13px; text-align: left;">
+        ${itemsSubtotal > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #334155;">
+          <span>Items</span><span>${money(itemsSubtotal)}</span>
+        </div>` : ''}
+        ${addonsSubtotal > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #334155;">
+          <span>Add-ons</span><span>${money(addonsSubtotal)}</span>
+        </div>` : ''}
+        ${Number(order.customization_fee) > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #334155;">
+          <span>Customization Fee</span><span>${money(order.customization_fee)}</span>
+        </div>` : ''}
+        ${rushFeeTotal > 0 ? `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #334155;">
+          <span>Rush Fee</span><span>${money(rushFeeTotal)}</span>
+        </div>` : ''}
         ${discountHtml}
         <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; color: #f43f5e; margin-top: 8px; padding-top: 12px; border-top: 2px dashed #f1f5f9;">
           <span>Total Paid:</span>
@@ -969,11 +1033,33 @@ async function generateReceiptImage(order) {
     </div>
   `;
 
+}
+
+// Generate a beautiful retail receipt image from an order and trigger download
+async function generateReceiptImage(order) {
+  // Load html2canvas dynamically if not already loaded
+  if (typeof html2canvas === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    document.head.appendChild(script);
+    await new Promise((resolve) => {
+      script.onload = resolve;
+    });
+  }
+
+  // Create absolute receipt element off-screen
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.left = '-9999px';
+  container.style.top = '0';
+  container.style.zIndex = '-9999';
+
+  container.innerHTML = await buildReceiptHtml(order);
   document.body.appendChild(container);
 
   try {
     // Generate image from element using html2canvas
-    const element = document.getElementById('receiptImageCapture');
+    const element = container.querySelector('#receiptImageCapture');
     const canvas = await html2canvas(element, {
       scale: 2, // Retinal display high resolution
       backgroundColor: '#ffffff',
@@ -997,6 +1083,43 @@ async function generateReceiptImage(order) {
     }
   } finally {
     document.body.removeChild(container);
+  }
+}
+
+// Open a modal preview of the receipt before downloading it
+async function openReceiptPreview(order) {
+  const modalEl = document.getElementById('receiptPreviewModal');
+  const contentEl = document.getElementById('receiptPreviewContent');
+  // Fall back to a direct download if the preview modal isn't present (e.g. page not fully loaded)
+  if (!modalEl || !contentEl) return generateReceiptImage(order);
+  if (!order) return;
+
+  // Show a loading state while the receipt builds
+  contentEl.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>Preparing receipt preview...</div>';
+
+  // The Download button always saves the receipt for the order being previewed
+  const downloadBtn = document.getElementById('downloadReceiptBtn');
+  if (downloadBtn) {
+    downloadBtn.onclick = () => generateReceiptImage(order);
+  }
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+
+  // Guard against out-of-order async renders if the admin clicks quickly
+  window._receiptPreviewOrderId = order.order_id;
+  const orderId = order.order_id;
+  try {
+    const html = await buildReceiptHtml(order);
+    if (window._receiptPreviewOrderId !== orderId) return; // stale render
+    contentEl.innerHTML = html;
+    const body = modalEl.querySelector('.modal-body');
+    if (body) body.scrollTop = 0;
+  } catch (err) {
+    console.error('Error building receipt preview:', err);
+    if (window._receiptPreviewOrderId === orderId) {
+      contentEl.innerHTML = '<div class="text-center py-5 text-danger"><i class="fas fa-exclamation-circle me-2"></i>Failed to build the receipt preview.</div>';
+    }
   }
 }
 
@@ -1417,10 +1540,16 @@ function openOrderAddonsModal(order, editable = false) {
           // append price if present so the final string equals what the
           // customer-side checkbox value contained (e.g. "Card - ₱50").
           const price = (typeof a.price !== 'undefined' && a.price !== null) ? Number(a.price) : null;
+          let out;
           if (!Number.isNaN(price) && price !== null) {
-            return String(label) + ' - ₱' + Number(price).toLocaleString();
+            out = String(label) + ' - ₱' + Number(price).toLocaleString();
+          } else {
+            out = String(label);
           }
-          return String(label);
+          // carry quantity as a trailing " ×N" marker when present
+          const qty = parseInt(a.quantity) || 1;
+          if (qty > 1) out += ' ×' + qty;
+          return out;
         }
         // if object has a toString that isn't [object Object], use it
         const ts = a.toString && a.toString();
@@ -1450,13 +1579,42 @@ function openOrderAddonsModal(order, editable = false) {
     body.innerHTML = `<div class="p-3">No add-ons configured for the selected product(s).</div>`;
   } else {
     if (editable) {
-      // render checkboxes for each available addon (use normalized keys)
+      // An add-on string may carry a trailing " ×N" / " xN" quantity marker
+      // (e.g. "Card - ₱50 ×2"). Strip it when matching against the available
+      // list and read it back to prefill each quantity stepper.
+      const baseKey = (k) => String(k).replace(/\s*[×x]\s*\d+\s*$/, '').trim();
+      const qtyOf = (k) => {
+        const m = String(k).match(/[×x]\s*(\d+)\s*$/);
+        return m ? (parseInt(m[1]) || 1) : 1;
+      };
+      const selectedByBase = new Map();
+      selectedKeys.forEach(sk => {
+        const b = baseKey(sk);
+        if (b && !selectedByBase.has(b)) selectedByBase.set(b, qtyOf(sk));
+      });
+
+      // render each available addon with a checkbox + quantity stepper
       const html = availableMap.map(a => {
-        const checked = selectedKeys.includes(a.key) ? 'checked' : '';
-        return `<div class="form-check"><input class="form-check-input addon-choice" type="checkbox" value="${escapeHtml(a.key)}" ${checked}><label class="form-check-label">${escapeHtml(a.key)}</label></div>`;
+        const checked = selectedByBase.has(a.key) ? 'checked' : '';
+        const qty = selectedByBase.get(a.key) || 1;
+        return `
+          <div class="addon-row d-flex align-items-center gap-2 mb-2 flex-wrap">
+            <input class="form-check-input addon-choice mt-0" type="checkbox" value="${escapeHtml(a.key)}" ${checked}>
+            <label class="form-check-label flex-grow-1 mb-0">${escapeHtml(a.key)}</label>
+            <input type="number" class="form-control form-control-sm addon-qty text-center" style="width: 76px;" min="1" value="${qty}" ${checked ? '' : 'disabled'} aria-label="Quantity">
+          </div>`;
       }).join('');
       // place the checkboxes in the modal body; place Cancel/Save into the modal footer for consistent layout
-      body.innerHTML = `<div>${html}</div>`;
+      body.innerHTML = `<div class="addon-list">${html}</div>`;
+
+      // toggle each quantity stepper when its checkbox changes
+      body.querySelectorAll('.addon-choice').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const row = cb.closest('.addon-row');
+          const qtyInput = row ? row.querySelector('.addon-qty') : null;
+          if (qtyInput) qtyInput.disabled = !cb.checked;
+        });
+      });
       // update footer buttons (no Add Item here)
       const modalFooter = modalEl.querySelector('.modal-footer');
       if (modalFooter) {
@@ -1470,7 +1628,12 @@ function openOrderAddonsModal(order, editable = false) {
       const saveBtn = modalFooter ? modalFooter.querySelector('#saveOrderAddonsBtn') : null;
       if (saveBtn) {
         saveBtn.addEventListener('click', async () => {
-          const chosen = Array.from(body.querySelectorAll('.addon-choice:checked')).map(cb => cb.value);
+          const chosen = Array.from(body.querySelectorAll('.addon-choice:checked')).map(cb => {
+            const row = cb.closest('.addon-row');
+            const qtyInput = row ? row.querySelector('.addon-qty') : null;
+            const qty = qtyInput ? (parseInt(qtyInput.value) || 1) : 1;
+            return qty > 1 ? `${cb.value} ×${qty}` : cb.value;
+          });
           // copy back to edit form input if present
           const editAddonsInput = document.querySelector('#orderDetailsContent input[name="addons"]');
           if (editAddonsInput) editAddonsInput.value = chosen.join(', ');

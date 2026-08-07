@@ -97,6 +97,21 @@
     .table-hover tbody tr:hover {
       background-color: #fff6f9;
     }
+
+    /* Receipt preview modal */
+    /* The preview body is white and the receipt fills its width (up to its
+       natural 450px) so the receipt's white background always extends all the
+       way to the end of the receipt — no gray showing around or below it. */
+    #receiptPreviewContent {
+      overflow-x: auto;
+      background: #ffffff;
+    }
+    #receiptPreviewContent #receiptImageCapture {
+      width: 100%;
+      max-width: 450px;
+      margin: 0 auto;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
   </style>
 </head>
 <body class="admin-page">
@@ -634,6 +649,34 @@
   </div>
   </div>
   <!-- End Main Content -->
+  </div>
+
+  <!-- Receipt Preview Modal -->
+  <div class="modal fade" id="receiptPreviewModal" tabindex="-1" aria-labelledby="receiptPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width: 520px;">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <div class="d-flex align-items-center gap-2">
+            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+              <i class="fas fa-receipt text-pink"></i>
+            </div>
+            <h5 class="modal-title mb-0" id="receiptPreviewModalLabel">Receipt Preview</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4" id="receiptPreviewContent">
+          <!-- Receipt preview is rendered here -->
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>Close
+          </button>
+          <button type="button" class="btn btn-pink" id="downloadReceiptBtn">
+            <i class="fas fa-download me-2"></i>Download Receipt
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Admin Messages List Modal -->

@@ -203,6 +203,27 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
+  // --- Add-on quantity helpers ---
+
+  // Reads the quantity stepper paired with an addon checkbox (defaults to 1).
+  function getAddonQty(checkbox) {
+    try {
+      const item = checkbox.closest('.addon-item');
+      const qtyInput = item ? item.querySelector('.addon-qty') : null;
+      const qty = qtyInput ? parseInt(qtyInput.value) : 1;
+      return qty > 0 ? qty : 1;
+    } catch (e) { return 1; }
+  }
+
+  // Re-encodes the addon checkbox value so a quantity > 1 is carried as a
+  // trailing " ×N" marker (e.g. "Card - ₱50" -> "Card - ₱50 ×2").
+  function syncAddonValue(checkbox) {
+    if (!checkbox) return;
+    const qty = getAddonQty(checkbox);
+    const base = checkbox.dataset.baseValue || checkbox.value || '';
+    checkbox.value = qty > 1 ? `${base} ×${qty}` : base;
+  }
+
   async function onFlowerTypeChange(e) {
     const code = (e.target.value || '').trim();
     if (!code) {
@@ -259,19 +280,28 @@ document.addEventListener('DOMContentLoaded', () => {
   // preview shown via the dropdown labels (category optgroup + option text)
 
       // render addons (product.addons may be array of objects or strings)
+      // Each addon row includes a quantity stepper so the customer can order
+      // more than one of a given add-on. The quantity is encoded into the
+      // checkbox value as a trailing " ×N" marker (e.g. "Card - ₱50 ×2") so it
+      // survives submission and can be parsed server-side.
       if (addonsContainer) {
         if (product.addons && Array.isArray(product.addons) && product.addons.length) {
           const html = product.addons.map((a, idx) => {
             if (typeof a === 'string') {
-              const val = escapeHtml(a);
-              return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input addon-checkbox" id="addon_${idx}" data-name="${val}" data-price="0"><label class="form-check-label fw-semibold" for="addon_${idx}" style="cursor: pointer;">${val}</label></div>`;
+              const raw = String(a);
+              const val = escapeHtml(raw);
+              // Some add-on strings embed their price ("Card - ₱50"); extract it so
+              // the client-side total agrees with the server-side calculation.
+              const pm = raw.match(/₱\s?([0-9,]+(?:\.[0-9]+)?)/);
+              const strPrice = pm ? (parseFloat(pm[1].replace(/,/g, '')) || 0) : 0;
+              return `<div class="addon-item form-check mb-2 d-flex align-items-center gap-2 flex-wrap"><input type="checkbox" name="addons[]" value="${val}" class="form-check-input addon-checkbox" id="addon_${idx}" data-name="${val}" data-price="${strPrice}" data-base-value="${val}"><label class="form-check-label fw-semibold flex-grow-1" for="addon_${idx}" style="cursor: pointer;">${val}</label><input type="number" class="form-control form-control-sm addon-qty text-center" style="width: 76px;" min="1" value="1" disabled aria-label="Quantity for ${val}"></div>`;
             }
             const label = String(a.label || a.name || '').trim();
             const price = a.price != null ? Number(a.price) : 0;
             const priceStr = price > 0 ? `₱${price.toLocaleString()}` : '';
             const id = 'addon_' + idx;
             const valueStr = label + (priceStr ? ` - ${priceStr}` : '');
-            return `<div class="form-check mb-2"><input type="checkbox" name="addons[]" value="${escapeHtml(valueStr)}" class="form-check-input addon-checkbox" id="${id}" data-name="${escapeHtml(label)}" data-price="${price}"><label class="form-check-label" for="${id}" style="cursor: pointer;"><span class="fw-semibold">${escapeHtml(label)}</span>${priceStr ? ` <span class="badge bg-pink text-white ms-2">${priceStr}</span>` : ''}</label></div>`;
+            return `<div class="addon-item form-check mb-2 d-flex align-items-center gap-2 flex-wrap"><input type="checkbox" name="addons[]" value="${escapeHtml(valueStr)}" class="form-check-input addon-checkbox" id="${id}" data-name="${escapeHtml(label)}" data-price="${price}" data-base-value="${escapeHtml(valueStr)}"><label class="form-check-label flex-grow-1" for="${id}" style="cursor: pointer;"><span class="fw-semibold">${escapeHtml(label)}</span>${priceStr ? ` <span class="badge bg-pink text-white ms-2">${priceStr}</span>` : ''}</label><input type="number" class="form-control form-control-sm addon-qty text-center" style="width: 76px;" min="1" value="1" disabled aria-label="Quantity for ${escapeHtml(label)}"></div>`;
           }).join('');
           addonsContainer.innerHTML = html;
           try {
@@ -753,11 +783,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    // Add addon prices as a flat fee for the entire order
+    // Add addon prices as a flat fee for the entire order (price × quantity)
     const addonCheckboxes = document.querySelectorAll('.addon-checkbox:checked');
     addonCheckboxes.forEach(checkbox => {
       const price = parseFloat(checkbox.dataset.price) || 0;
-      total += price;
+      const qty = getAddonQty(checkbox);
+      total += price * qty;
     });
     
     // Add rush fee if rush is Yes
@@ -781,9 +812,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Make calculateOrderTotal globally accessible
   window.calculateOrderTotal = calculateOrderTotal;
   
-  // Listen for addon changes to recalculate total
+  // Listen for addon changes to recalculate total. Toggling a checkbox also
+  // enables/disables its quantity stepper, and changing the quantity re-encodes
+  // the checkbox value (" ×N") so the server can price it correctly.
   document.addEventListener('change', (e) => {
     if (e.target && e.target.classList && e.target.classList.contains('addon-checkbox')) {
+      const item = e.target.closest('.addon-item');
+      const qtyInput = item ? item.querySelector('.addon-qty') : null;
+      if (qtyInput) qtyInput.disabled = !e.target.checked;
+      syncAddonValue(e.target);
+      calculateOrderTotal();
+    }
+    if (e.target && e.target.classList && e.target.classList.contains('addon-qty')) {
+      const item = e.target.closest('.addon-item');
+      const cb = item ? item.querySelector('.addon-checkbox') : null;
+      if (cb) syncAddonValue(cb);
+      calculateOrderTotal();
+    }
+  });
+
+  // Keep totals live while typing in the addon quantity field.
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList && e.target.classList.contains('addon-qty')) {
+      const item = e.target.closest('.addon-item');
+      const cb = item ? item.querySelector('.addon-checkbox') : null;
+      if (cb) syncAddonValue(cb);
       calculateOrderTotal();
     }
   });
@@ -1003,12 +1056,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let addonsHtml = '';
     document.querySelectorAll('.addon-checkbox:checked').forEach(cb => {
       const price = parseFloat(cb.dataset.price) || 0;
-      addonsTotal += price;
+      const qty = getAddonQty(cb);
+      addonsTotal += price * qty;
       const label = cb.dataset.name || cb.value || '';
+      const lineLabel = qty > 1 ? `${label} ×${qty}` : label;
       addonsHtml += `
         <div class="d-flex justify-content-between align-items-center py-1">
-          <span class="text-sm text-slate-600">${escapeHtml(label)}</span>
-          <span class="text-sm fw-semibold text-slate-800">${price ? money(price) : ''}</span>
+          <span class="text-sm text-slate-600">${escapeHtml(lineLabel)}</span>
+          <span class="text-sm fw-semibold text-slate-800">${price ? money(price * qty) : ''}</span>
         </div>`;
     });
 
@@ -1181,6 +1236,8 @@ document.addEventListener('DOMContentLoaded', () => {
     data.message = form.querySelector('textarea[name="message"]').value;
     data.rush = form.querySelector('input[name="rush"]').value;
     data.expected_delivery_date = form.querySelector('input[name="expected_delivery_date"]').value;
+    // Re-encode addon values first so any quantity > 1 is included as " ×N".
+    form.querySelectorAll('.addon-checkbox').forEach(cb => { try { syncAddonValue(cb); } catch (e) {} });
     data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
     data.delivery_address = form.querySelector('input[name="delivery_address"]').value;
     data.preferred_meetup_place = form.querySelector('input[name="preferred_meetup_place"]')?.value || null;

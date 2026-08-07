@@ -204,6 +204,35 @@ const sanitizeString = (str, maxLength = 1000) => {
   return String(str).replace(/<[^>]*>/g, '').trim().substring(0, maxLength);
 };
 
+// Parse the numeric contribution of a single add-on to the order total.
+// Supports legacy strings ("Card - ₱50"), strings that carry a quantity
+// ("Card - ₱50 ×2" or "Card - ₱50 x2"), and objects ({ name, price, quantity })
+// as used by custom orders.
+function parseAddonAmount(a) {
+  if (a == null) return 0;
+  // object form: { name, price, quantity }
+  if (typeof a === 'object') {
+    const price = Number(a.price != null ? a.price : 0);
+    if (Number.isNaN(price) || price <= 0) return 0;
+    const qty = parseInt(a.quantity) || 1;
+    return price * Math.max(1, qty);
+  }
+  const str = String(a);
+  let price = 0;
+  const m = str.match(/₱\s?([0-9,]+(?:\.[0-9]+)?)/);
+  if (m && m[1]) {
+    price = Number(m[1].replace(/,/g, ''));
+  } else {
+    const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
+    if (mm && mm[1]) price = Number(mm[1].replace(/,/g, ''));
+  }
+  if (Number.isNaN(price) || price <= 0) return 0;
+  // trailing quantity marker: " ×N" or " xN"
+  const qm = str.match(/[×x]\s*(\d+)\s*$/);
+  const qty = qm ? (parseInt(qm[1]) || 1) : 1;
+  return price * Math.max(1, qty);
+}
+
 async function resolveCustomerContext(req) {
   const rawUserId = req.user?.id || req.user?.sub || req.user?.customerId || req.customer?.id || null;
   let customerEmail = req.user?.email || req.user?.user_metadata?.email || req.customer?.email || null;
@@ -569,22 +598,10 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
         }
 
         // parse addon prices if present (attempt to extract numeric ₱ value from addon label)
-        // Add addon prices as a flat fee for the order
+        // Add addon prices as a flat fee for the order (multiplied by any "×N" quantity)
         if (addons && Array.isArray(addons)) {
           for (const a of addons) {
-            if (!a) continue;
-            const str = String(a);
-            const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
-            if (m && m[1]) {
-              const num = Number(m[1].replace(/,/g, ''));
-              if (!Number.isNaN(num)) totalFee += num;
-            } else {
-              const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
-              if (mm && mm[1]) {
-                const num = Number(mm[1].replace(/,/g, ''));
-                if (!Number.isNaN(num)) totalFee += num;
-              }
-            }
+            totalFee += parseAddonAmount(a);
           }
         }
       }
@@ -641,7 +658,7 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       fb_link: sanitizedFbLink || stripTags(fb_link) || 'Not provided',
       flower_type,
       quantity: parseInt(quantity) || 1,
-      addons: Array.isArray(addons) ? addons.map(a => stripTags(a)) : [],
+      addons: Array.isArray(addons) ? addons.map(a => (a && typeof a === 'object' ? a : stripTags(a))) : [],
       message: sanitizedMessage || stripTags(message) || 'Not provided',
       rush,
       expected_delivery_date: req.body.expected_delivery_date || null,
@@ -1152,22 +1169,15 @@ router.get('/recompute-total/:orderId', async (req, res) => {
       }
     }
 
-    // parse addons as before
+    // parse addons as before (now quantity-aware via parseAddonAmount)
     if (order.addons && Array.isArray(order.addons)) {
       for (const a of order.addons) {
-        if (!a) continue;
-        const str = String(a);
-        const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
-        if (m && m[1]) {
-          recomputed += Number(m[1].replace(/,/g, ''));
-        } else {
-          const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
-          if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
-        }
+        recomputed += parseAddonAmount(a);
       }
     }
 
     // Apply rush fees if order is marked as rush
+    let rushFeeTotal = 0;
     try {
       const rushFlag = String(order.rush || '').toLowerCase() === 'yes' || String(order.rush || '').toLowerCase() === 'true' || order.rush === true;
       if (rushFlag && itemsWithCategory.length > 0) {
@@ -1186,7 +1196,11 @@ router.get('/recompute-total/:orderId', async (req, res) => {
         for (const it of itemsWithCategory) {
           const key = String(it.category || '').trim().toLowerCase();
           const fee = feeMap[key] || 0;
-          if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
+          if (fee) {
+            const add = fee * (parseInt(it.quantity) || 1);
+            rushFeeTotal += add;
+            recomputed += add;
+          }
         }
       }
     } catch (rfErr) {}
@@ -1204,6 +1218,7 @@ router.get('/recompute-total/:orderId', async (req, res) => {
       recomputed_total: finalTotal,
       voucher_applied: order.voucher_code ? true : false,
       voucher_discount: order.voucher_discount || 0,
+      rush_fee: rushFeeTotal,
       details 
     });
   } catch (err) {
@@ -1302,15 +1317,7 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
 
     if (order.addons && Array.isArray(order.addons)) {
       for (const a of order.addons) {
-        if (!a) continue;
-        const str = String(a);
-        const m = str.match(/₱\s?([0-9,]+(?:\.\d+)?)/);
-        if (m && m[1]) {
-          recomputed += Number(m[1].replace(/,/g, ''));
-        } else {
-          const mm = str.match(/(\d+(?:,\d+)?)(?:\s*PHP|\s*₱)?$/);
-          if (mm && mm[1]) recomputed += Number(mm[1].replace(/,/g, ''));
-        }
+        recomputed += parseAddonAmount(a);
       }
     }
 
