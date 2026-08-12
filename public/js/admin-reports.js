@@ -39,7 +39,7 @@ function renderTable(orders) {
   };
   tbody.innerHTML = orders.map(o => `
     <tr data-order-id="${o.order_id || ''}" data-order-type="${o.order_type || 'regular'}">
-      <td class="text-start">${o.order_id || '—'}${o.order_type === 'custom' ? ' <span class="badge bg-pink small">Custom</span>' : ''}</td>
+      <td class="text-start"><a href="#" class="copy-review-link text-decoration-none fw-bold" data-order-id="${o.order_id || ''}" title="Click to copy review link">${o.order_id || '—'}</a>${o.order_type === 'custom' ? ' <span class="badge bg-pink small">Custom</span>' : ''}</td>
       <td>${o.name || '—'}</td>
       <td>${o.created_at ? dtf(o.created_at) : '—'}</td>
       <td class="text-end">${formatPHP(o.total_fee)}</td>
@@ -61,6 +61,29 @@ function renderTable(orders) {
       confirmBtn.dataset.orderType = orderType;
       const confirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
       confirmModal.show();
+    });
+  });
+
+  document.querySelectorAll('.copy-review-link').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = e.currentTarget.dataset.orderId;
+      if (!id) return;
+      const reviewUrl = window.location.origin + '/reviews.html?orderId=' + encodeURIComponent(id);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(reviewUrl).then(() => {
+          if (typeof window.alertSuccess === 'function') {
+            window.alertSuccess('Review link copied to clipboard!');
+          } else {
+            alert('Review link copied to clipboard:\\n' + reviewUrl);
+          }
+        }).catch(err => {
+          console.error('Could not copy text: ', err);
+          alert('Review link:\\n' + reviewUrl);
+        });
+      } else {
+        alert('Review link:\\n' + reviewUrl);
+      }
     });
   });
 

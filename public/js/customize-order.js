@@ -775,26 +775,8 @@
     
     loadTelegramLink();
     
-    // Intercept modal show event to check authentication
+    // Intercept modal show event to load options
     modal.addEventListener('show.bs.modal', (event) => {
-      if (!isAuthenticated()) {
-        // Prevent modal from opening
-        event.preventDefault();
-        event.stopPropagation();
-        
-        // Show login required toast
-        if (typeof alertWarning === 'function') {
-          alertWarning('Please login first to customize your order');
-        }
-        
-        // Redirect to customer login page after a short delay
-        setTimeout(() => {
-          window.location.href = 'customer-login.html';
-        }, 1500);
-        
-        return;
-      }
-      
       loadCustomizationOptions();
       loadRushFeeSetting();
       prefillUserInfo();

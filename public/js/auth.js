@@ -98,14 +98,8 @@ async function logout() {
   window.location.href = 'customer-login.html';
 }
 
-// Shared function to handle order button clicks
 function handleOrderClick(e) {
   if (e) e.preventDefault();
-  const token = localStorage.getItem('auth_token');
-  if (!token) {
-    window.location.href = 'customer-login.html';
-    return;
-  }
   const modalEl = document.getElementById('inquiryModal');
   if (modalEl) {
     try {

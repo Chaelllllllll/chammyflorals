@@ -1495,6 +1495,65 @@ router.get('/reviews', cacheMiddleware(300), async (req, res) => {
       console.error('Supabase error fetching reviews:', error);
       return res.status(500).json({ error: 'Failed to fetch reviews', details: error.message });
     }
+
+    if (data && data.length > 0) {
+      const orderIds = [...new Set(data.map(r => r.order_id).filter(Boolean))];
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('order_id, flower_type, items')
+        .in('order_id', orderIds);
+      
+      const { data: products } = await supabase.from('products').select('name,pricing');
+      const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
+      
+      const resolveProductName = (itemFlower) => {
+        if (!products) return itemFlower;
+        const needle = normalizeCode(itemFlower);
+        let found = null;
+        for (const p of products) {
+          if (p.pricing && Array.isArray(p.pricing)) {
+            const row = p.pricing.find(r => {
+              const label = normalizeCode(r.label || r.set || '');
+              return label === needle || label.includes(needle) || needle.includes(label);
+            });
+            if (row) { found = p; break; }
+          }
+          const pname = normalizeCode(p.name || '');
+          if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+            found = p;
+            break;
+          }
+        }
+        if (found && normalizeCode(found.name) !== normalizeCode(itemFlower)) {
+          return `${found.name} - ${itemFlower}`;
+        }
+        return itemFlower;
+      };
+
+      const orderMap = {};
+      if (orders) {
+        orders.forEach(o => {
+          orderMap[o.order_id] = o;
+        });
+      }
+      
+      data.forEach(r => {
+        const order = orderMap[r.order_id];
+        if (order) {
+          if (Array.isArray(order.items) && order.items.length > 0) {
+            const names = order.items.map(it => resolveProductName(it.flower_type || it.flower));
+            r.item_name = [...new Set(names)].join(', ');
+          } else if (order.flower_type) {
+            const parts = String(order.flower_type).split(';').map(s => s.trim()).filter(Boolean);
+            const names = parts.map(p => {
+              const m = p.match(/(.+?)\s*[x×]\s*(\d+)$/i);
+              return resolveProductName(m ? m[1].trim() : p);
+            });
+            r.item_name = [...new Set(names)].join(', ');
+          }
+        }
+      });
+    }
     
     console.log(`Reviews fetched successfully: ${data?.length || 0} items`);
     res.json(data || []);

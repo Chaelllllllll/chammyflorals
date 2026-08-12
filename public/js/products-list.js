@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const productsSectionSubtitle = document.getElementById('productsSectionSubtitle');
   const clearCategoryBtn = document.getElementById('clearCategoryBtn');
   
-  if (!categoriesRow || !productsContainer) return;
+  if (!productsContainer) return;
 
   let allProducts = [];
   let filteredProducts = [];
@@ -127,37 +127,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const categories = Array.from(categoryMap.values());
 
-    if (!categories.length) {
-      categoriesRow.innerHTML = '<div class="col-12"><p class="text-center text-muted">No categories available.</p></div>';
-      return;
-    }
-
-    categoriesRow.innerHTML = categories.map(cat => `
-      <div class="col-lg-3 col-md-4 col-sm-6 col-6">
-        <div class="category-card" data-category="${escapeHtml(cat.name)}">
-          <div class="category-card-inner">
-            <div class="category-image">
-              <img src="${escapeHtml(cat.image)}" alt="${escapeHtml(cat.name)}" loading="lazy">
-              <div class="category-overlay">
-                <i class="fa fa-arrow-right"></i>
+    if (categoriesRow) {
+      if (!categories.length) {
+        categoriesRow.innerHTML = '<div class="col-12"><p class="text-center text-muted">No categories available.</p></div>';
+      } else {
+        categoriesRow.innerHTML = categories.map(cat => `
+          <div class="col-lg-3 col-md-4 col-sm-6 col-6">
+            <div class="category-card" data-category="${escapeHtml(cat.name)}">
+              <div class="category-card-inner">
+                <div class="category-image">
+                  <img src="${escapeHtml(cat.image)}" alt="${escapeHtml(cat.name)}" loading="lazy">
+                  <div class="category-overlay">
+                    <i class="fa fa-arrow-right"></i>
+                  </div>
+                </div>
+                <div class="category-info">
+                  <h6 class="category-name">${escapeHtml(cat.name)}</h6>
+                  <p class="category-count">${cat.count} ${cat.count === 1 ? 'item' : 'items'}</p>
+                </div>
               </div>
             </div>
-            <div class="category-info">
-              <h6 class="category-name">${escapeHtml(cat.name)}</h6>
-              <p class="category-count">${cat.count} ${cat.count === 1 ? 'item' : 'items'}</p>
-            </div>
           </div>
-        </div>
-      </div>
-    `).join('');
+        `).join('');
 
-    // Add click handlers to category cards
-    document.querySelectorAll('.category-card').forEach(card => {
-      card.addEventListener('click', function() {
-        const category = this.dataset.category;
-        selectCategory(category);
-      });
-    });
+        // Add click handlers to category cards
+        document.querySelectorAll('.category-card').forEach(card => {
+          card.addEventListener('click', function() {
+            const category = this.dataset.category;
+            selectCategory(category);
+          });
+        });
+      }
+    }
   }
 
   // Select a category and filter products
@@ -265,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Create a product card element
   function createProductCard(product) {
     const col = document.createElement('div');
-    col.className = 'col-lg-3 col-md-4 col-sm-6 col-6';
+    col.className = 'col-lg-3 col-md-4 col-sm-6 col-12';
     
     const imgSrc = product.image_url || 'flowers/bouquetwithglitter.jfif';
 
@@ -358,20 +359,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Wire search input/button
   const productsSearch = document.getElementById('productsSearch');
-  const productsSearchBtn = document.getElementById('productsSearchBtn');
   
   if (productsSearch) {
     productsSearch.addEventListener('input', (e) => {
       const q = e.target.value || '';
       // Update categories and products as user types
-      try { renderCategories(q); } catch (err) {}
-      filterBySearch(q);
-    });
-  }
-  
-  if (productsSearchBtn) {
-    productsSearchBtn.addEventListener('click', () => {
-      const q = productsSearch ? productsSearch.value : '';
       try { renderCategories(q); } catch (err) {}
       filterBySearch(q);
     });
@@ -697,6 +689,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <button type="button" id="productOrderBtn" class="btn-shadcn-primary flex-1 py-2.5 text-xs sm:text-sm font-semibold shadow-md">
           <i class="fa-solid fa-shopping-bag me-1.5"></i>Order Now
         </button>
+        <button type="button" id="productShareBtn" class="btn-shadcn-outline sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-50">
+          <i class="fa-solid fa-share-nodes"></i>
+        </button>
         <button type="button" class="btn-shadcn-outline sm:w-auto px-4 py-2.5 text-xs sm:text-sm font-semibold" data-bs-dismiss="modal">
           <i class="fa-solid fa-xmark me-1.5"></i>Close
         </button>
@@ -760,13 +755,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const orderBtn = modalEl.querySelector('#productOrderBtn');
     if (orderBtn) {
       orderBtn.addEventListener('click', async () => {
-        // Redirect to login if not authenticated
-        const isAuthenticated = typeof checkAuth === 'function' ? await checkAuth() : false;
-        if (!isAuthenticated) {
-          window.location.href = 'customer-login.html';
-          return;
-        }
-
         try {
           const inquiryEl = document.getElementById('inquiryModal');
           if (!inquiryEl) return;
@@ -821,6 +809,37 @@ document.addEventListener('DOMContentLoaded', () => {
           // open inquiry modal after a short delay so Bootstrap finishes hiding the previous modal/backdrop
           setTimeout(() => { try { inquiryModal.show(); } catch (e) {} }, 200);
         } catch (err) {}
+      });
+    }
+
+    // wire share button
+    const shareBtn = modalEl.querySelector('#productShareBtn');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', async () => {
+        const shareUrl = window.location.origin + window.location.pathname + '?product=' + product.id;
+        
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: product.name,
+              text: 'Check out ' + product.name + ' at Chammy Florals!',
+              url: shareUrl
+            });
+          } catch (err) {
+            console.log('Error sharing:', err);
+          }
+        } else {
+          // Fallback to clipboard
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            const originalHtml = shareBtn.innerHTML;
+            shareBtn.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i>';
+            setTimeout(() => { shareBtn.innerHTML = originalHtml; }, 2000);
+            if (typeof alertSuccess === 'function') alertSuccess('Link copied to clipboard!');
+          } catch (err) {
+            console.error('Failed to copy text: ', err);
+          }
+        }
       });
     }
   }

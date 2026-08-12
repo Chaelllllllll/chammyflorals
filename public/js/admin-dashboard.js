@@ -216,7 +216,7 @@ function renderOrdersPaged(list) {
   } else {
     tbody.innerHTML = pageItems.map(order => `
       <tr data-order-id="${order.order_id}">
-        <td>${order.order_id}</td>
+        <td><a href="#" class="open-receipt-preview text-decoration-none fw-bold" data-order-id="${order.order_id}" title="Click to preview receipt">${order.order_id}</a></td>
         <td>${order.name}</td>
         <td>${order.email}</td>
         <td><a href="${order.fb_link}" target="_blank">${order.fb_link}</a></td>
@@ -224,8 +224,8 @@ function renderOrdersPaged(list) {
           <div class="d-flex justify-content-end align-items-center" style="gap:.5rem;">
             <button class="btn btn-sm btn-pink details-button" data-order-id="${order.order_id}">Details</button>
             <button class="btn btn-sm btn-success edit-order-button" data-order-id="${order.order_id}">Edit</button>
-            <button class="btn btn-sm btn-outline-pink receipt-button" data-order-id="${order.order_id}" title="Preview & Download Receipt">
-              <i class="fa-solid fa-receipt"></i>
+            <button class="btn btn-sm btn-outline-primary review-link-button" data-order-id="${order.order_id}" title="Copy Review Link">
+              <i class="fa-solid fa-link"></i>
             </button>
           </div>
         </td>
@@ -245,6 +245,35 @@ function renderOrdersPaged(list) {
       const orderId = e.currentTarget.dataset.orderId;
       const order = list.find(o => o.order_id === orderId);
       if (order) openReceiptPreview(order);
+    });
+  });
+  document.querySelectorAll('.open-receipt-preview').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      const orderId = e.currentTarget.dataset.orderId;
+      const order = list.find(o => o.order_id === orderId);
+      if (order) openReceiptPreview(order);
+    });
+  });
+  document.querySelectorAll('.review-link-button').forEach(button => {
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      const orderId = e.currentTarget.dataset.orderId;
+      const reviewUrl = window.location.origin + '/reviews.html?orderId=' + encodeURIComponent(orderId);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(reviewUrl).then(() => {
+          if (typeof window.alertSuccess === 'function') {
+            window.alertSuccess('Review link copied to clipboard!');
+          } else {
+            alert('Review link copied to clipboard:\\n' + reviewUrl);
+          }
+        }).catch(err => {
+          console.error('Could not copy text: ', err);
+          alert('Review link:\\n' + reviewUrl);
+        });
+      } else {
+        alert('Review link:\\n' + reviewUrl);
+      }
     });
   });
 
@@ -861,34 +890,8 @@ async function buildReceiptHtml(order) {
       rushFeeTotal = Number(rcData.rush_fee) || 0;
     }
   } catch (e) { /* leave empty */ }
-
-  const hasItems = order.items && Array.isArray(order.items) && order.items.length;
-  let itemsSubtotal = 0;
-  const itemsListHtml = hasItems ? order.items.map((it, i) => {
-    const d = recomputeDetails[i] || {};
-    const qty = Number(it.quantity || it.qty || 1) || 1;
-    const line = Number(d.itemTotal) || 0;
-    const unit = line > 0 && qty ? (line / qty) : 0;
-    itemsSubtotal += line;
-    return `
-      <tr style="border-bottom: 1px solid #f1f5f9;">
-        <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
-          ${escapeHtml(it.flower_type || it.flower || '')}
-          ${it.color && it.color.name ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">Color: ${escapeHtml(it.color.name)}</div>` : ''}
-          ${unit > 0 ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">${money(unit)} each</div>` : ''}
-        </td>
-        <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(qty))}</td>
-        <td style="padding: 10px 0; text-align: right; color: #334155; font-weight: 600;">${line > 0 ? money(line) : '-'}</td>
-        <td style="padding: 10px 0; text-align: right; color: #334155;">
-          ${it.customized === true || it.customized === 'true' ? '<span style="font-size: 9px; background: #ffe4e8; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Custom</span>' : '-'}
-        </td>
-      </tr>
-    `;
-  }).join('') : '';
-
-  // Legacy orders without a structured items array: total their parsed rows.
-  if (!hasItems) {
-    recomputeDetails.forEach(d => { itemsSubtotal += Number(d.itemTotal) || 0; });
+  if (rushFeeTotal === 0 && (order.rush === 'Yes' || order.rush === true)) {
+    rushFeeTotal = 200; // Fallback typical rush fee
   }
 
   let addonsSubtotal = 0;
@@ -933,6 +936,61 @@ async function buildReceiptHtml(order) {
       </div>
     `;
   })();
+
+  const totalFee = Number(order.total_fee || 0);
+  const discount = Number(order.voucher_discount || 0);
+  const customizationFee = Number(order.customization_fee || 0);
+  const expectedItemsSubtotal = Math.max(0, totalFee - addonsSubtotal - rushFeeTotal - customizationFee + discount);
+
+  const hasItems = order.items && Array.isArray(order.items) && order.items.length;
+  let itemsSubtotal = 0;
+  
+  let rawComputedSubtotal = 0;
+  if (hasItems) {
+    order.items.forEach((it, i) => {
+      const d = recomputeDetails[i] || {};
+      rawComputedSubtotal += Number(d.itemTotal) || 0;
+    });
+  } else {
+    recomputeDetails.forEach(d => { rawComputedSubtotal += Number(d.itemTotal) || 0; });
+  }
+
+  const itemsListHtml = hasItems ? order.items.map((it, i) => {
+    const d = recomputeDetails[i] || {};
+    const qty = Number(it.quantity || it.qty || 1) || 1;
+    let line = Number(d.itemTotal) || 0;
+    
+    // Scale or fallback to expectedItemsSubtotal to perfectly match order total
+    if (order.items.length === 1) {
+      line = expectedItemsSubtotal;
+    } else if (rawComputedSubtotal > 0) {
+      line = (line / rawComputedSubtotal) * expectedItemsSubtotal;
+    } else {
+      line = expectedItemsSubtotal / order.items.length;
+    }
+    
+    const unit = line > 0 && qty ? (line / qty) : 0;
+    itemsSubtotal += line;
+    return `
+      <tr style="border-bottom: 1px solid #f1f5f9;">
+        <td style="padding: 10px 0; font-weight: 600; color: #334155; text-align: left;">
+          ${escapeHtml(it.flower_type || it.flower || '')}
+          ${it.color && it.color.name ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">Color: ${escapeHtml(it.color.name)}</div>` : ''}
+          ${unit > 0 ? `<div style="font-size: 10px; font-weight: normal; color: #64748b; margin-top: 2px;">${money(unit)} each</div>` : ''}
+        </td>
+        <td style="padding: 10px 0; text-align: center; color: #475569;">${escapeHtml(String(qty))}</td>
+        <td style="padding: 10px 0; text-align: right; color: #334155; font-weight: 600;">${line > 0 ? money(line) : '-'}</td>
+        <td style="padding: 10px 0; text-align: right; color: #334155;">
+          ${it.customized === true || it.customized === 'true' ? '<span style="font-size: 9px; background: #ffe4e8; color: #e11d48; padding: 2px 6px; border-radius: 4px; font-weight: bold;">Custom</span>' : '-'}
+        </td>
+      </tr>
+    `;
+  }).join('') : '';
+
+  // Legacy orders without a structured items array: total their parsed rows.
+  if (!hasItems) {
+    itemsSubtotal = expectedItemsSubtotal;
+  }
 
   const discountHtml = order.voucher_code ? `
     <div style="display: flex; justify-content: space-between; margin-bottom: 6px; color: #059669;">
@@ -1021,7 +1079,7 @@ async function buildReceiptHtml(order) {
         </div>` : ''}
         ${discountHtml}
         <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; color: #f43f5e; margin-top: 8px; padding-top: 12px; border-top: 2px dashed #f1f5f9;">
-          <span>Total Paid:</span>
+          <span>Total:</span>
           <span>₱${parseFloat(order.total_fee || 0).toFixed(2)}</span>
         </div>
       </div>

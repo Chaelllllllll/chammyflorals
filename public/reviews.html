@@ -47,15 +47,7 @@
     <section class="relative py-12 md:py-16 overflow-hidden">
       <div class="container mx-auto px-4">
         <div class="glass-card p-8 md:p-12 text-center max-w-4xl mx-auto relative shadow-2xl">
-          <h1 class="font-display text-4xl sm:text-5xl font-bold text-slate-900 mb-6">Customer Reviews</h1>
-          <div class="flex flex-wrap items-center justify-center gap-3">
-            <button class="btn-shadcn-primary px-6 py-2.5" id="heroSubmitReviewBtn">
-              <i class="fa fa-pen me-2"></i>Submit a Review
-            </button>
-            <button class="btn-shadcn-ghost px-6 py-2.5" id="heroReadReviewsBtn">
-              <i class="fa fa-comments me-2"></i>Explore All Reviews
-            </button>
-          </div>
+          <h1 class="font-display text-4xl sm:text-5xl font-bold text-slate-900 mb-0">Customer Reviews</h1>
         </div>
       </div>
     </section>
@@ -63,27 +55,19 @@
     <!-- Rating Summary & Reviews Section -->
     <section class="container mx-auto px-4 pb-16">
 
-      <!-- Stats Box -->
-      <div class="glass-card p-6 md:p-8 mb-8 shadow-xl">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-
-          <div class="text-center p-6 rounded-2xl bg-rose-50 border border-rose-200/60">
-            <div class="text-5xl font-bold text-rose-600 leading-none mb-2" id="reviewsAvg">5.0</div>
-            <div class="text-amber-400 text-lg mb-1">★★★★★</div>
-            <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Average Rating</div>
-          </div>
-
-          <div>
-            <label class="form-label font-semibold text-xs text-slate-700 mb-1.5 block">Filter by Star Rating</label>
-            <select id="pageReviewsFilterStars" class="shadcn-input">
-              <option value="">All Ratings</option>
-              <option value="5">★★★★★ (5 Stars)</option>
-              <option value="4">★★★★☆ (4 Stars)</option>
-              <option value="3">★★★☆☆ (3 Stars)</option>
-              <option value="2">★★☆☆☆ (2 Stars)</option>
-              <option value="1">★☆☆☆☆ (1 Star)</option>
-            </select>
-          </div>
+      <div class="d-flex justify-content-end align-items-center mb-4 gap-3">
+        <button class="btn-shadcn-primary px-3 py-2 text-sm shadow-sm d-flex align-items-center justify-content-center" id="heroSubmitReviewBtn">
+          <i class="fa fa-pen"></i><span class="d-none d-md-inline ms-2">Submit a Review</span>
+        </button>
+        <div style="width: 160px;">
+          <select id="pageReviewsFilterStars" class="shadcn-input text-sm cursor-pointer shadow-sm">
+            <option value="">Filter: All</option>
+            <option value="5">★★★★★</option>
+            <option value="4">★★★★☆</option>
+            <option value="3">★★★☆☆</option>
+            <option value="2">★★☆☆☆</option>
+            <option value="1">★☆☆☆☆</option>
+          </select>
         </div>
       </div>
 
@@ -106,12 +90,14 @@
   <div class="modal fade" id="pageAddReviewModal" tabindex="-1" aria-labelledby="pageAddReviewModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title font-display text-2xl font-bold text-slate-900" id="pageAddReviewModalLabel">Write a Review</h2>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-content glass-modal overflow-hidden border-0 shadow-2xl">
+        <div class="bg-gradient-to-r from-rose-600 to-rose-500 p-6 text-white flex items-center justify-between">
+          <h3 class="font-display font-bold text-xl mb-0 flex items-center gap-2" id="pageAddReviewModalLabel">
+            <i class="fa fa-pen"></i> Write a Review
+          </h3>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-6 bg-slate-50/50">
           <div id="pageAddReviewError" class="text-danger mb-3" style="display:none;"></div>
           <form id="pageAddReviewForm" class="needs-validation" novalidate>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

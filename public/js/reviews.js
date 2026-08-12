@@ -57,40 +57,64 @@ async function renderPreview() {
   const container = document.getElementById('reviewsPreview');
   if (!container) return;
   const reviews = await fetchReviewsFromServer();
-  const top = (reviews || []).slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)).slice(0,3);
+  const top = (reviews || []).slice().sort((a,b)=> new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt)).slice(0, 4);
   if (!top.length) {
-    container.innerHTML = '<div class="col-12 text-center text-slate-500 py-4 text-xs">No reviews yet.</div>';
+    container.innerHTML = '<div class="text-center text-slate-500 py-4 text-xs">No reviews yet.</div>';
     return;
   }
-  container.innerHTML = top.map(r => `
-    <div class="col-12 col-md-4">
-      <div class="glass-card h-full flex flex-col rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden group hover:-translate-y-1">
+  
+  // Duplicate for seamless infinite scrolling
+  const marqueeItems = [...top, ...top, ...top, ...top];
+
+  container.innerHTML = marqueeItems.map((r) => `
+    <div class="marquee-item" style="width: 260px;">
+      <div class="glass-card w-full flex flex-col rounded-xl border border-slate-200/80 shadow-sm overflow-hidden bg-white" style="aspect-ratio: 1/1;">
         ${r.image_url ? `
-          <div class="relative w-full h-36 sm:h-40 overflow-hidden bg-slate-100 shrink-0">
-            <img src="${escapeHtml(r.image_url)}" class="review-thumb w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer" data-url="${escapeHtml(r.image_url)}" alt="Review photo" loading="lazy" onerror="this.closest('div').style.display='none'" />
+          <div class="relative w-full overflow-hidden bg-slate-100 shrink-0" style="height: 45%;">
+            <img src="${escapeHtml(r.image_url)}" class="review-thumb w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500" data-url="${escapeHtml(r.image_url)}" alt="Review photo" loading="lazy" onerror="this.closest('div').style.display='none'" />
           </div>
         ` : ''}
-        <div class="p-3.5 sm:p-4 flex flex-col flex-grow justify-between bg-white">
-          <div>
-            <div class="flex items-center gap-2 mb-2">
-              <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-rose-500 to-rose-400 text-white font-bold text-[11px] flex items-center justify-center shadow-sm uppercase shrink-0">
-                ${escapeHtml((r.name || 'C').charAt(0))}
-              </div>
-              <h6 class="font-bold text-slate-900 text-xs sm:text-sm leading-tight mb-0 line-clamp-1">${escapeHtml(r.name)}</h6>
+        <div class="p-3.5 flex flex-col flex-grow justify-start">
+          <div class="flex flex-col mb-2">
+            <div class="flex items-center justify-between mb-1">
+              <h6 class="font-bold text-slate-900 text-sm leading-tight mb-0 truncate mr-2">${escapeHtml(r.name || 'Customer')}</h6>
+              ${r.item_name ? `
+                <span class="inline-flex items-center gap-1 rounded-full bg-rose-50/80 border border-rose-100/50 font-bold text-rose-600 shadow-sm truncate max-w-[50%]" style="font-size: 9px; padding: 2px 6px;">
+                  <i class="fa fa-shopping-bag" style="font-size: 8px;"></i>&nbsp;${escapeHtml(r.item_name)}
+                </span>
+              ` : ''}
             </div>
-
-            <div class="flex items-center gap-1 text-amber-400 text-[11px] mb-2">
-              ${Array.from({length: 5}, (_, i) => `<i class="fa-solid fa-star ${i < (r.stars || 5) ? 'text-amber-400' : 'text-slate-200'}"></i>`).join('')}
+            <div class="flex items-center gap-1 text-amber-400 text-[10px]">
+              ${Array.from({length: 5}, (_, idx) => `<i class="fa-solid fa-star ${idx < (r.stars || 5) ? 'text-amber-400' : 'text-slate-200'}"></i>`).join('')}
             </div>
-
-            <p class="text-xs text-slate-600 leading-normal line-clamp-3 mb-0 italic">
-              "${escapeHtml(r.message)}"
-            </p>
           </div>
+
+          <p class="text-[11px] sm:text-xs text-slate-600 leading-relaxed mb-0 italic overflow-hidden" style="display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;">
+            "${escapeHtml(r.message)}"
+          </p>
         </div>
       </div>
     </div>
   `).join('');
+
+  // Auto scroll every 3 seconds (snapping)
+  setInterval(() => {
+    if (!container) return;
+    const cardWidth = 260 + 24; // 260px width + 1.5rem (24px) gap
+    
+    // If scrolled past half, reset silently
+    if (container.scrollLeft >= container.scrollWidth / 2) {
+      container.style.scrollBehavior = 'auto';
+      container.scrollLeft = 0;
+      // Small delay before turning smooth scroll back on
+      setTimeout(() => {
+        container.style.scrollBehavior = 'smooth';
+        container.scrollLeft += cardWidth;
+      }, 50);
+    } else {
+      container.scrollLeft += cardWidth;
+    }
+  }, 3000);
 }
 
 async function renderModalList() {
@@ -116,6 +140,7 @@ async function renderModalList() {
               <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
             </div>
             <div class="small text-muted mb-1">Order: ${escapeHtml(r.order_id || r.orderId || '')} • ${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
+            ${r.item_name ? `<div class="small text-danger mb-1"><i class="fa fa-shopping-bag me-1"></i>${escapeHtml(r.item_name)}</div>` : ''}
             <div>${escapeHtml(r.message)}</div>
           </div>
         </div>

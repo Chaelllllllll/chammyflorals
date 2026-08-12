@@ -67,7 +67,11 @@ async function renderPageReviews(append = false) {
     const reviewsToDisplay = sorted.slice(startIdx, endIdx);
 
     const reviewsHTML = reviewsToDisplay.map(r => {
-      const starsHTML = '★'.repeat(r.stars) + '☆'.repeat(5 - (r.stars||0));
+      const starsCount = Number(r.stars) || 0;
+      const starsHTML = Array.from({length: 5}).map((_, i) => 
+        i < starsCount ? '<i class="fas fa-star text-amber-400"></i>' : '<i class="far fa-star text-slate-300"></i>'
+      ).join('');
+      
       const time = r.created_at || r.createdAt ? new Date(r.created_at || r.createdAt).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
@@ -76,36 +80,45 @@ async function renderPageReviews(append = false) {
       const initial = (r.name || 'C').charAt(0).toUpperCase();
 
       return `
-        <div class="col-12 col-md-6 col-lg-4 mb-4 flex">
-          <div class="glass-card w-full flex flex-col justify-between p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
-            <div>
-              <!-- Author Profile Header -->
-              <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-                <div class="flex items-center min-w-0">
-                  <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-rose-600 to-rose-400 text-white font-bold text-sm flex items-center justify-center shrink-0 me-3 shadow-sm select-none">
-                    ${initial}
-                  </div>
-                  <div class="min-w-0">
-                    <h5 class="font-bold text-slate-800 text-base mb-0.5 truncate">${escapeHtml(r.name || 'Customer')}</h5>
-                    ${time ? `<span class="text-xs text-slate-400 font-medium block">${time}</span>` : ''}
-                  </div>
+        <div class="col-12 col-md-6 col-lg-4 mb-4 d-flex">
+          <div class="w-100 position-relative d-flex flex-column bg-white/80 backdrop-blur-2xl border border-white/80 rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] hover:shadow-[0_20px_50px_-10px_rgba(244,63,94,0.15)] hover:-translate-y-2 transition-all duration-500 ease-out group overflow-hidden">
+            <!-- Subtle ambient glow background -->
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-rose-300/20 rounded-full blur-3xl group-hover:bg-rose-400/30 transition-colors duration-500"></div>
+            
+            <div class="relative z-10 flex flex-col h-full w-full">
+              <!-- Header -->
+              <div class="flex flex-col mb-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h5 class="font-bold text-slate-800 text-[16px] leading-tight truncate mr-3">${escapeHtml(r.name || 'Customer')}</h5>
+                  <span class="text-[10px] text-slate-400/70 font-medium whitespace-nowrap">${time}</span>
                 </div>
-                <div class="text-amber-500 text-base tracking-wide select-none shrink-0 ms-2">${starsHTML}</div>
+                <div class="flex items-center justify-between">
+                  <div class="flex gap-0.5 text-[11px] tracking-widest shrink-0 mr-3">${starsHTML}</div>
+                  ${r.item_name ? `
+                  <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-rose-50/80 border border-rose-100/50 text-[11px] font-bold text-rose-600 shadow-sm truncate max-w-[65%]">
+                    <i class="fas fa-shopping-bag" style="margin-right: 6px;"></i>&nbsp;<span class="truncate">${escapeHtml(r.item_name)}</span>
+                  </span>
+                  ` : ''}
+                </div>
               </div>
               
               <!-- Review text message -->
-              <p class="text-slate-600 text-sm leading-relaxed mb-4">${escapeHtml(r.message)}</p>
-            </div>
-            
-            <!-- Review image -->
-            ${r.image_url ? `
-              <div class="review-image-wrapper relative w-full h-52 rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-opacity mt-2 group border border-slate-100/80" data-image-url="${escapeHtml(r.image_url)}">
-                <img src="${escapeHtml(r.image_url)}" class="w-full h-full object-cover" alt="Review photo" loading="lazy" />
-                <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-semibold">
-                  <i class="fa fa-eye me-1.5 text-sm"></i> View Full Image
-                </div>
+              <div class="flex-grow mb-4">
+                <p class="text-slate-600 text-[14px] leading-relaxed mb-0 line-clamp-4 group-hover:line-clamp-none transition-all duration-300">${escapeHtml(r.message)}</p>
               </div>
-            ` : ''}
+              
+              <!-- Instagram Style Image -->
+              ${r.image_url ? `
+                <div class="review-image-wrapper relative w-full rounded-[1rem] overflow-hidden cursor-pointer mt-auto border border-white/50 shadow-sm group/img" style="aspect-ratio: 1 / 1;" data-image-url="${escapeHtml(r.image_url)}">
+                  <img src="${escapeHtml(r.image_url)}" class="w-full h-full object-cover transform group-hover/img:scale-105 transition-transform duration-700 ease-out" alt="Review photo" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/0 opacity-0 group-hover/img:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                    <span class="text-white text-xs font-bold flex items-center gap-2 transform translate-y-4 group-hover/img:translate-y-0 transition-transform duration-300">
+                      <i class="fas fa-expand"></i> View Full Image
+                    </span>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
           </div>
         </div>
       `;
