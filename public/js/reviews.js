@@ -79,9 +79,9 @@ async function renderPreview() {
             <div class="flex items-center justify-between mb-1">
               <h6 class="font-bold text-slate-900 text-sm leading-tight mb-0 truncate mr-2">${escapeHtml(r.name || 'Customer')}</h6>
               ${r.item_name ? `
-                <span class="inline-flex items-center gap-1 rounded-full bg-rose-50/80 border border-rose-100/50 font-bold text-rose-600 shadow-sm truncate max-w-[50%]" style="font-size: 9px; padding: 2px 6px;">
+                <${r.product_id ? `a href="/?product=${r.product_id}"` : 'span'} class="inline-flex items-center gap-1 rounded-full bg-rose-50/80 border border-rose-100/50 font-bold text-rose-600 shadow-sm truncate max-w-[50%] hover:bg-rose-100 transition-colors" style="font-size: 9px; padding: 2px 6px; text-decoration: none; cursor: ${r.product_id ? 'pointer' : 'default'};">
                   <i class="fa fa-shopping-bag" style="font-size: 8px;"></i>&nbsp;${escapeHtml(r.item_name)}
-                </span>
+                </${r.product_id ? 'a' : 'span'}>
               ` : ''}
             </div>
             <div class="flex items-center gap-1 text-amber-400 text-[10px]">
@@ -140,7 +140,7 @@ async function renderModalList() {
               <div class="text-warning">${'★'.repeat(r.stars)}${'☆'.repeat(5-r.stars)}</div>
             </div>
             <div class="small text-muted mb-1">Order: ${escapeHtml(r.order_id || r.orderId || '')} • ${new Date(r.created_at || r.createdAt).toLocaleString()}</div>
-            ${r.item_name ? `<div class="small text-danger mb-1"><i class="fa fa-shopping-bag me-1"></i>${escapeHtml(r.item_name)}</div>` : ''}
+            ${r.item_name ? `<${r.product_id ? `a href="/?product=${r.product_id}"` : 'div'} class="small text-danger mb-1" style="text-decoration: none; ${r.product_id ? 'cursor: pointer;' : ''}"><i class="fa fa-shopping-bag me-1"></i>${escapeHtml(r.item_name)}</${r.product_id ? 'a' : 'div'}>` : ''}
             <div>${escapeHtml(r.message)}</div>
           </div>
         </div>

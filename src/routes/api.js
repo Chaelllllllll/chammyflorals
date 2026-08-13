@@ -1503,11 +1503,11 @@ router.get('/reviews', cacheMiddleware(300), async (req, res) => {
         .select('order_id, flower_type, items')
         .in('order_id', orderIds);
       
-      const { data: products } = await supabase.from('products').select('name,pricing');
+      const { data: products } = await supabase.from('products').select('id, name, pricing');
       const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
       
-      const resolveProductName = (itemFlower) => {
-        if (!products) return itemFlower;
+      const resolveProduct = (itemFlower) => {
+        if (!products) return { itemName: itemFlower, productId: null };
         const needle = normalizeCode(itemFlower);
         let found = null;
         for (const p of products) {
@@ -1524,10 +1524,7 @@ router.get('/reviews', cacheMiddleware(300), async (req, res) => {
             break;
           }
         }
-        if (found && normalizeCode(found.name) !== normalizeCode(itemFlower)) {
-          return `${found.name} - ${itemFlower}`;
-        }
-        return itemFlower;
+        return { itemName: itemFlower, productId: found ? found.id : null };
       };
 
       const orderMap = {};
@@ -1541,15 +1538,17 @@ router.get('/reviews', cacheMiddleware(300), async (req, res) => {
         const order = orderMap[r.order_id];
         if (order) {
           if (Array.isArray(order.items) && order.items.length > 0) {
-            const names = order.items.map(it => resolveProductName(it.flower_type || it.flower));
-            r.item_name = [...new Set(names)].join(', ');
+            const resolved = order.items.map(it => resolveProduct(it.flower_type || it.flower));
+            r.item_name = [...new Set(resolved.map(res => res.itemName))].join(', ');
+            r.product_id = resolved.find(res => res.productId)?.productId || null;
           } else if (order.flower_type) {
             const parts = String(order.flower_type).split(';').map(s => s.trim()).filter(Boolean);
-            const names = parts.map(p => {
+            const resolved = parts.map(p => {
               const m = p.match(/(.+?)\s*[x×]\s*(\d+)$/i);
-              return resolveProductName(m ? m[1].trim() : p);
+              return resolveProduct(m ? m[1].trim() : p);
             });
-            r.item_name = [...new Set(names)].join(', ');
+            r.item_name = [...new Set(resolved.map(res => res.itemName))].join(', ');
+            r.product_id = resolved.find(res => res.productId)?.productId || null;
           }
         }
       });

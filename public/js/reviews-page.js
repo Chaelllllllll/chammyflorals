@@ -95,9 +95,9 @@ async function renderPageReviews(append = false) {
                 <div class="flex items-center justify-between">
                   <div class="flex gap-0.5 text-[11px] tracking-widest shrink-0 mr-3">${starsHTML}</div>
                   ${r.item_name ? `
-                  <span class="inline-flex items-center px-3 py-1.5 rounded-full bg-rose-50/80 border border-rose-100/50 text-[11px] font-bold text-rose-600 shadow-sm truncate max-w-[65%]">
+                  <${r.product_id ? `a href="/?product=${r.product_id}"` : 'span'} class="inline-flex items-center px-3 py-1.5 rounded-full bg-rose-50/80 border border-rose-100/50 text-[11px] font-bold text-rose-600 shadow-sm truncate max-w-[65%] hover:bg-rose-100 transition-colors" ${r.product_id ? 'style="text-decoration: none; cursor: pointer;"' : ''}>
                     <i class="fas fa-shopping-bag" style="margin-right: 6px;"></i>&nbsp;<span class="truncate">${escapeHtml(r.item_name)}</span>
-                  </span>
+                  </${r.product_id ? 'a' : 'span'}>
                   ` : ''}
                 </div>
               </div>
