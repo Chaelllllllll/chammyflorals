@@ -829,12 +829,34 @@
         }
       }
       const savedMeetup = localStorage.getItem('customer_preferred_meetup_place');
-      if (savedMeetup) {
-        const meetupInput = document.querySelector('[name="custom_preferred_meetup_place"]');
-        if (meetupInput) {
-          meetupInput.value = savedMeetup;
-        }
-      }
+      
+      // Fetch meetup places from settings and populate dropdown
+      fetch('/api/settings/meetup-places?t=' + Date.now())
+        .then(res => res.json())
+        .then(data => {
+          const meetupInput = document.querySelector('select[name="custom_preferred_meetup_place"]');
+          if (meetupInput) {
+            meetupInput.innerHTML = '<option value="" disabled selected>Select preferred meetup place</option>';
+            if (data.places && Array.isArray(data.places) && data.places.length > 0) {
+              data.places.forEach(place => {
+                const opt = document.createElement('option');
+                opt.value = place;
+                opt.textContent = place;
+                meetupInput.appendChild(opt);
+              });
+              if (savedMeetup && data.places.includes(savedMeetup)) {
+                meetupInput.value = savedMeetup;
+              }
+            } else {
+              meetupInput.innerHTML = '<option value="" disabled selected>No places available</option>';
+            }
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching meetup places:', err);
+          const meetupInput = document.querySelector('select[name="custom_preferred_meetup_place"]');
+          if (meetupInput) meetupInput.innerHTML = '<option value="" disabled selected>Error loading places</option>';
+        });
     } catch (e) {}
   }
 

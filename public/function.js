@@ -42,6 +42,37 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  // Fetch meetup places from settings and populate dropdown immediately on script load
+  (function fetchMeetupPlaces() {
+    const savedMeetup = localStorage.getItem('customer_preferred_meetup_place');
+    fetch('/api/settings/meetup-places?t=' + Date.now())
+      .then(res => res.json())
+      .then(data => {
+        const meetupInput = inquiryForm.querySelector('select[name="preferred_meetup_place"]');
+        if (meetupInput) {
+          meetupInput.innerHTML = '<option value="" disabled selected>Select preferred meetup place</option>';
+          if (data.places && Array.isArray(data.places) && data.places.length > 0) {
+            data.places.forEach(place => {
+              const opt = document.createElement('option');
+              opt.value = place;
+              opt.textContent = place;
+              meetupInput.appendChild(opt);
+            });
+            if (savedMeetup && data.places.includes(savedMeetup)) {
+              meetupInput.value = savedMeetup;
+            }
+          } else {
+            meetupInput.innerHTML = '<option value="" disabled selected>No places available</option>';
+          }
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching meetup places:', err);
+        const meetupInput = inquiryForm.querySelector('select[name="preferred_meetup_place"]');
+        if (meetupInput) meetupInput.innerHTML = '<option value="" disabled selected>Error loading places</option>';
+      });
+  })();
+
   const isAdminDashboardPage = window.location.pathname.startsWith('/admin/');
 
   // Pre-fill customer information if logged in
@@ -93,13 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
           if (typeof checkMuntinlupaForInput === 'function') {
             checkMuntinlupaForInput(addressInput, savedAddress);
           }
-        }
-      }
-      const savedMeetup = localStorage.getItem('customer_preferred_meetup_place');
-      if (savedMeetup) {
-        const meetupInput = inquiryForm.querySelector('input[name="preferred_meetup_place"]');
-        if (meetupInput) {
-          meetupInput.value = savedMeetup;
         }
       }
     } catch (e) {}
@@ -1192,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // only required for Muntinlupa addresses. Validate both explicitly so the
     // customer always sees a clear alert before the order can proceed.
     const deliveryAddressEl = form.querySelector('input[name="delivery_address"]');
-    const meetupPlaceEl = form.querySelector('input[name="preferred_meetup_place"]');
+    const meetupPlaceEl = form.querySelector('[name="preferred_meetup_place"]');
     const meetupSectionEl = document.getElementById('meetupPlaceSection');
 
     // Only enforce this on the customer-facing flow; the admin "Add Order"
@@ -1240,7 +1264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.querySelectorAll('.addon-checkbox').forEach(cb => { try { syncAddonValue(cb); } catch (e) {} });
     data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
     data.delivery_address = form.querySelector('input[name="delivery_address"]').value;
-    data.preferred_meetup_place = form.querySelector('input[name="preferred_meetup_place"]')?.value || null;
+    data.preferred_meetup_place = form.querySelector('[name="preferred_meetup_place"]')?.value || null;
 
     // Collect items
     const items = [];
@@ -1518,10 +1542,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Default centered on the Philippines (lat: 12.8797, lng: 121.7740, zoom: 6)
-    const defaultLat = 12.8797;
-    const defaultLng = 121.7740;
-    const defaultZoom = 6;
+    // Default centered on Muntinlupa, Metro Manila (lat: 14.4081, lng: 121.0415, zoom: 14)
+    const defaultLat = 14.4081;
+    const defaultLng = 121.0415;
+    const defaultZoom = 14;
 
     pickerMapInstance = L.map('modalMap', {
       center: [defaultLat, defaultLng],

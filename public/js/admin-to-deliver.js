@@ -926,7 +926,7 @@ document.getElementById('manualOrderForm')?.addEventListener('submit', async (e)
   data.rush = 'No'; // No rush field
   data.addons = Array.from(form.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
   data.delivery_address = form.querySelector('input[name="delivery_address"]').value;
-  data.preferred_meetup_place = form.querySelector('input[name="preferred_meetup_place"]')?.value || null;
+  data.preferred_meetup_place = form.querySelector('[name="preferred_meetup_place"]')?.value || null;
 
   // Collect items
   const items = [];
@@ -1116,10 +1116,10 @@ function initAdminPickerMap(initialVal) {
     return;
   }
 
-  // Default centered on the Philippines (lat: 12.8797, lng: 121.7740, zoom: 6)
-  const defaultLat = 12.8797;
-  const defaultLng = 121.7740;
-  const defaultZoom = 6;
+  // Default centered on Muntinlupa, Metro Manila (lat: 14.4081, lng: 121.0415, zoom: 14)
+  const defaultLat = 14.4081;
+  const defaultLng = 121.0415;
+  const defaultZoom = 14;
 
   adminPickerMapInstance = L.map('modalMap', {
     center: [defaultLat, defaultLng],

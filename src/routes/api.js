@@ -1472,6 +1472,36 @@ router.get('/settings/custom-order-status', async (req, res) => {
   }
 });
 
+// GET public meetup places setting
+router.get('/settings/meetup-places', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'muntinlupa_meetup_places')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching meetup places:', error);
+    }
+    
+    // Default to empty array if not found
+    let places = [];
+    if (data && data.setting_value) {
+      try {
+        places = JSON.parse(data.setting_value);
+      } catch (e) {
+        console.error('Error parsing meetup places:', e);
+      }
+    }
+    res.json({ places });
+  } catch (err) {
+    console.error('Unexpected error fetching meetup places:', err);
+    res.json({ places: [] });
+  }
+});
+
 // GET /api/settings/telegram-link - Fetch Telegram bot link
 router.get('/settings/telegram-link', async (req, res) => {
   let link = process.env.TELEGRAM_BOT_LINK || 'https://t.me/YourBot';

@@ -1,5 +1,5 @@
 // Service Worker for Push Notifications
-const CACHE_NAME = 'chammy-florals-v2';
+const CACHE_NAME = 'chammy-florals-v3';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -109,15 +109,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Never cache API calls - always fetch fresh
-  if (url.pathname.startsWith('/api/')) {
+  // Let API requests, js files, and main HTML pages bypass the service worker cache entirely in dev
+  if (url.pathname.startsWith('/api/') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname === '/index.html' || url.pathname === '/dashboard.html') {
     event.respondWith(
-      fetch(req).catch((err) => {
-        console.warn('Service Worker: API request failed', url.pathname, err && err.message ? err.message : err);
-        return new Response(JSON.stringify({ error: 'Network request failed' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      fetch(req).catch(() => {
+        // Fallback for files if offline
+        return caches.match(req);
       })
     );
     return;

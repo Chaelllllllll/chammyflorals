@@ -536,7 +536,9 @@
                   <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
                     <i class="fa-solid fa-handshake text-rose-500 me-1.5"></i>Preferred Meetup Place (Muntinlupa only)
                   </label>
-                  <input type="text" name="preferred_meetup_place" id="meetupPlaceInput" class="shadcn-input text-sm sm:text-base" placeholder="Enter preferred meetup place (e.g. Alabang Town Center)">
+                  <select name="preferred_meetup_place" id="meetupPlaceInput" class="shadcn-input text-sm sm:text-base cursor-pointer bg-white">
+                    <option value="" disabled selected>Select preferred meetup place</option>
+                  </select>
                 </div>
 
                 <div>
@@ -827,7 +829,9 @@
                   <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
                     <i class="fa-solid fa-handshake text-rose-500 me-1.5"></i>Preferred Meetup Place (Muntinlupa only)
                   </label>
-                  <input type="text" name="custom_preferred_meetup_place" id="customMeetupPlaceInput" class="shadcn-input text-sm sm:text-base" placeholder="Enter preferred meetup place (e.g. Alabang Town Center)">
+                  <select name="custom_preferred_meetup_place" id="customMeetupPlaceInput" class="shadcn-input text-sm sm:text-base cursor-pointer bg-white">
+                    <option value="" disabled selected>Select preferred meetup place</option>
+                  </select>
                 </div>
 
                 <div>
@@ -995,8 +999,8 @@
   <script src="/js/alert.js"></script>
   <script src="/js/voucher-handler.js"></script>
   <script src="/js/delivery-calendar.js"></script>
-  <script src="/js/customize-order.js"></script>
-  <script src="/function.js" defer></script>
+  <script src="/js/customize-order.js?v=2"></script>
+  <script src="/function.js?v=2" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
   <script src="/js/reviews-inline.js" defer></script>

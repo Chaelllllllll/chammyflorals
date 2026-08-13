@@ -2504,3 +2504,60 @@ router.put('/settings/custom-order-status', auth, async (req, res) => {
     return res.status(500).json({ error: 'Failed to update custom order status setting' });
   }
 });
+
+// GET admin meetup places setting (protected)
+router.get('/settings/meetup-places', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('setting_value')
+      .eq('setting_key', 'muntinlupa_meetup_places')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+    
+    let places = [];
+    if (data && data.setting_value) {
+      try {
+        places = JSON.parse(data.setting_value);
+      } catch (e) {
+        console.error('Error parsing meetup places:', e);
+      }
+    }
+    return res.json({ places });
+  } catch (err) {
+    console.error('Error fetching meetup places:', err);
+    return res.status(500).json({ error: 'Failed to fetch meetup places setting' });
+  }
+});
+
+// PUT admin meetup places setting (protected)
+router.put('/settings/meetup-places', auth, async (req, res) => {
+  try {
+    const { places } = req.body;
+    
+    if (!Array.isArray(places)) {
+      return res.status(400).json({ error: 'Invalid meetup places value (must be an array)' });
+    }
+    
+    const { error } = await supabase
+      .from('settings')
+      .upsert({
+        setting_key: 'muntinlupa_meetup_places',
+        setting_value: JSON.stringify(places),
+        description: 'List of preferred meetup places for Muntinlupa deliveries',
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'setting_key'
+      });
+    
+    if (error) throw error;
+    
+    return res.json({ success: true, places });
+  } catch (err) {
+    console.error('Error updating meetup places:', err);
+    return res.status(500).json({ error: 'Failed to update meetup places setting' });
+  }
+});

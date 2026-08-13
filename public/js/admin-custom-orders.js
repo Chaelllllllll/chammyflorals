@@ -480,8 +480,8 @@
       `;
     }
 
-    // Delivery Details
-    if (order.delivery_address || order.preferred_meetup_place) {
+    const isMunt = order.delivery_address && order.delivery_address.toLowerCase().includes('muntinlupa');
+    if (order.delivery_address || order.preferred_meetup_place || isMunt) {
       html += `
         <div class="card border-0 shadow-sm mb-3">
           <div class="card-header bg-white border-bottom">
@@ -489,7 +489,7 @@
           </div>
           <div class="card-body">
             ${order.delivery_address ? `<p class="mb-2"><strong>Address:</strong> ${order.delivery_address}</p>` : ''}
-            ${order.preferred_meetup_place ? `<p class="mb-0"><strong>Preferred Meetup Place:</strong> ${order.preferred_meetup_place}</p>` : ''}
+            ${(order.preferred_meetup_place || isMunt) ? `<p class="mb-0"><strong>Preferred Meetup Place:</strong> ${order.preferred_meetup_place || 'Not selected'}</p>` : ''}
           </div>
         </div>
       `;

@@ -360,20 +360,6 @@
       <!-- Main Card Container -->
       <div class="card shadow-sm">
         <div class="card-body">
-          <!-- Custom Ordering Status Toggle -->
-          <div class="card p-3 mb-4 border-0 bg-light">
-            <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3">
-              <div class="flex-grow-1">
-                <h5 class="mb-1 fw-bold text-slate-800"><i class="fa-solid fa-toggle-on text-pink me-2"></i>Custom Order Placement</h5>
-                <small class="text-muted d-block" style="font-size: 0.85rem;">Turn custom orders on or off. When turned off, customers won't see custom order buttons on the storefront.</small>
-              </div>
-              <div class="form-check form-switch fs-5 ps-3 ps-sm-5 ms-0 flex-shrink-0">
-                <input class="form-check-input cursor-pointer" type="checkbox" id="customOrderStatusSwitch" checked>
-                <label class="form-check-label fw-bold text-slate-700 ms-2" for="customOrderStatusSwitch" id="customOrderStatusLabel">Open</label>
-              </div>
-            </div>
-          </div>
-
           <!-- Tabs Navigation -->
           <ul class="nav nav-tabs mb-4" id="optionsTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -998,53 +984,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       if (!await checkAuth()) return;
       
-      // Fetch custom order status setting
-      try {
-        const token = localStorage.getItem('adminToken');
-        const statusRes = await fetch(`${API_URL}/api/admin/settings/custom-order-status`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (statusRes.ok) {
-          const { status } = await statusRes.json();
-          const toggle = document.getElementById('customOrderStatusSwitch');
-          const label = document.getElementById('customOrderStatusLabel');
-          if (toggle && label) {
-            toggle.checked = status === 'open';
-            label.textContent = status === 'open' ? 'Open' : 'Closed';
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load custom order status:', err);
-      }
-
-      // Add switch change listener
-      document.getElementById('customOrderStatusSwitch')?.addEventListener('change', async (e) => {
-        const toggle = e.target;
-        const label = document.getElementById('customOrderStatusLabel');
-        const status = toggle.checked ? 'open' : 'closed';
-        
-        if (label) label.textContent = toggle.checked ? 'Open' : 'Closed';
-        
-        try {
-          const token = localStorage.getItem('adminToken');
-          const res = await fetch(`${API_URL}/api/admin/settings/custom-order-status`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ status })
-          });
-          
-          if (!res.ok) throw new Error('Failed to update status');
-          alertSuccess(`Custom order status updated to ${status.toUpperCase()}`);
-        } catch (err) {
-          alertError('Failed to update custom order status: ' + err.message);
-          toggle.checked = !toggle.checked;
-          if (label) label.textContent = toggle.checked ? 'Open' : 'Closed';
-        }
-      });
-      
+      // Load all option types
       // Load all option types
       loadOptions('stems');
       loadOptions('fillers');

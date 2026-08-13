@@ -621,11 +621,11 @@ function viewDetails(orderId) {
               </button>
             ` : ''}
           </div>
-          ${order.preferred_meetup_place ? `
+          ${(order.preferred_meetup_place || (order.delivery_address && order.delivery_address.toLowerCase().includes('muntinlupa'))) ? `
             <div class="mt-3 pt-2.5 border-t border-slate-100/50">
               <span class="text-xs text-slate-400 block font-medium">Preferred Meetup Place</span>
               <span class="badge bg-rose-50 text-rose-700 border border-rose-100 font-bold px-2.5 py-1.5 text-xs mt-1.5 rounded-lg">
-                <i class="fa-solid fa-handshake me-1"></i>${escapeHtml(order.preferred_meetup_place)}
+                <i class="fa-solid fa-handshake me-1"></i>${escapeHtml(order.preferred_meetup_place || 'Not selected')}
               </span>
             </div>
           ` : ''}
@@ -2634,7 +2634,7 @@ function showNotifToast(count, items) {
     data.rush = manualOrderForm.querySelector('select[name="rush"]').value;
     data.addons = Array.from(manualOrderForm.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value);
     data.delivery_address = manualOrderForm.querySelector('input[name="delivery_address"]')?.value || '';
-    data.preferred_meetup_place = manualOrderForm.querySelector('input[name="preferred_meetup_place"]')?.value || null;
+    data.preferred_meetup_place = manualOrderForm.querySelector('[name="preferred_meetup_place"]')?.value || null;
 
     // Collect items
     const items = [];

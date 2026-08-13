@@ -55,7 +55,8 @@ function renderSidebar() {
     {
       label: "Settings",
       items: [
-        { href: "/admin/admins.html", icon: "fas fa-user-shield", text: "Admins" }
+        { href: "/admin/admins.html", icon: "fas fa-user-shield", text: "Admins" },
+        { href: "/admin/settings.html", icon: "fas fa-cog", text: "Store Settings" }
       ]
     }
   ];
