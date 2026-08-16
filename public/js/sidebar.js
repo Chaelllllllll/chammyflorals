@@ -69,6 +69,13 @@ function renderSidebar() {
       </a>
     </div>
     <ul class="sidebar-nav">
+      <!-- Storefront Link -->
+      <li class="sidebar-nav-item mb-2">
+        <a href="/" class="sidebar-nav-link text-rose-500 hover:bg-rose-50" style="border: 1px dashed rgba(244,63,94,0.4)">
+          <i class="fas fa-home text-rose-500"></i>
+          <span class="font-bold">View Storefront</span>
+        </a>
+      </li>
   `;
 
   sections.forEach(section => {
