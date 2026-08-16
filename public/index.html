@@ -999,8 +999,8 @@
   <script src="/js/alert.js"></script>
   <script src="/js/voucher-handler.js"></script>
   <script src="/js/delivery-calendar.js"></script>
-  <script src="/js/customize-order.js?v=2"></script>
-  <script src="/function.js?v=2" defer></script>
+  <script src="/js/customize-order.js?v=3"></script>
+  <script src="/function.js?v=3" defer></script>
   <script src="/js/products-list.js" defer></script>
   <script src="/js/reviews.js" defer></script>
   <script src="/js/reviews-inline.js" defer></script>
@@ -1054,6 +1054,43 @@
         customDeliveryDatePicker.addEventListener('keydown', (e) => e.preventDefault());
       }
 
+      const customizeOrderModal = document.getElementById('customizeOrderModal');
+      if (customizeOrderModal) {
+        customizeOrderModal.addEventListener('shown.bs.modal', function () {
+          const customDateInput = document.getElementById('customDeliveryDatePicker');
+          if (customDateInput && !customOrderCalendar) {
+            customOrderCalendar = new DeliveryCalendar('customDeliveryDatePicker', {
+              minDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })(),
+              onChange: (selectedDate, dateStr) => {
+                const input = document.getElementById('customDeliveryDatePicker');
+                input.value = dateStr;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                const rushInput = document.querySelector('input[name="custom_rush"]');
+                const rushNotif = document.getElementById('customRushNotification');
+                if (!dateStr) {
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
+                  return;
+                }
+                const date = new Date(dateStr);
+                date.setHours(0, 0, 0, 0);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.round((date - today) / (1000 * 60 * 60 * 24));
+                if (diffDays >= 1 && diffDays <= 3) {
+                  if (rushInput) rushInput.value = 'Yes';
+                  if (rushNotif) rushNotif.style.display = 'block';
+                } else {
+                  if (rushInput) rushInput.value = 'No';
+                  if (rushNotif) rushNotif.style.display = 'none';
+                }
+              }
+            });
+          }
+        });
+      }
+
       const orderModal = document.getElementById('inquiryModal');
       if (orderModal) {
         orderModal.addEventListener('shown.bs.modal', function () {
@@ -1064,6 +1101,8 @@
               onChange: (selectedDate, dateStr) => {
                 const input = document.getElementById('deliveryDatePicker');
                 input.value = dateStr;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
                 const rushInput = document.querySelector('input[name="rush"]');
                 const rushNotif = document.getElementById('rushNotification');
                 if (!dateStr) {

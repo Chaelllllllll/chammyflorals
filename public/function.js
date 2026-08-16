@@ -1,4 +1,9 @@
-document.addEventListener('DOMContentLoaded', () => {
+const initChammyFlorals = () => {
+  try {
+    const logs = JSON.parse(sessionStorage.getItem('chammy_logs') || '[]');
+    logs.push({ time: new Date().toLocaleTimeString(), event: 'initChammyFlorals started' });
+    sessionStorage.setItem('chammy_logs', JSON.stringify(logs));
+  } catch(e) {}
   // Check custom order status setting
   async function checkCustomOrderStatus() {
     const customBtns = ['navCustomizeBtn', 'mobileNavCustomizeBtn', 'heroCustomizeBtn'];
@@ -38,6 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
   checkCustomOrderStatus();
 
   const inquiryForm = document.getElementById('inquiryForm');
+  try {
+    const logs = JSON.parse(sessionStorage.getItem('chammy_logs') || '[]');
+    logs.push({ time: new Date().toLocaleTimeString(), event: 'inquiryForm lookup', found: !!inquiryForm });
+    sessionStorage.setItem('chammy_logs', JSON.stringify(logs));
+  } catch(e) {}
   if (!inquiryForm) {
     return;
   }
@@ -58,8 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
               opt.textContent = place;
               meetupInput.appendChild(opt);
             });
-            if (savedMeetup && data.places.includes(savedMeetup)) {
-              meetupInput.value = savedMeetup;
+            const savedState = localStorage.getItem('inquiry_form_state');
+            const state = savedState ? JSON.parse(savedState) : null;
+            const stateMeetup = state ? state.preferred_meetup_place : '';
+            const finalMeetup = stateMeetup || savedMeetup;
+            if (finalMeetup && data.places.includes(finalMeetup)) {
+              meetupInput.value = finalMeetup;
             }
           } else {
             meetupInput.innerHTML = '<option value="" disabled selected>No places available</option>';
@@ -76,7 +90,185 @@ document.addEventListener('DOMContentLoaded', () => {
   const isAdminDashboardPage = window.location.pathname.startsWith('/admin/');
 
   // Pre-fill customer information if logged in
+  // Save inquiryForm fields to localStorage on input/change
+  // Save inquiryForm fields to localStorage on input/change
+  function saveInquiryFormState() {
+    if (!inquiryForm) return;
+
+    // Collect items
+    const items = [];
+    const itemRows = inquiryForm.querySelectorAll('.order-item');
+    itemRows.forEach(row => {
+      const flowerSelect = row.querySelector('.item-flower');
+      const colorSelect = row.querySelector('.item-color');
+      const qtyInput = row.querySelector('.item-quantity');
+      if (flowerSelect && flowerSelect.value) {
+        items.push({
+          flower_type: flowerSelect.value,
+          color: colorSelect ? colorSelect.value : '',
+          quantity: qtyInput ? parseInt(qtyInput.value) || 1 : 1
+        });
+      }
+    });
+
+    const state = {
+      user_name: inquiryForm.querySelector('input[name="user_name"]')?.value || '',
+      user_email: inquiryForm.querySelector('input[name="user_email"]')?.value || '',
+      fb_link: inquiryForm.querySelector('input[name="fb_link"]')?.value || '',
+      delivery_address: inquiryForm.querySelector('input[name="delivery_address"]')?.value || '',
+      preferred_meetup_place: inquiryForm.querySelector('select[name="preferred_meetup_place"]')?.value || '',
+      expected_delivery_date: inquiryForm.querySelector('input[name="expected_delivery_date"]')?.value || '',
+      message: inquiryForm.querySelector('textarea[name="message"]')?.value || '',
+      voucher_code: document.getElementById('voucherCodeInput')?.value || '',
+      items: items,
+      addons: Array.from(inquiryForm.querySelectorAll('input[name="addons[]"]:checked')).map(x => x.value)
+    };
+    console.log('Chammy Florals: saveInquiryFormState called, saving state:', state);
+    try {
+      const logs = JSON.parse(sessionStorage.getItem('chammy_logs') || '[]');
+      logs.push({ time: new Date().toLocaleTimeString(), event: 'saveInquiryFormState', state });
+      sessionStorage.setItem('chammy_logs', JSON.stringify(logs));
+    } catch(e) {}
+    localStorage.setItem('inquiry_form_state', JSON.stringify(state));
+  }
+
+  // Load state and populate form fields
+  async function loadInquiryFormState() {
+    if (!inquiryForm) return;
+    try {
+      const saved = localStorage.getItem('inquiry_form_state');
+      console.log('Chammy Florals: loadInquiryFormState called, read from localStorage:', saved);
+      try {
+        const logs = JSON.parse(sessionStorage.getItem('chammy_logs') || '[]');
+        logs.push({ time: new Date().toLocaleTimeString(), event: 'loadInquiryFormState', saved });
+        sessionStorage.setItem('chammy_logs', JSON.stringify(logs));
+      } catch(e) {}
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.user_name) {
+          const el = inquiryForm.querySelector('input[name="user_name"]');
+          if (el && !el.readOnly) el.value = state.user_name;
+        }
+        if (state.user_email) {
+          const el = inquiryForm.querySelector('input[name="user_email"]');
+          if (el && !el.readOnly) el.value = state.user_email;
+        }
+        if (state.fb_link) {
+          const el = inquiryForm.querySelector('input[name="fb_link"]');
+          if (el) el.value = state.fb_link;
+        }
+        if (state.delivery_address) {
+          const el = inquiryForm.querySelector('input[name="delivery_address"]');
+          if (el) {
+            el.value = state.delivery_address;
+            if (typeof checkMuntinlupaForInput === 'function') {
+              checkMuntinlupaForInput(el, state.delivery_address);
+            }
+          }
+        }
+        if (state.preferred_meetup_place) {
+          const el = inquiryForm.querySelector('select[name="preferred_meetup_place"]');
+          if (el) {
+            setTimeout(() => {
+              el.value = state.preferred_meetup_place;
+            }, 500);
+          }
+        }
+        if (state.expected_delivery_date) {
+          const el = inquiryForm.querySelector('input[name="expected_delivery_date"]');
+          if (el) {
+            el.value = state.expected_delivery_date;
+            setTimeout(() => {
+              el.dispatchEvent(new Event('change'));
+            }, 100);
+          }
+        }
+        if (state.message) {
+          const el = inquiryForm.querySelector('textarea[name="message"]');
+          if (el) el.value = state.message;
+        }
+        if (state.voucher_code) {
+          const el = document.getElementById('voucherCodeInput');
+          if (el) el.value = state.voucher_code;
+        }
+
+        // Wait until products cache is loaded before rebuilding items
+        let tries = 0;
+        while (!_productsCache && tries < 100) {
+          await new Promise(r => setTimeout(r, 100));
+          tries++;
+        }
+
+        if (_productsCache && Array.isArray(state.items) && state.items.length) {
+          inquiryFormStateLoaded = true;
+          const container = document.getElementById('itemsContainer');
+          if (container) {
+            container.innerHTML = '';
+            for (let idx = 0; idx < state.items.length; idx++) {
+              const it = state.items[idx];
+              const row = createItemRow(idx);
+              container.appendChild(row);
+              
+              const flowerSelect = row.querySelector('.item-flower');
+              if (flowerSelect) {
+                flowerSelect.value = it.flower_type || '';
+                populateColorSelectForRow(row);
+                
+                const colorSelect = row.querySelector('.item-color');
+                if (colorSelect && it.color) {
+                  colorSelect.value = it.color;
+                }
+              }
+              const qtyInput = row.querySelector('.item-quantity');
+              if (qtyInput) {
+                qtyInput.value = it.quantity || 1;
+              }
+              updateQuantityLimits(row);
+            }
+            updateItemNumbers();
+
+            // Trigger check for first item to load addons & calculate
+            const firstSelect = container.querySelector('.item-flower');
+            if (firstSelect && firstSelect.value) {
+              await onFlowerTypeChange({ target: firstSelect });
+              
+              // Restore checked addons
+              if (Array.isArray(state.addons)) {
+                state.addons.forEach(addOnValue => {
+                  const base = addOnValue.split(' ×')[0];
+                  const cb = inquiryForm.querySelector(`.addon-checkbox[data-base-value="${base}"], .addon-checkbox[value="${addOnValue}"]`);
+                  if (cb) {
+                    cb.checked = true;
+                    const m = addOnValue.match(/×\s*(\d+)$/);
+                    if (m) {
+                      const qty = parseInt(m[1]) || 1;
+                      const qtyInput = cb.closest('.addon-item')?.querySelector('.addon-qty');
+                      if (qtyInput) {
+                        qtyInput.value = qty;
+                        qtyInput.disabled = false;
+                      }
+                    }
+                  }
+                });
+              }
+            }
+            computeRushFee();
+            calculateOrderTotal();
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error loading inquiry form state:', e);
+    }
+  }
+
+  // Pre-fill customer information if logged in
   function prefillCustomerInfo() {
+    try {
+      const logs = JSON.parse(sessionStorage.getItem('chammy_logs') || '[]');
+      logs.push({ time: new Date().toLocaleTimeString(), event: 'prefillCustomerInfo started' });
+      sessionStorage.setItem('chammy_logs', JSON.stringify(logs));
+    } catch(e) {}
     const customerData = localStorage.getItem('customer');
     if (customerData) {
       try {
@@ -127,6 +319,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (e) {}
+
+    // Load persisted state from localStorage
+    loadInquiryFormState();
+  }
+
+  // Attach event listeners for saving state
+  if (inquiryForm) {
+    inquiryForm.addEventListener('input', saveInquiryFormState);
+    inquiryForm.addEventListener('change', saveInquiryFormState);
+    const voucherInput = document.getElementById('voucherCodeInput');
+    if (voucherInput) {
+      voucherInput.addEventListener('input', saveInquiryFormState);
+    }
   }
 
   // Prefill call moved to the end of DOMContentLoaded to ensure all helper functions are defined
@@ -143,6 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addonsWrapper && !addonsSection) addonsWrapper.style.display = 'none';
   } catch (e) {}
   let _productsCache = null;
+  let inquiryFormStateLoaded = false;
 
   // Load products once and populate flower type select dynamically
   async function loadProductsForInquiry() {
@@ -421,16 +627,20 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     const selectEl = row.querySelector('.item-flower');
     populateItemSelect(selectEl);
-    // ensure color select is populated shortly after creation (handles async product cache)
-    setTimeout(() => {
+    if (_productsCache) {
       try { populateColorSelectForRow(row); } catch (e) {}
-      try {
-        // if options not yet present because products cache was empty, attempt populate again
-        if (selectEl && selectEl.options && selectEl.options.length <= 1 && typeof loadProductsForInquiry === 'function') {
-          loadProductsForInquiry().then(() => populateItemSelect(selectEl)).catch(() => {});
-        }
-      } catch (e) {}
-    }, 40);
+    } else {
+      // ensure color select is populated shortly after creation (handles async product cache)
+      setTimeout(() => {
+        try { populateColorSelectForRow(row); } catch (e) {}
+        try {
+          // if options not yet present because products cache was empty, attempt populate again
+          if (selectEl && selectEl.options && selectEl.options.length <= 1 && typeof loadProductsForInquiry === 'function') {
+            loadProductsForInquiry().then(() => populateItemSelect(selectEl)).catch(() => {});
+          }
+        } catch (e) {}
+      }, 40);
+    }
     
     // attach change handler so addons preview updates when item selection changes
     try { 
@@ -508,6 +718,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await new Promise(r => setTimeout(r, 150));
       tries++;
     }
+    if (inquiryFormStateLoaded) return;
     const initialSelects = itemsContainer.querySelectorAll('.item-flower');
     initialSelects.forEach(s => {
       populateItemSelect(s);
@@ -586,17 +797,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hint.style.fontSize = '11px';
         row.appendChild(hint);
       }
-      const hasLimits = (maxQty != null && maxQty > 0) || minQty > 1;
-      if (hasLimits) {
-        const rangeText = (maxQty != null && maxQty > 0)
-          ? `${productName}: min ${minQty} • max ${maxQty}`
-          : `${productName}: min ${minQty}`;
-        hint.textContent = 'ℹ ' + rangeText;
-        hint.style.display = '';
-        hint.style.color = '#6b7280';
-      } else {
-        hint.style.display = 'none';
-      }
+      hint.style.display = 'none';
       // clear any stale error styling
       qtyInput.classList.remove('is-invalid');
       const errEl = row.querySelector('.item-qty-error');
@@ -706,10 +907,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function getRushFeeTotal() {
     if (!_categoriesCache) return 0;
     const itemRows = itemsContainer.querySelectorAll('.order-item');
-    let totalRush = 0;
+    let maxRush = 0;
     itemRows.forEach(row => {
       const select = row.querySelector('.item-flower');
-      const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
       const opt = select && select.selectedOptions && select.selectedOptions[0];
       const productId = opt && opt.dataset && opt.dataset.productId;
       if (!productId) return;
@@ -717,9 +917,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const cat = prod && prod.category ? String(prod.category).trim() : '';
       const key = String(cat || '').trim().toLowerCase();
       const fee = _categoriesCache[key] || 0;
-      if (fee) totalRush += fee * qty;
+      if (fee > maxRush) {
+        maxRush = fee;
+      }
     });
-    return totalRush;
+    return maxRush;
   }
 
   function computeRushFee() {
@@ -740,13 +942,20 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCategoriesForRush().then(() => computeRushFee()).catch(() => {});
 
   // recompute when quantity inputs change
-  itemsContainer.addEventListener('input', (e) => {
-    if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) {
-      computeRushFee();
-      calculateOrderTotal();
-      validateOrderQuantities();
-    }
-  });
+  if (itemsContainer) {
+    itemsContainer.addEventListener('input', (e) => {
+      if (e.target && e.target.classList && e.target.classList.contains('item-quantity')) {
+        computeRushFee();
+        calculateOrderTotal();
+        validateOrderQuantities();
+      }
+      saveInquiryFormState();
+    });
+    itemsContainer.addEventListener('change', saveInquiryFormState);
+  }
+  if (typeof addonsContainer !== 'undefined' && addonsContainer) {
+    addonsContainer.addEventListener('change', saveInquiryFormState);
+  }
 
   // Calculate order total based on selected items and addons
   function calculateOrderTotal() {
@@ -943,6 +1152,11 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             localStorage.removeItem('customer_preferred_meetup_place');
           }
+        } catch (e) {}
+
+        // Clear pretyped state
+        try {
+          localStorage.removeItem('inquiry_form_state');
         } catch (e) {}
 
         // Record voucher usage if voucher was applied
@@ -1523,6 +1737,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (activeAddressInput) {
             activeAddressInput.value = address;
             checkMuntinlupaForInput(activeAddressInput, address);
+            activeAddressInput.dispatchEvent(new Event('input', { bubbles: true }));
+            activeAddressInput.dispatchEvent(new Event('change', { bubbles: true }));
           }
           const bsModal = bootstrap.Modal.getOrCreateInstance(mapPickerModalEl);
           if (bsModal) bsModal.hide();
@@ -1785,9 +2001,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   }
 
   const trackForm = document.getElementById('trackForm');
-  if (!trackForm) {
-    return;
-  }
+  if (trackForm) {
 
   // If URL contains ?orderId=..., open the track modal, fill the input and auto-submit
   try {
@@ -2181,6 +2395,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     }
   }
 
+  }
+
   // Helper function to escape HTML
   function escapeHtml(unsafe) {
     if (!unsafe) return '';
@@ -2192,8 +2408,46 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       .replace(/'/g, '&#039;');
   }
 
+  // --- Auto-reopen active modal on refresh ---
+  const inquiryModalEl = document.getElementById('inquiryModal');
+  if (inquiryModalEl) {
+    inquiryModalEl.addEventListener('shown.bs.modal', () => {
+      sessionStorage.setItem('active_modal', 'inquiryModal');
+    });
+    inquiryModalEl.addEventListener('hidden.bs.modal', () => {
+      sessionStorage.removeItem('active_modal');
+    });
+  }
+
+  const customizeOrderModalEl = document.getElementById('customizeOrderModal');
+  if (customizeOrderModalEl) {
+    customizeOrderModalEl.addEventListener('shown.bs.modal', () => {
+      sessionStorage.setItem('active_modal', 'customizeOrderModal');
+    });
+    customizeOrderModalEl.addEventListener('hidden.bs.modal', () => {
+      sessionStorage.removeItem('active_modal');
+    });
+  }
+
+  const activeModal = sessionStorage.getItem('active_modal');
+  if (activeModal) {
+    setTimeout(() => {
+      const el = document.getElementById(activeModal);
+      if (el) {
+        const modal = bootstrap.Modal.getOrCreateInstance(el);
+        if (modal) modal.show();
+      }
+    }, 800);
+  }
+
   // Call prefill function now that all helpers are declared
   prefillCustomerInfo();
 
   // Floating chat functionality removed - now in dashboard.html only
-});
+};
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initChammyFlorals);
+} else {
+  initChammyFlorals();
+}

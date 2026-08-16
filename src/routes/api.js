@@ -607,7 +607,7 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
       }
     } catch (err) {}
 
-    // If rush is requested, add per-category rush fees (if categories define a rush_fee)
+    // If rush is requested, add category-specific rush fee once for the whole order (maximum of the categories in the order)
     try {
       const rushFlag = String(rush || '').toLowerCase() === 'yes' || String(rush || '').toLowerCase() === 'true' || rush === true;
       if (rushFlag) {
@@ -624,25 +624,25 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
           if (slugKey) feeMap[slugKey] = fee;
           if (idKey) feeMap[idKey] = fee;
         });
-        // apply fees for multi-item orders
+        
+        let maxRushFee = 0;
         if (Array.isArray(req.body.items) && req.body.items.length) {
-          // Debug: compute and log per-category fee additions
-          let computedRush = 0;
           for (const mc of (matchedCategories || [])) {
             const key = String(mc.category || '').trim().toLowerCase();
             const fee = feeMap[key] || 0;
-            if (fee) {
-              const add = fee * (mc.qty || 1);
-              computedRush += add;totalFee += add;
-            } else {}
-          }} else {
+            if (fee > maxRushFee) {
+              maxRushFee = fee;
+            }
+          }
+        } else {
           // single item
           const key = String(singleMatchedCategory || '').trim().toLowerCase();
           const fee = feeMap[key] || 0;
-          if (fee) {
-            const add = fee * (parseInt(quantity) || 1);totalFee += add;
-          } else {}
+          if (fee > maxRushFee) {
+            maxRushFee = fee;
+          }
         }
+        totalFee += maxRushFee;
       }
     } catch (feeErr) {}
 
@@ -1075,23 +1075,54 @@ router.get('/recompute-total/:orderId', async (req, res) => {
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
 
     const computeForDebug = (itemFlower, itemQty) => {
-      const needle = normalizeCode(itemFlower);
+      const parts = String(itemFlower || '').split('-').map(s => s.trim());
+      const qty = parseInt(itemQty) || 1;
       let found = null;
-      for (const p of products) {
-        if (p.pricing && Array.isArray(p.pricing)) {
-          const row = p.pricing.find(r => {
-            const label = normalizeCode(r.label || r.set || '');
-            return label === needle || label.includes(needle) || needle.includes(label);
-          });
-          if (row) { found = { product: p, row }; break; }
-        }
-        const pname = normalizeCode(p.name || '');
-        if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
-          found = { product: p, row: null };
-          break;
+
+      if (parts.length >= 2) {
+        const prodNamePart = normalizeCode(parts[0]);
+        const setPart = normalizeCode(parts[1]);
+        
+        // Find product that matches the first part
+        for (const p of products) {
+          const pname = normalizeCode(p.name || '');
+          if (pname && (pname === prodNamePart || pname.includes(prodNamePart) || prodNamePart.includes(pname))) {
+            // Find pricing row that matches the second part
+            if (p.pricing && Array.isArray(p.pricing)) {
+              const row = p.pricing.find(r => {
+                const label = normalizeCode(r.label || r.set || '');
+                const rset = normalizeCode(r.set || '');
+                return label === setPart || label.includes(setPart) || setPart.includes(label) ||
+                       rset === setPart || rset.includes(setPart) || setPart.includes(rset);
+              });
+              if (row) {
+                found = { product: p, row };
+                break;
+              }
+            }
+          }
         }
       }
-      const qty = parseInt(itemQty) || 1;
+
+      // Fallback to original matching logic if not found with structured match
+      if (!found) {
+        const needle = normalizeCode(itemFlower);
+        for (const p of products) {
+          if (p.pricing && Array.isArray(p.pricing)) {
+            const row = p.pricing.find(r => {
+              const label = normalizeCode(r.label || r.set || '');
+              return label === needle || label.includes(needle) || needle.includes(label);
+            });
+            if (row) { found = { product: p, row }; break; }
+          }
+          const pname = normalizeCode(p.name || '');
+          if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+            found = { product: p, row: null };
+            break;
+          }
+        }
+      }
+
       let itemTotal = 0;
       let matchedRowLabel = null;
       let matchedProductName = null;
@@ -1192,16 +1223,17 @@ router.get('/recompute-total/:orderId', async (req, res) => {
           if (slugKey) feeMap[slugKey] = fee;
           if (idKey) feeMap[idKey] = fee;
         });
-        // apply fees
+        
+        let maxRushFee = 0;
         for (const it of itemsWithCategory) {
           const key = String(it.category || '').trim().toLowerCase();
           const fee = feeMap[key] || 0;
-          if (fee) {
-            const add = fee * (parseInt(it.quantity) || 1);
-            rushFeeTotal += add;
-            recomputed += add;
+          if (fee > maxRushFee) {
+            maxRushFee = fee;
           }
         }
+        rushFeeTotal = maxRushFee;
+        recomputed += maxRushFee;
       }
     } catch (rfErr) {}
 
@@ -1244,23 +1276,54 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
 
     const normalizeCode = s => String(s || '').replace(/[^a-z0-9]/gi, '').toUpperCase();
     const computeForDebug = (itemFlower, itemQty) => {
-      const needle = normalizeCode(itemFlower);
+      const parts = String(itemFlower || '').split('-').map(s => s.trim());
+      const qty = parseInt(itemQty) || 1;
       let found = null;
-      for (const p of products) {
-        if (p.pricing && Array.isArray(p.pricing)) {
-          const row = p.pricing.find(r => {
-            const label = normalizeCode(r.label || r.set || '');
-            return label === needle || label.includes(needle) || needle.includes(label);
-          });
-          if (row) { found = { product: p, row }; break; }
-        }
-        const pname = normalizeCode(p.name || '');
-        if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
-          found = { product: p, row: null };
-          break;
+
+      if (parts.length >= 2) {
+        const prodNamePart = normalizeCode(parts[0]);
+        const setPart = normalizeCode(parts[1]);
+        
+        // Find product that matches the first part
+        for (const p of products) {
+          const pname = normalizeCode(p.name || '');
+          if (pname && (pname === prodNamePart || pname.includes(prodNamePart) || prodNamePart.includes(pname))) {
+            // Find pricing row that matches the second part
+            if (p.pricing && Array.isArray(p.pricing)) {
+              const row = p.pricing.find(r => {
+                const label = normalizeCode(r.label || r.set || '');
+                const rset = normalizeCode(r.set || '');
+                return label === setPart || label.includes(setPart) || setPart.includes(label) ||
+                       rset === setPart || rset.includes(setPart) || setPart.includes(rset);
+              });
+              if (row) {
+                found = { product: p, row };
+                break;
+              }
+            }
+          }
         }
       }
-      const qty = parseInt(itemQty) || 1;
+
+      // Fallback to original matching logic if not found with structured match
+      if (!found) {
+        const needle = normalizeCode(itemFlower);
+        for (const p of products) {
+          if (p.pricing && Array.isArray(p.pricing)) {
+            const row = p.pricing.find(r => {
+              const label = normalizeCode(r.label || r.set || '');
+              return label === needle || label.includes(needle) || needle.includes(label);
+            });
+            if (row) { found = { product: p, row }; break; }
+          }
+          const pname = normalizeCode(p.name || '');
+          if (pname && (pname === needle || pname.includes(needle) || needle.includes(pname))) {
+            found = { product: p, row: null };
+            break;
+          }
+        }
+      }
+
       let itemTotal = 0;
       let matchedRowLabel = null;
       let matchedProductName = null;
@@ -1336,12 +1399,16 @@ router.post('/recompute-total/:orderId/update', async (req, res) => {
           if (slugKey) feeMap[slugKey] = fee;
           if (idKey) feeMap[idKey] = fee;
         });
-        // apply fees
+        
+        let maxRushFee = 0;
         for (const it of itemsArr) {
           const key = String(it.category || '').trim().toLowerCase();
           const fee = feeMap[key] || 0;
-          if (fee) recomputed += fee * (parseInt(it.quantity) || 1);
+          if (fee > maxRushFee) {
+            maxRushFee = fee;
+          }
         }
+        recomputed += maxRushFee;
       }
     } catch (rfErr) {}
 

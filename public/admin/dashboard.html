@@ -1033,8 +1033,16 @@
                   </label>
                   <input type="text" id="deliveryAddressInput" name="delivery_address"
                     class="shadcn-input text-sm sm:text-base cursor-pointer bg-slate-50"
-                    placeholder="Click to search & pin your address on map..." required readonly data-bs-toggle="modal"
-                    data-bs-target="#mapPickerModal">
+                    placeholder="Click to search & pin your address on map..." required readonly>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2" id="meetupPlaceSection" style="display: none;">
+                  <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
+                    <i class="fa-solid fa-handshake text-rose-500 me-1.5"></i>Preferred Meetup Place (Muntinlupa only)
+                  </label>
+                  <select name="preferred_meetup_place" id="meetupPlaceInput" class="shadcn-input text-sm sm:text-base cursor-pointer bg-white">
+                    <option value="" disabled selected>Select preferred meetup place</option>
+                  </select>
                 </div>
                 <div>
                   <label class="form-label font-bold text-xs sm:text-sm text-slate-800 mb-1 block">
@@ -1093,7 +1101,7 @@
   <script src="/js/sidebar.js"></script>
   <script src="/js/delivery-calendar.js"></script>
   <script src="/js/voucher-handler.js"></script>
-  <script src="/function.js" defer></script>
+  <script src="/function.js?v=3" defer></script>
   <script src="/js/admin-dashboard.js"></script>
   <script src="/js/push-subscribe.js"></script>
   <link rel="stylesheet" href="/css/notify-prompt.css">
@@ -1117,6 +1125,8 @@
               onChange: (selectedDate, dateStr) => {
                 const input = document.getElementById('deliveryDatePicker');
                 input.value = dateStr;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
                 const rushInput = document.querySelector('input[name="rush"]');
                 const rushNotif = document.getElementById('rushNotification');
                 if (!dateStr) {

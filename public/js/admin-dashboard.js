@@ -2493,11 +2493,10 @@ function showNotifToast(count, items) {
     try {
       if (!_categoriesCache) return;
       const itemRows = manualItemsContainer.querySelectorAll('.order-item');
-      let totalRush = 0;
+      let maxRush = 0;
 
       itemRows.forEach(row => {
         const select = row.querySelector('.item-flower');
-        const qty = parseInt(row.querySelector('.item-quantity').value) || 1;
         const opt = select && select.selectedOptions && select.selectedOptions[0];
         const productId = opt && opt.dataset && opt.dataset.productId;
         if (!productId) return;
@@ -2506,14 +2505,16 @@ function showNotifToast(count, items) {
         const cat = prod && prod.category ? String(prod.category).trim() : '';
         const key = String(cat || '').trim().toLowerCase();
         const fee = _categoriesCache[key] || 0;
-        if (fee) totalRush += fee * qty;
+        if (fee > maxRush) {
+          maxRush = fee;
+        }
       });
 
       const rushSelect = manualOrderForm.querySelector('select[name="rush"]');
       if (rushSelect) {
         const yesOpt = rushSelect.querySelector('option[value="Yes"]');
         if (yesOpt) {
-          yesOpt.textContent = `Yes - Rush Fee: ₱${Number(totalRush).toLocaleString()}`;
+          yesOpt.textContent = `Yes - Rush Fee: ₱${Number(maxRush).toLocaleString()}`;
         }
       }
     } catch (err) {

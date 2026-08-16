@@ -83,6 +83,7 @@
     renderSingleSelectOptions('wrapping', customizationOptions.wrapping, 'customWrappingContainer');
     renderCheckboxOptions('addons', customizationOptions.addons, 'customAddonsContainer');
     updateOrderSummary();
+    restoreCustomSelections();
   }
 
   // Render options with quantity selector (for stems and fillers)
@@ -392,6 +393,10 @@
       // Fallback: update display directly
       totalEl.textContent = `₱${total.toFixed(2)}`;
     }
+    // Auto-save the selected items to localStorage
+    try {
+      localStorage.setItem('custom_selected_items', JSON.stringify(selectedItems));
+    } catch (e) {}
   }
   
   // Make updateOrderSummary globally accessible for rush date changes
@@ -610,6 +615,12 @@
       // Show success message
       showSuccessMessage(data.order_number);
       
+      // Clear pretyped state
+      try {
+        localStorage.removeItem('custom_form_state');
+        localStorage.removeItem('custom_selected_items');
+      } catch (e) {}
+
       // Reset form
       resetForm();
       
@@ -790,6 +801,139 @@
     const form = document.getElementById('customizeOrderForm');
     if (form) {
       form.addEventListener('submit', handleSubmit);
+      form.addEventListener('input', saveCustomFormState);
+      form.addEventListener('change', saveCustomFormState);
+      const voucherInput = document.getElementById('customVoucherCodeInput');
+      if (voucherInput) {
+        voucherInput.addEventListener('input', saveCustomFormState);
+      }
+    }
+  }
+
+  // Save customOrderForm fields to localStorage on input/change
+  function saveCustomFormState() {
+    const form = document.getElementById('customizeOrderForm');
+    if (!form) return;
+    const state = {
+      custom_user_name: form.querySelector('[name="custom_user_name"]')?.value || '',
+      custom_user_email: form.querySelector('[name="custom_user_email"]')?.value || '',
+      custom_fb_link: form.querySelector('[name="custom_fb_link"]')?.value || '',
+      custom_delivery_address: form.querySelector('[name="custom_delivery_address"]')?.value || '',
+      custom_preferred_meetup_place: form.querySelector('[name="custom_preferred_meetup_place"]')?.value || '',
+      custom_expected_delivery_date: form.querySelector('[name="custom_expected_delivery_date"]')?.value || '',
+      custom_message: form.querySelector('[name="custom_message"]')?.value || '',
+      custom_voucher_code: document.getElementById('customVoucherCodeInput')?.value || ''
+    };
+    console.log('Chammy Florals: saveCustomFormState called, saving state:', state);
+    localStorage.setItem('custom_form_state', JSON.stringify(state));
+    localStorage.setItem('custom_selected_items', JSON.stringify(selectedItems));
+  }
+
+  // Load state and populate form fields
+  function loadCustomFormState() {
+    const form = document.getElementById('customizeOrderForm');
+    if (!form) return;
+    try {
+      const saved = localStorage.getItem('custom_form_state');
+      console.log('Chammy Florals: loadCustomFormState called, read from localStorage:', saved);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.custom_user_name) {
+          const el = form.querySelector('[name="custom_user_name"]');
+          if (el) el.value = state.custom_user_name;
+        }
+        if (state.custom_user_email) {
+          const el = form.querySelector('[name="custom_user_email"]');
+          if (el) el.value = state.custom_user_email;
+        }
+        if (state.custom_fb_link) {
+          const el = form.querySelector('[name="custom_fb_link"]');
+          if (el) el.value = state.custom_fb_link;
+        }
+        if (state.custom_delivery_address) {
+          const el = form.querySelector('[name="custom_delivery_address"]');
+          if (el) {
+            el.value = state.custom_delivery_address;
+            if (typeof window.checkMuntinlupaForInput === 'function') {
+              window.checkMuntinlupaForInput(el, state.custom_delivery_address);
+            }
+          }
+        }
+        if (state.custom_preferred_meetup_place) {
+          const el = form.querySelector('[name="custom_preferred_meetup_place"]');
+          if (el) {
+            setTimeout(() => {
+              el.value = state.custom_preferred_meetup_place;
+            }, 500);
+          }
+        }
+        if (state.custom_expected_delivery_date) {
+          const el = form.querySelector('[name="custom_expected_delivery_date"]');
+          if (el) {
+            el.value = state.custom_expected_delivery_date;
+            setTimeout(() => {
+              el.dispatchEvent(new Event('change'));
+            }, 100);
+          }
+        }
+        if (state.custom_message) {
+          const el = form.querySelector('[name="custom_message"]');
+          if (el) el.value = state.custom_message;
+        }
+        if (state.custom_voucher_code) {
+          const el = document.getElementById('customVoucherCodeInput');
+          if (el) el.value = state.custom_voucher_code;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading custom form state:', e);
+    }
+  }
+
+  // Restore custom order selections from localStorage
+  function restoreCustomSelections() {
+    try {
+      const savedItems = localStorage.getItem('custom_selected_items');
+      if (savedItems) {
+        const parsed = JSON.parse(savedItems);
+        if (parsed) {
+          selectedItems = parsed;
+          
+          // 1. Populate stems quantity inputs
+          if (Array.isArray(selectedItems.stems)) {
+            selectedItems.stems.forEach(it => {
+              const input = document.querySelector(`.qty-input[data-type="stems"][data-id="${it.id}"]`);
+              if (input) input.value = it.quantity;
+            });
+          }
+          
+          // 2. Populate fillers quantity inputs
+          if (Array.isArray(selectedItems.fillers)) {
+            selectedItems.fillers.forEach(it => {
+              const input = document.querySelector(`.qty-input[data-type="fillers"][data-id="${it.id}"]`);
+              if (input) input.value = it.quantity;
+            });
+          }
+          
+          // 3. Populate wrapping radio button
+          if (selectedItems.wrapping) {
+            const radio = document.getElementById(`wrap_${selectedItems.wrapping.id}`);
+            if (radio) radio.checked = true;
+          }
+          
+          // 4. Populate addons checkboxes
+          if (Array.isArray(selectedItems.addons)) {
+            selectedItems.addons.forEach(it => {
+              const checkbox = document.getElementById(`addon_${it.id}`);
+              if (checkbox) checkbox.checked = true;
+            });
+          }
+          
+          updateOrderSummary();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore custom selections:', error);
     }
   }
 
@@ -844,8 +988,12 @@
                 opt.textContent = place;
                 meetupInput.appendChild(opt);
               });
-              if (savedMeetup && data.places.includes(savedMeetup)) {
-                meetupInput.value = savedMeetup;
+              const savedState = localStorage.getItem('custom_form_state');
+              const state = savedState ? JSON.parse(savedState) : null;
+              const stateMeetup = state ? state.custom_preferred_meetup_place : '';
+              const finalMeetup = stateMeetup || savedMeetup;
+              if (finalMeetup && data.places.includes(finalMeetup)) {
+                meetupInput.value = finalMeetup;
               }
             } else {
               meetupInput.innerHTML = '<option value="" disabled selected>No places available</option>';
@@ -858,6 +1006,9 @@
           if (meetupInput) meetupInput.innerHTML = '<option value="" disabled selected>Error loading places</option>';
         });
     } catch (e) {}
+
+    // Load persisted state from localStorage
+    loadCustomFormState();
   }
 
   // Run when DOM is ready
