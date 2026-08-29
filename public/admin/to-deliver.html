@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="shortcut icon" href="../flowers/cherry-blossom.png" type="image/x-icon">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
   <!-- Leaflet Map CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,7 +18,9 @@
   <link rel="stylesheet" href="/css/admin-theme.css">
   <style>
     /* Admin page design enhancements */
-    body { overflow-x: hidden; }
+    body {
+      overflow-x: hidden;
+    }
 
     /* Card styles */
     .card {
@@ -23,9 +28,10 @@
       overflow: hidden;
       transition: all 0.3s ease;
     }
+
     .card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     }
 
     /* Metric cards */
@@ -36,14 +42,57 @@
     }
 
     /* Button styles */
-    .btn-outline-pink {
-      color: #ff6f9b;
-      border-color: #ff6f9b;
+    .btn {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      font-weight: 500 !important;
     }
+
+    .btn-outline-pink {
+      color: #ff6f9b !important;
+      border: 1px solid #ff6f9b !important;
+      background-color: transparent !important;
+      border-radius: 8px !important;
+    }
+
     .btn-outline-pink:hover {
-      background-color: #ff6f9b;
-      border-color: #ff6f9b;
-      color: white;
+      background-color: #ff6f9b !important;
+      border-color: #ff6f9b !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(255, 111, 155, 0.25) !important;
+      transform: translateY(-1px);
+    }
+
+    .btn-pink {
+      background: linear-gradient(135deg, #ff99bb 0%, #ff6f9b 100%) !important;
+      border: none !important;
+      color: white !important;
+      border-radius: 8px !important;
+      font-weight: 500 !important;
+    }
+
+    .btn-pink:hover {
+      background: linear-gradient(135deg, #ff6f9b 0%, #ff4d88 100%) !important;
+      color: white !important;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(255, 111, 155, 0.3) !important;
+    }
+
+    /* Remind Button styles */
+    .btn-remind {
+      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+      color: #b45309 !important;
+      border: 1px solid #fde68a !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+      box-shadow: 0 1px 2px rgba(180, 83, 9, 0.05) !important;
+    }
+
+    .btn-remind:hover {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+      color: #ffffff !important;
+      border-color: #d97706 !important;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25) !important;
+      transform: translateY(-1px);
     }
 
     /* Badge styles */
@@ -51,16 +100,12 @@
       background-color: #ff6f9b !important;
     }
 
-    /* Smooth transitions */
-    .btn, .badge {
-      transition: all 0.3s ease;
-    }
-
     /* Table styles */
     .table {
       border-radius: 8px;
       overflow: hidden;
     }
+
     .table thead {
       background: linear-gradient(135deg, #fff6f9 0%, #ffe9f0 100%);
     }
@@ -69,21 +114,84 @@
     .modal-content {
       border-radius: 12px;
     }
+
     /* Order details styling (polished) */
-    .order-detail-label { color: #6c6c6c; font-size: 0.9rem; }
-    .order-detail-value { font-size: 1rem; }
-    .order-items-list { border-top: 1px solid rgba(255,111,155,0.06); margin-top: 0.5rem; padding-top: 0.75rem; }
-    .order-item-row { border-bottom: 1px solid rgba(255,111,155,0.04); padding: 0.65rem 0; display: flex; align-items: center; gap: 0.75rem; }
-    .product-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; background:#fff; border:1px solid rgba(196,31,92,0.06); display:block; }
-    .product-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#d08aa3; background:linear-gradient(180deg,#fffafc,#fff6f9); border:1px dashed rgba(196,31,92,0.06); }
-    .item-meta { font-size: 0.9rem; color: #6c6c6c; }
-    .details-key { color: #8a8a8a; font-size: 0.85rem; }
-    .details-section { padding: 0.9rem; background: linear-gradient(180deg,#fffafc, #fff6f9); border-radius: 12px; }
-    .summary-panel { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 18px rgba(196,31,92,0.04); }
-    .order-detail-section-title { font-size: 0.95rem; color: #6c6c6c; margin-bottom: 0.5rem; }
-    .btn-print { border-radius: 8px; }
+    .order-detail-label {
+      color: #6c6c6c;
+      font-size: 0.9rem;
+    }
+
+    .order-detail-value {
+      font-size: 1rem;
+    }
+
+    .order-items-list {
+      border-top: 1px solid rgba(255, 111, 155, 0.06);
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
+    }
+
+    .order-item-row {
+      border-bottom: 1px solid rgba(255, 111, 155, 0.04);
+      padding: 0.65rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .product-thumb {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid rgba(196, 31, 92, 0.06);
+      display: block;
+    }
+
+    .product-thumb.placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #d08aa3;
+      background: linear-gradient(180deg, #fffafc, #fff6f9);
+      border: 1px dashed rgba(196, 31, 92, 0.06);
+    }
+
+    .item-meta {
+      font-size: 0.9rem;
+      color: #6c6c6c;
+    }
+
+    .details-key {
+      color: #8a8a8a;
+      font-size: 0.85rem;
+    }
+
+    .details-section {
+      padding: 0.9rem;
+      background: linear-gradient(180deg, #fffafc, #fff6f9);
+      border-radius: 12px;
+    }
+
+    .summary-panel {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px rgba(196, 31, 92, 0.04);
+    }
+
+    .order-detail-section-title {
+      font-size: 0.95rem;
+      color: #6c6c6c;
+      margin-bottom: 0.5rem;
+    }
+
+    .btn-print {
+      border-radius: 8px;
+    }
   </style>
 </head>
+
 <body class="admin-page">
   <!-- Sidebar Toggle Button (Mobile) -->
   <button class="sidebar-toggle" id="sidebarToggle">
@@ -101,7 +209,7 @@
         <span>Chammy Florals</span>
       </a>
     </div>
-    
+
     <ul class="sidebar-nav">
       <!-- Main -->
       <li class="sidebar-nav-item">
@@ -110,7 +218,7 @@
           <span>Dashboard</span>
         </a>
       </li>
-      
+
       <!-- Orders Section -->
       <li class="sidebar-section-label">Orders</li>
       <li class="sidebar-nav-item">
@@ -131,7 +239,7 @@
           <span>Customized Orders</span>
         </a>
       </li>
-      
+
       <!-- Store Section -->
       <li class="sidebar-section-label">Store</li>
       <li class="sidebar-nav-item">
@@ -158,7 +266,7 @@
           <span>Vouchers</span>
         </a>
       </li>
-      
+
       <!-- Communication Section -->
       <li class="sidebar-section-label">Communication</li>
       <li class="sidebar-nav-item">
@@ -174,7 +282,7 @@
           <span>Announcements</span>
         </a>
       </li>
-      
+
       <!-- Analytics Section -->
       <li class="sidebar-section-label">Analytics</li>
       <li class="sidebar-nav-item">
@@ -189,7 +297,7 @@
           <span>Analytics</span>
         </a>
       </li>
-      
+
       <!-- Settings Section -->
       <li class="sidebar-section-label">Settings</li>
       <li class="sidebar-nav-item">
@@ -198,7 +306,7 @@
           <span>Admins</span>
         </a>
       </li>
-      
+
       <!-- Logout -->
       <li class="sidebar-nav-item">
         <button class="btn btn-pink w-100" id="logoutButton">
@@ -210,51 +318,53 @@
 
   <!-- Main Content -->
   <div class="main-content" id="mainContent">
-  <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 gap-3">
-          <div>
-            <h2 class="card-title mb-1">
-              <i class="fas fa-truck text-pink me-2"></i>Orders Ready for Delivery
-            </h2>
-            <div class="small text-muted">Orders ready to be delivered.</div>
+    <div class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div
+            class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-4 gap-3">
+            <div>
+              <h2 class="card-title mb-1">
+                <i class="fas fa-truck text-pink me-2"></i>Orders Ready for Delivery
+              </h2>
+              <div class="small text-muted">Orders ready to be delivered.</div>
+            </div>
+            <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-between justify-content-md-end">
+              <input id="deliverySearch" class="form-control form-control-sm" style="max-width:300px;"
+                placeholder="🔍 Search by Order ID, name or email">
+            </div>
           </div>
-          <div class="d-flex gap-2 w-100 w-md-auto align-items-center justify-content-between justify-content-md-end">
-            <input id="deliverySearch" class="form-control form-control-sm" style="max-width:300px;" placeholder="🔍 Search by Order ID, name or email">
-          </div>
-        </div>
-        
-        <div class="table-responsive">
-          <table class="table table-hover table-striped align-middle">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Customer</th>
-                <th>Total</th>
-                <th class="text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="deliveryTable">
-              <tr>
-                <td colspan="4" class="text-center text-muted py-4">Loading...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
 
-        <!-- Pagination -->
-        <div class="d-flex justify-content-between align-items-center mt-3">
-          <div class="small text-muted">
-            Showing <span id="deliveryCount">0</span> orders
+          <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Total</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="deliveryTable">
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-4">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <nav aria-label="Delivery pagination">
-            <ul class="pagination mb-0" id="deliveryPagination"></ul>
-          </nav>
+
+          <!-- Pagination -->
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <div class="small text-muted">
+              Showing <span id="deliveryCount">0</span> orders
+            </div>
+            <nav aria-label="Delivery pagination">
+              <ul class="pagination mb-0" id="deliveryPagination"></ul>
+            </nav>
+          </div>
         </div>
       </div>
     </div>
-  </div>
   </div>
 
   <!-- Order Details Modal -->
@@ -263,7 +373,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <div class="d-flex align-items-center gap-2.5">
-            <div class="bg-rose-500 text-white rounded-xl p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <div class="bg-rose-500 text-white rounded-xl p-2"
+              style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
               <i class="fas fa-info-circle text-white"></i>
             </div>
             <h5 class="modal-title mb-0 font-display font-bold text-slate-900">Order Details</h5>
@@ -283,7 +394,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <div class="d-flex align-items-center gap-2.5">
-            <div class="bg-rose-500 text-white rounded-xl p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <div class="bg-rose-500 text-white rounded-xl p-2"
+              style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
               <i class="fas fa-truck text-white"></i>
             </div>
             <div>
@@ -318,13 +430,8 @@
               <label for="deliveryReceiverName" class="form-label fw-semibold text-slate-700">
                 Received By <span class="text-danger">*</span>
               </label>
-              <input 
-                type="text" 
-                class="form-control form-control-lg" 
-                id="deliveryReceiverName" 
-                placeholder="Enter full name of receiver"
-                required
-              >
+              <input type="text" class="form-control form-control-lg" id="deliveryReceiverName"
+                placeholder="Enter full name of receiver" required>
             </div>
 
             <div class="mb-4">
@@ -332,15 +439,10 @@
                 Amount Received <span class="text-danger">*</span>
               </label>
               <div class="input-group input-group-lg">
-                <span class="input-group-text bg-light border-end-0 text-slate-500"><i class="fas fa-peso-sign"></i></span>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  class="form-control border-start-0" 
-                  id="deliveryAmountPaid" 
-                  placeholder="0.00"
-                  required
-                >
+                <span class="input-group-text bg-light border-end-0 text-slate-500"><i
+                    class="fas fa-peso-sign"></i></span>
+                <input type="number" step="0.01" class="form-control border-start-0" id="deliveryAmountPaid"
+                  placeholder="0.00" required>
               </div>
             </div>
 
@@ -348,25 +450,16 @@
               <label for="deliveryDeliveredBy" class="form-label fw-semibold text-slate-700">
                 Delivered By <span class="text-danger">*</span>
               </label>
-              <input 
-                type="text" 
-                class="form-control form-control-lg" 
-                id="deliveryDeliveredBy" 
-                placeholder="Enter name of person who delivered"
-                required
-              >
+              <input type="text" class="form-control form-control-lg" id="deliveryDeliveredBy"
+                placeholder="Enter name of person who delivered" required>
             </div>
 
             <div class="mb-4">
               <label for="deliveryNotes" class="form-label fw-semibold text-slate-700">
                 Delivery Notes
               </label>
-              <textarea 
-                class="form-control" 
-                id="deliveryNotes" 
-                rows="3" 
-                placeholder="Additional notes or remarks about the delivery (optional)..."
-              ></textarea>
+              <textarea class="form-control" id="deliveryNotes" rows="3"
+                placeholder="Additional notes or remarks about the delivery (optional)..."></textarea>
             </div>
 
             <div class="mb-4">
@@ -394,13 +487,88 @@
     </div>
   </div>
 
+  <!-- Unpaid Order Email Reminder Modal -->
+  <div class="modal fade" id="unpaidReminderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="d-flex align-items-center gap-2.5">
+            <div
+              style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background-color: #f59e0b; color: white; border-radius: 10px;">
+              <i class="fas fa-envelope-open-text text-white"></i>
+            </div>
+            <div>
+              <h5 class="modal-title mb-0 font-display font-bold text-slate-900">Send Unpaid Order Reminder</h5>
+              <small class="text-xs text-slate-400 d-block">Automated email notification to customer</small>
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Order Summary Badge Box -->
+          <div class="details-section mb-4">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <small class="details-key d-block">Order ID</small>
+                <strong id="reminderOrderId" class="fw-bold text-pink fs-6">-</strong>
+              </div>
+              <div class="col-md-4">
+                <small class="details-key d-block">Customer</small>
+                <strong id="reminderCustomerName" class="fw-semibold text-slate-800">-</strong>
+              </div>
+              <div class="col-md-4">
+                <small class="details-key d-block">Total Due</small>
+                <strong id="reminderTotalAmount" class="text-danger fs-5 fw-bold">₱0.00</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form -->
+          <form id="unpaidReminderForm">
+            <input type="hidden" id="reminderOrderType" value="regular">
+
+            <div class="mb-3">
+              <label for="reminderCustomerEmail" class="form-label fw-semibold text-slate-700">
+                Recipient Email <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-slate-500"><i
+                    class="fas fa-envelope"></i></span>
+                <input type="email" class="form-control border-start-0" id="reminderCustomerEmail"
+                  placeholder="customer@example.com" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="reminderCustomMessage" class="form-label fw-semibold text-slate-700">
+                Additional Note <span class="text-muted fw-normal">(Optional)</span>
+              </label>
+              <textarea class="form-control" id="reminderCustomMessage" rows="3"
+                placeholder="e.g. Please send payment to GCash 0917-XXX-XXXX (Juan D.) or prepare exact cash upon delivery."></textarea>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn btn-pink" id="sendReminderSubmitBtn">
+                <i class="fas fa-paper-plane me-2"></i>Send Reminder
+              </button>
+              <button type="button" class="btn btn-outline-pink" data-bs-dismiss="modal">
+                <i class="fas fa-times me-2"></i>Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Success Modal -->
   <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content rounded-4 border-0 shadow-lg">
         <div class="modal-header bg-success text-white border-0">
           <div class="d-flex align-items-center gap-2">
-            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <div class="bg-white rounded-circle p-2"
+              style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
               <i class="fas fa-check-circle text-success"></i>
             </div>
             <h5 class="modal-title mb-0">Success</h5>
@@ -425,7 +593,8 @@
       <div class="modal-content rounded-4 border-0 shadow-lg">
         <div class="modal-header bg-danger text-white border-0">
           <div class="d-flex align-items-center gap-2">
-            <div class="bg-white rounded-circle p-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+            <div class="bg-white rounded-circle p-2"
+              style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
               <i class="fas fa-exclamation-triangle text-danger"></i>
             </div>
             <h5 class="modal-title mb-0">Error</h5>
@@ -450,6 +619,7 @@
   <script src="/js/admin-to-deliver.js"></script>
   <script src="/js/push-subscribe.js"></script>
   <link rel="stylesheet" href="/css/notify-prompt.css">
-  
+
 </body>
+
 </html>

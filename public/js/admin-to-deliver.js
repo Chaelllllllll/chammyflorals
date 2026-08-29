@@ -80,6 +80,9 @@ function renderDeliveryTable() {
             <button class="btn btn-sm btn-outline-pink view-details-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="View Details">
               <i class="fas fa-eye me-1"></i>View
             </button>
+            <button class="btn btn-sm btn-remind unpaid-email-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="Send Unpaid Reminder Email">
+              <i class="fas fa-envelope-open-text me-1"></i>Remind Unpaid
+            </button>
             <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="Mark as Delivered">
               <i class="fas fa-truck me-1"></i>Deliver
             </button>
@@ -89,6 +92,15 @@ function renderDeliveryTable() {
     `;
   }).join('');
   
+  // Attach event listeners to unpaid reminder buttons
+  document.querySelectorAll('.unpaid-email-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const orderId = this.getAttribute('data-order-id');
+      const orderType = this.getAttribute('data-order-type');
+      openUnpaidReminderModal(orderId, orderType);
+    });
+  });
+
   // Attach event listeners to deliver buttons
   document.querySelectorAll('.deliver-btn').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -422,6 +434,7 @@ async function viewOrderDetails(orderId) {
         </div>
 
         <div class="d-grid gap-2">
+          <button class="btn btn-remind btn-sm" id="modalSendUnpaidBtn"><i class="fas fa-envelope-open-text me-2"></i>Send Unpaid Email Reminder</button>
           <button class="btn btn-outline-pink btn-sm" id="printOrderBtn"><i class="fas fa-print me-2"></i>Print</button>
           <button class="btn btn-pink btn-sm" data-bs-dismiss="modal"><i class="fas fa-times me-2"></i>Close</button>
         </div>
@@ -441,8 +454,109 @@ async function viewOrderDetails(orderId) {
     });
   }
 
+  // Send Unpaid Reminder from details modal
+  const modalSendUnpaidBtn = document.getElementById('modalSendUnpaidBtn');
+  if (modalSendUnpaidBtn) {
+    modalSendUnpaidBtn.addEventListener('click', () => {
+      const detailsModalEl = document.getElementById('orderDetailsModal');
+      const detailsModal = bootstrap.Modal.getInstance(detailsModalEl);
+      if (detailsModal) detailsModal.hide();
+      openUnpaidReminderModal(order.order_id, isCustomOrder ? 'custom' : 'regular');
+    });
+  }
+
   const modal = new bootstrap.Modal(document.getElementById('orderDetailsModal'));
   modal.show();
+}
+
+// Open Unpaid Reminder Modal
+function openUnpaidReminderModal(orderId, orderType = 'regular') {
+  const order = (window.deliveryOrders || []).find(o => String(o.order_id) === String(orderId));
+  if (!order) {
+    showErrorModal('Order not found');
+    return;
+  }
+
+  const orderTotal = Number(order.total_fee || 0);
+
+  // Populate modal data
+  document.getElementById('reminderOrderId').textContent = order.order_id || '-';
+  document.getElementById('reminderCustomerName').textContent = order.name || '-';
+  document.getElementById('reminderTotalAmount').textContent = `₱${orderTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  
+  const emailInput = document.getElementById('reminderCustomerEmail');
+  if (emailInput) {
+    emailInput.value = order.email || order.customer_email || '';
+  }
+
+  const customMsgInput = document.getElementById('reminderCustomMessage');
+  if (customMsgInput) {
+    customMsgInput.value = '';
+  }
+
+  document.getElementById('reminderOrderType').value = orderType;
+
+  // Show modal
+  const reminderModal = new bootstrap.Modal(document.getElementById('unpaidReminderModal'));
+
+  // Setup form submit handler
+  const form = document.getElementById('unpaidReminderForm');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const recipientEmail = (document.getElementById('reminderCustomerEmail')?.value || '').trim();
+    const customMessage = (document.getElementById('reminderCustomMessage')?.value || '').trim();
+
+    if (!recipientEmail) {
+      showErrorModal('Please enter a recipient email address');
+      return;
+    }
+
+    const submitBtn = document.getElementById('sendReminderSubmitBtn');
+    const originalHtml = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending Email...';
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/orders/${encodeURIComponent(orderId)}/send-unpaid-reminder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          recipientEmail,
+          customMessage: customMessage || undefined
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Failed to send unpaid reminder email');
+      }
+
+      reminderModal.hide();
+      showSuccessModal(result.message || `Payment reminder email successfully sent to ${recipientEmail}`);
+    } catch (err) {
+      console.error('Failed to send unpaid reminder email:', err);
+      showErrorModal(err.message || 'Error sending unpaid reminder email');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHtml;
+      form.removeEventListener('submit', handleSubmit);
+    }
+  };
+
+  form.addEventListener('submit', handleSubmit);
+
+  // Clean up listener when modal is closed
+  document.getElementById('unpaidReminderModal').addEventListener('hidden.bs.modal', () => {
+    form.removeEventListener('submit', handleSubmit);
+  }, { once: true });
+
+  reminderModal.show();
 }
 
 // Show delivery confirmation modal

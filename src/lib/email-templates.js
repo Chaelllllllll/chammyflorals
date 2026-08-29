@@ -150,10 +150,236 @@ function passwordResetTemplate(name, resetLink) {
   return { subject: 'Reset Your Password - Chammy Florals', html };
 }
 
-module.exports = { 
-  orderConfirmationTemplate, 
-  statusUpdateTemplate, 
+function unpaidOrderReminderTemplate(order, customMessage) {
+  const addons = Array.isArray(order.addons) && order.addons.length
+    ? (typeof order.addons[0] === 'object' ? order.addons.map(a => a.name || a.title || 'Add-on').join(', ') : order.addons.join(', '))
+    : (order.addons && typeof order.addons === 'string' ? order.addons : 'None');
+
+  // Format item list
+  let itemsSummary = '';
+  if (Array.isArray(order.items) && order.items.length) {
+    itemsSummary = order.items.map(it => {
+      const name = it.name || it.flower_type || it.product || 'Flower';
+      const qty = it.quantity || it.qty || 1;
+      const color = it.color ? (typeof it.color === 'object' ? (it.color.name || it.color.value || '') : it.color) : '';
+      return `${escapeHtml(name)}${color ? ` (${escapeHtml(color)})` : ''} x${qty}`;
+    }).join('<br/>');
+  } else if (order.stems || order.fillers || order.wrapping) {
+    const parts = [];
+    if (Array.isArray(order.stems) && order.stems.length) {
+      parts.push(`<strong>Stems:</strong> ` + order.stems.map(s => escapeHtml(s.name || s)).join(', '));
+    }
+    if (Array.isArray(order.fillers) && order.fillers.length) {
+      parts.push(`<strong>Fillers:</strong> ` + order.fillers.map(f => escapeHtml(f.name || f)).join(', '));
+    }
+    if (Array.isArray(order.wrapping) && order.wrapping.length) {
+      parts.push(`<strong>Wrapping:</strong> ` + order.wrapping.map(w => escapeHtml(w.name || w)).join(', '));
+    }
+    itemsSummary = parts.join('<br/>') || escapeHtml(order.flower_type || 'Custom Bouquet');
+  } else {
+    itemsSummary = `${escapeHtml(order.flower_type || 'Floral Item')} x${escapeHtml(String(order.quantity || 1))}`;
+  }
+
+  const totalFee = Number(order.total_fee || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subtotal = order.subtotal ? Number(order.subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
+  const deliveryFee = order.delivery_fee ? Number(order.delivery_fee).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : null;
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: linear-gradient(135deg, rgba(255,233,241,0.3) 0%, rgba(255,255,255,0.95) 100%); color: #333333;">
+      <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(255, 111, 155, 0.15); border: 1px solid rgba(255, 111, 155, 0.2);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #ff6f9b 0%, #ff8fab 100%); padding: 30px 24px; text-align: center; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Payment Reminder</h1>
+          <p style="margin: 6px 0 0 0; font-size: 15px; opacity: 0.95;">Order #${escapeHtml(order.order_id)}</p>
+        </div>
+
+        <div style="padding: 28px 24px;">
+          <p style="font-size: 16px; line-height: 1.6; margin-top: 0;">Hi <strong>${escapeHtml(order.name || 'Valued Customer')}</strong>,</p>
+          
+          <p style="font-size: 15px; line-height: 1.6; color: #555555;">
+            This is an automated reminder that your order currently has an <strong>unpaid balance</strong>.
+          </p>
+
+          ${customMessage ? `
+            <div style="margin: 20px 0; padding: 16px; background: #fff5f8; border-left: 4px solid #ff6f9b; border-radius: 8px;">
+              <strong style="color: #c41f5c; font-size: 14px; display: block; margin-bottom: 6px;">Note from Chammy Florals:</strong>
+              <div style="font-size: 14px; line-height: 1.6; color: #444444; white-space: pre-line;">${escapeHtml(customMessage)}</div>
+            </div>
+          ` : ''}
+
+          <!-- Order Summary Card -->
+          <div style="background: #faf7f9; border-radius: 12px; padding: 20px; margin: 24px 0; border: 1px solid #f0e6eb;">
+            <h3 style="margin: 0 0 14px 0; color: #ff6f9b; font-size: 16px; font-weight: 600; border-bottom: 1px solid #f0e6eb; padding-bottom: 8px;">
+              Order Summary
+            </h3>
+            
+            <div style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
+              <div style="color: #777777; font-size: 12px; text-transform: uppercase; font-weight: 600;">Items</div>
+              <div style="color: #222222; margin-top: 2px;">${itemsSummary}</div>
+            </div>
+
+            ${addons !== 'None' ? `
+              <div style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
+                <div style="color: #777777; font-size: 12px; text-transform: uppercase; font-weight: 600;">Add-ons</div>
+                <div style="color: #222222; margin-top: 2px;">${escapeHtml(addons)}</div>
+              </div>
+            ` : ''}
+
+            ${order.payment_method ? `
+              <div style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
+                <div style="color: #777777; font-size: 12px; text-transform: uppercase; font-weight: 600;">Selected Payment Method</div>
+                <div style="color: #222222; margin-top: 2px;">${escapeHtml(order.payment_method)}</div>
+              </div>
+            ` : ''}
+
+            ${order.delivery_date ? `
+              <div style="margin-bottom: 12px; font-size: 14px; line-height: 1.6;">
+                <div style="color: #777777; font-size: 12px; text-transform: uppercase; font-weight: 600;">Delivery / Fulfillment Date</div>
+                <div style="color: #222222; margin-top: 2px;">${escapeHtml(order.delivery_date)}${order.delivery_time ? ' at ' + escapeHtml(order.delivery_time) : ''}</div>
+              </div>
+            ` : ''}
+
+            <!-- Pricing Breakdown -->
+            <div style="margin-top: 16px; pt-3; border-top: 1px dashed #e0d0d8; font-size: 14px; line-height: 1.8;">
+              ${subtotal ? `<div style="display: flex; justify-content: space-between;"><span style="color: #666;">Subtotal:</span><span>₱${subtotal}</span></div>` : ''}
+              ${deliveryFee ? `<div style="display: flex; justify-content: space-between;"><span style="color: #666;">Delivery Fee:</span><span>₱${deliveryFee}</span></div>` : ''}
+              ${Number(order.customization_fee) > 0 ? `<div style="display: flex; justify-content: space-between;"><span style="color: #666;">Customization Fee:</span><span>₱${Number(order.customization_fee).toFixed(2)}</span></div>` : ''}
+              ${order.voucher_code ? `<div style="display: flex; justify-content: space-between; color: #28a745;"><span>Voucher (${escapeHtml(order.voucher_code)}):</span><span>-₱${escapeHtml(String(order.voucher_discount || '0.00'))}</span></div>` : ''}
+              
+              <div style="margin-top: 12px; padding: 12px; background: #ffffff; border-radius: 8px; border: 2px solid #ff6f9b; display: flex; justify-content: space-between; align-items: center;">
+                <strong style="color: #333333; font-size: 15px;">Total Amount Due:</strong>
+                <span style="color: #c41f5c; font-size: 20px; font-weight: 700;">₱${totalFee}</span>
+              </div>
+            </div>
+          </div>
+
+          <p style="font-size: 13px; line-height: 1.6; color: #777777; margin-top: 24px;">
+            If you have already settled this payment or believe you received this message in error, please disregard this email or reply with your payment receipt reference.
+          </p>
+
+          <div style="margin-top: 30px; text-align: center;">
+            <p style="color: #ff6f9b; font-weight: 600; font-size: 15px; margin: 0;">Thank you for choosing Chammy Florals!</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #fafafa; border-top: 1px solid #f0f0f0; padding: 20px 24px; text-align: center; font-size: 12px; color: #999999;">
+          <p style="margin: 0;">Chammy Florals • Making every moment special</p>
+          <p style="margin: 4px 0 0 0;">This is an automated payment regarding Order #${escapeHtml(order.order_id)}.</p>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  return {
+    subject: `Payment Reminder: Chammy Florals Order #${order.order_id} (₱${totalFee})`,
+    html
+  };
+}
+
+function productReviewInvitationTemplate(order, reviewLink, customMessage) {
+  // Format item list
+  let itemsSummary = '';
+  if (Array.isArray(order.items) && order.items.length) {
+    itemsSummary = order.items.map(it => {
+      const name = it.name || it.flower_type || it.product || 'Flower';
+      const qty = it.quantity || it.qty || 1;
+      const color = it.color ? (typeof it.color === 'object' ? (it.color.name || it.color.value || '') : it.color) : '';
+      return `${escapeHtml(name)}${color ? ` (${escapeHtml(color)})` : ''} x${qty}`;
+    }).join('<br/>');
+  } else if (order.stems || order.fillers || order.wrapping) {
+    const parts = [];
+    if (Array.isArray(order.stems) && order.stems.length) {
+      parts.push(`<strong>Stems:</strong> ` + order.stems.map(s => escapeHtml(s.name || s)).join(', '));
+    }
+    if (Array.isArray(order.fillers) && order.fillers.length) {
+      parts.push(`<strong>Fillers:</strong> ` + order.fillers.map(f => escapeHtml(f.name || f)).join(', '));
+    }
+    if (Array.isArray(order.wrapping) && order.wrapping.length) {
+      parts.push(`<strong>Wrapping:</strong> ` + order.wrapping.map(w => escapeHtml(w.name || w)).join(', '));
+    }
+    itemsSummary = parts.join('<br/>') || escapeHtml(order.flower_type || 'Custom Bouquet');
+  } else {
+    itemsSummary = `${escapeHtml(order.flower_type || 'Floral Item')} x${escapeHtml(String(order.quantity || 1))}`;
+  }
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: linear-gradient(135deg, rgba(255,233,241,0.3) 0%, rgba(255,255,255,0.95) 100%); color: #333333;">
+      <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(255, 111, 155, 0.15); border: 1px solid rgba(255, 111, 155, 0.2);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #ff6f9b 0%, #ff8fab 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">We'd Love Your Feedback!</h1>
+          <p style="margin: 6px 0 0 0; font-size: 15px; opacity: 0.95;">Order #${escapeHtml(order.order_id)}</p>
+        </div>
+
+        <div style="padding: 28px 24px;">
+          <p style="font-size: 16px; line-height: 1.6; margin-top: 0;">Hi <strong>${escapeHtml(order.name || 'Valued Customer')}</strong>,</p>
+          
+          <p style="font-size: 15px; line-height: 1.6; color: #555555;">
+            Thank you for choosing <strong>Chammy Florals</strong>! We hope your order brought joy and made your moment extra special.
+          </p>
+
+          <p style="font-size: 15px; line-height: 1.6; color: #555555;">
+            Your feedback helps us continue improving and crafting even more unforgettable arrangements. Could you please take a moment to share your experience with us?
+          </p>
+
+          ${customMessage ? `
+            <div style="margin: 20px 0; padding: 16px; background: #fff5f8; border-left: 4px solid #ff6f9b; border-radius: 8px;">
+              <strong style="color: #c41f5c; font-size: 14px; display: block; margin-bottom: 6px;">Message from Chammy Florals:</strong>
+              <div style="font-size: 14px; line-height: 1.6; color: #444444; white-space: pre-line;">${escapeHtml(customMessage)}</div>
+            </div>
+          ` : ''}
+
+          <!-- Order Summary Card -->
+          <div style="background: #faf7f9; border-radius: 12px; padding: 18px 20px; margin: 24px 0; border: 1px solid #f0e6eb;">
+            <div style="color: #777777; font-size: 12px; text-transform: uppercase; font-weight: 600; margin-bottom: 6px;">Your Order Details</div>
+            <div style="color: #222222; font-size: 14px; line-height: 1.6;">${itemsSummary}</div>
+          </div>
+
+          <!-- Call to Action Button -->
+          <div style="text-align: center; margin: 32px 0 24px 0;">
+            <a href="${escapeHtml(reviewLink)}" style="display: inline-block; background: linear-gradient(135deg, #ff6f9b 0%, #ff8fab 100%); color: #ffffff; text-decoration: none; padding: 15px 36px; border-radius: 10px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 15px rgba(255, 111, 155, 0.35);">
+              Leave a Review
+            </a>
+          </div>
+
+          <div style="text-align: center; margin-bottom: 24px;">
+            <p style="font-size: 12px; color: #888888; margin: 0;">
+              Or copy and paste this link into your browser:<br/>
+              <a href="${escapeHtml(reviewLink)}" style="color: #ff6f9b; word-break: break-all; font-size: 12px;">${escapeHtml(reviewLink)}</a>
+            </p>
+          </div>
+
+          <div style="margin-top: 30px; text-align: center; border-top: 1px solid #f0f0f0; pt-3; padding-top: 20px;">
+            <p style="color: #ff6f9b; font-weight: 600; font-size: 15px; margin: 0;">Thank you for supporting Chammy Florals!</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #fafafa; border-top: 1px solid #f0f0f0; padding: 20px 24px; text-align: center; font-size: 12px; color: #999999;">
+          <p style="margin: 0;">Chammy Florals • Making every moment special</p>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  return {
+    subject: `We'd love your feedback! Review your Chammy Florals order #${order.order_id}`,
+    html
+  };
+}
+
+module.exports = {
+  orderConfirmationTemplate,
+  statusUpdateTemplate,
   deliveredTemplate,
   emailVerificationTemplate,
-  passwordResetTemplate 
+  passwordResetTemplate,
+  unpaidOrderReminderTemplate,
+  productReviewInvitationTemplate
 };
+

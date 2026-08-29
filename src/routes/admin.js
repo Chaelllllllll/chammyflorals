@@ -941,13 +941,21 @@ router.get('/reports', auth, async (req, res) => {
       total += Number(o.total_fee) || 0;
     }
     
+    // Query reviews to check which orders have already been reviewed
+    const { data: reviewRows } = await supabase
+      .from('reviews')
+      .select('order_id');
+
+    const reviewedOrderIds = new Set((reviewRows || []).map(r => String(r.order_id)));
+
     // return minimal fields for display
     const rows = deliveredOrders.map(o => ({ 
       order_id: o.order_id, 
       name: o.name, 
       total_fee: Number(o.total_fee) || 0, 
       created_at: o.created_at,
-      order_type: o.order_type 
+      order_type: o.order_type,
+      has_reviewed: reviewedOrderIds.has(String(o.order_id))
     }));
     
     return res.json({ total_revenue: total, orders: rows });
@@ -1344,6 +1352,170 @@ router.post('/orders/:orderId/deliver', auth, async (req, res) => {
     res.status(500).json({ error: 'Failed to mark delivered' });
   }
 });
+
+// Send automated unpaid order email reminder to customer
+router.post('/orders/:orderId/send-unpaid-reminder', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { customMessage, recipientEmail: customRecipient } = req.body || {};
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    // Try finding regular order first
+    let { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle();
+
+    // If not found, check custom orders
+    let isCustom = false;
+    if (!order) {
+      const { data: customOrder, error: customErr } = await supabase
+        .from('custom_orders')
+        .select('*')
+        .eq('order_id', orderId)
+        .maybeSingle();
+
+      if (customOrder) {
+        order = customOrder;
+        isCustom = true;
+      }
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Determine recipient email
+    const targetEmail = (customRecipient || order.email || order.customer_email || '').trim();
+
+    if (!targetEmail) {
+      return res.status(400).json({ error: 'No email address found for this customer. Please enter a valid recipient email.' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(targetEmail)) {
+      return res.status(400).json({ error: 'Invalid email address format' });
+    }
+
+    // Prepare order object for email template
+    const orderForEmail = { ...order, email: targetEmail };
+    if (isCustom && !orderForEmail.flower_type) {
+      orderForEmail.flower_type = 'Custom Bouquet';
+    }
+
+    const mail = emailTemplates.unpaidOrderReminderTemplate(orderForEmail, customMessage);
+
+    // Send email via mailer
+    await mailer.sendMail({
+      to: targetEmail,
+      subject: mail.subject,
+      html: mail.html
+    });
+
+    console.log(`Unpaid order reminder email sent successfully to ${targetEmail} for order ${orderId}`);
+
+    res.json({
+      success: true,
+      message: `Unpaid order reminder email successfully sent to ${targetEmail}`,
+      orderId: order.order_id,
+      email: targetEmail
+    });
+  } catch (err) {
+    console.error('Error sending unpaid order reminder email:', err);
+    res.status(500).json({ error: 'Failed to send unpaid reminder email', details: err.message });
+  }
+});
+
+// Send review invitation email to customer
+router.post('/orders/:orderId/send-review-request', auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { customMessage, recipientEmail: customRecipient, reviewLink: customReviewLink } = req.body || {};
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    // Try finding regular order first
+    let { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle();
+
+    // If not found, check custom orders
+    let isCustom = false;
+    if (!order) {
+      const { data: customOrder, error: customErr } = await supabase
+        .from('custom_orders')
+        .select('*')
+        .eq('order_id', orderId)
+        .maybeSingle();
+
+      if (customOrder) {
+        order = customOrder;
+        isCustom = true;
+      }
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // Determine recipient email
+    const targetEmail = (customRecipient || order.email || order.customer_email || '').trim();
+
+    if (!targetEmail) {
+      return res.status(400).json({ error: 'No email address found for this customer. Please enter a valid recipient email.' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(targetEmail)) {
+      return res.status(400).json({ error: 'Invalid email address format' });
+    }
+
+    // Determine review URL
+    let reviewUrl = customReviewLink;
+    if (!reviewUrl) {
+      const origin = req.get('origin') || (req.protocol + '://' + req.get('host'));
+      reviewUrl = `${origin}/reviews.html?orderId=${encodeURIComponent(order.order_id)}`;
+    }
+
+    // Prepare order object for email template
+    const orderForEmail = { ...order, email: targetEmail };
+    if (isCustom && !orderForEmail.flower_type) {
+      orderForEmail.flower_type = 'Custom Bouquet';
+    }
+
+    const mail = emailTemplates.productReviewInvitationTemplate(orderForEmail, reviewUrl, customMessage);
+
+    // Send email via mailer
+    await mailer.sendMail({
+      to: targetEmail,
+      subject: mail.subject,
+      html: mail.html
+    });
+
+    console.log(`Product review invitation email sent successfully to ${targetEmail} for order ${orderId}`);
+
+    res.json({
+      success: true,
+      message: `Review invitation email successfully sent to ${targetEmail}`,
+      orderId: order.order_id,
+      email: targetEmail,
+      reviewLink: reviewUrl
+    });
+  } catch (err) {
+    console.error('Error sending review invitation email:', err);
+    res.status(500).json({ error: 'Failed to send review invitation email', details: err.message });
+  }
+});
+
+
 
 // Get audit history for an order
 router.get('/orders/:orderId/audits', auth, async (req, res) => {
