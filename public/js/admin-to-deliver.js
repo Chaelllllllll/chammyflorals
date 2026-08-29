@@ -81,7 +81,7 @@ function renderDeliveryTable() {
               <i class="fas fa-eye me-1"></i>View
             </button>
             <button class="btn btn-sm btn-remind unpaid-email-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="Send Unpaid Reminder Email">
-              <i class="fas fa-envelope-open-text me-1"></i>Remind Unpaid
+              <i class="fas fa-envelope-open-text me-1"></i>
             </button>
             <button class="btn btn-sm btn-success deliver-btn" data-order-id="${escapeHtml(order.order_id)}" data-order-type="${isCustom ? 'custom' : 'regular'}" title="Mark as Delivered">
               <i class="fas fa-truck me-1"></i>Deliver
