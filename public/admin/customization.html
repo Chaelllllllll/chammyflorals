@@ -560,6 +560,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/js/alert.js"></script>
   <script src="/js/sidebar.js"></script>
+  <script src="/js/image-compressor.js"></script>
   <script>
     const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
     const STORAGE_BUCKET = 'customization-images';
@@ -572,20 +573,19 @@
       document.getElementById('optionImageFile').click();
     });
 
-    document.getElementById('optionImageFile').addEventListener('change', (e) => {
-      const file = e.target.files[0];
+    document.getElementById('optionImageFile').addEventListener('change', async (e) => {
+      let file = e.target.files[0];
       if (!file) return;
-      
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alertWarning('File size must be less than 5MB');
-        return;
-      }
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
         alertWarning('Please select an image file');
         return;
+      }
+      
+      // Auto compress image
+      if (typeof compressImage === 'function') {
+        file = await compressImage(file);
       }
       
       uploadedFile = file;
@@ -612,8 +612,9 @@
       progressBar.style.width = '30%';
       
       try {
+        const compFile = typeof compressImage === 'function' ? await compressImage(file) : file;
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('image', compFile);
         formData.append('type', type);
         formData.append('itemId', itemId.toString());
         

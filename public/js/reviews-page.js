@@ -250,11 +250,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // prepare payload; if image selected send multipart/form-data
       const imageEl = document.getElementById('pageReviewImage');
       if (imageEl && imageEl.files && imageEl.files.length) {
+        const compImage = typeof compressImage === 'function' ? await compressImage(imageEl.files[0]) : imageEl.files[0];
         const fd = new FormData();
         fd.append('orderId', orderId);
         fd.append('stars', String(stars));
         fd.append('message', message);
-        fd.append('image', imageEl.files[0]);
+        fd.append('image', compImage);
         await postReviewToServer(fd);
       } else {
         // submit to server (server will re-validate and sanitize)

@@ -14,7 +14,7 @@ function escapeHtml(s) { return String(s || '').replace(/&/g,'&amp;').replace(/<
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // limit uploads to 5MB
+  limits: { fileSize: 25 * 1024 * 1024 } // limit uploads to 25MB
 });
 const router = express.Router();
 const fs = require('fs');
@@ -1873,8 +1873,8 @@ router.post('/products/upload', auth, upload.single('file'), async (req, res) =>
     if (!file.mimetype || !allowedMimeTypes.includes(file.mimetype.toLowerCase())) {
       return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
     }
-    if (file.size > 5 * 1024 * 1024) {
-      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+    if (file.size > 25 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 25MB limit' });
     }
     console.log('Received multipart file:', { originalname: file.originalname, size: file.size, mimetype: file.mimetype });
     const ext = (file.mimetype && file.mimetype.split('/')[1]) || 'png';

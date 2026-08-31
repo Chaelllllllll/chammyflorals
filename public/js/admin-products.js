@@ -571,11 +571,12 @@ document.getElementById('galleryManagerSaveBtn')?.addEventListener('click', asyn
   try {
     const images = Array.isArray(window._galleryManager_images) ? window._galleryManager_images.slice() : [];
     const images_paths = Array.isArray(window._galleryManager_paths) ? window._galleryManager_paths.slice() : [];
-    // upload new files first
+    // upload new files first (with auto image compression)
     if (window._galleryManager_newFiles && window._galleryManager_newFiles.length) {
       for (const f of window._galleryManager_newFiles) {
         try {
-          const fd = new FormData(); fd.append('file', f);
+          const compFile = typeof compressImage === 'function' ? await compressImage(f) : f;
+          const fd = new FormData(); fd.append('file', compFile);
           const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
           if (upl && upl.url) images.push(upl.url);
           if (upl && upl.path) images_paths.push(upl.bucket ? `${upl.bucket}:${upl.path}` : upl.path);
@@ -721,12 +722,13 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     const addons = readAddonsFromForm();
   const colors = readColorsFromForm();
 
-    // Upload any new pricing row images
+    // Upload any new pricing row images with auto compression
     for (const pRow of pricing) {
       if (pRow._file) {
         try {
+          const compFile = typeof compressImage === 'function' ? await compressImage(pRow._file) : pRow._file;
           const pfd = new FormData();
-          pfd.append('file', pRow._file);
+          pfd.append('file', compFile);
           const pUpl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: pfd });
           if (pUpl && pUpl.url) pRow.image_url = pUpl.url;
         } catch (err) { console.error('Pricing image upload failed for', pRow.label, err); }
@@ -743,12 +745,13 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
     // if admin provided a single imageUrl and it's not already present, include it
     if (imageUrl && !images.includes(imageUrl)) images.unshift(imageUrl);
 
-    // upload gallery files if any and collect their public urls and storage paths
+    // upload gallery files if any and collect their public urls and storage paths (with auto compression)
     if (window._galleryFiles && window._galleryFiles.length) {
       for (const gf of window._galleryFiles) {
         try {
+          const compGf = typeof compressImage === 'function' ? await compressImage(gf) : gf;
           const fdg = new FormData();
-          fdg.append('file', gf);
+          fdg.append('file', compGf);
           const uplg = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fdg });
           if (uplg && uplg.url) images.push(uplg.url);
           if (uplg && uplg.path) images_paths.push(uplg.bucket ? `${uplg.bucket}:${uplg.path}` : uplg.path);
@@ -756,10 +759,11 @@ document.getElementById('productForm').addEventListener('submit', async (e) => {
       }
     }
 
-    // set primary image if single file selected for main image
-      if (file) {
+    // set primary image if single file selected for main image (with auto compression)
+    if (file) {
+      const compFile = typeof compressImage === 'function' ? await compressImage(file) : file;
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', compFile);
       const upl = await fetchJSON('/api/admin/products/upload', { method: 'POST', body: fd });
       payload.image_url = upl.url;
       payload.image_path = upl.bucket ? `${upl.bucket}:${upl.path}` : upl.path;

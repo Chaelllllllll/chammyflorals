@@ -315,6 +315,17 @@ console.log('========================================');
 
 // Error handler
 app.use((err, req, res, next) => {
+  if (err && (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE')) {
+    console.warn(`[MulterError] ${err.code || 'UPLOAD_ERROR'}: ${err.message} on ${req.method} ${req.url}`);
+    const statusCode = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    return res.status(statusCode).json({
+      error: err.code === 'LIMIT_FILE_SIZE' ? 'File is too large. Image upload limit is 25MB.' : (err.message || 'File upload error'),
+      message: err.message,
+      code: err.code,
+      path: req.url
+    });
+  }
+
   console.error('========================================');
   console.error('ERROR OCCURRED');
   console.error('URL:', req.url);

@@ -184,7 +184,7 @@ router.post('/admin/verify-token', async (req, res) => {
 });
 
 // use memory storage so we can upload the buffer to Supabase storage
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // SECURITY FIX: Use cryptographically secure random for order IDs
 const generateOrderId = () => {
@@ -1745,8 +1745,8 @@ router.post('/reviews', upload.single('image'), sanitizeBody, async (req, res) =
         }
 
         // Validate file size (already limited by multer, but double-check)
-        if (req.file.size > 5 * 1024 * 1024) {
-          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        if (req.file.size > 25 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 25MB limit' });
         }
 
         const supabase = require('../config/supabase');
@@ -2126,9 +2126,9 @@ router.post('/customer-chat/send', authenticateCustomer, upload.single('image'),
           return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
         }
 
-        // Validate file size (5MB limit)
-        if (req.file.size > 5 * 1024 * 1024) {
-          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        // Validate file size (25MB limit)
+        if (req.file.size > 25 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 25MB limit' });
         }
 
         const bucket = process.env.SUPABASE_CHAT_BUCKET || 'chat-images';
@@ -2374,9 +2374,9 @@ router.post('/admin/customer-messages/send', adminAuth, upload.single('image'), 
           return res.status(400).json({ error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.' });
         }
 
-        // Validate file size (5MB limit)
-        if (req.file.size > 5 * 1024 * 1024) {
-          return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+        // Validate file size (25MB limit)
+        if (req.file.size > 25 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File size exceeds 25MB limit' });
         }
 
         const bucket = process.env.SUPABASE_CHAT_BUCKET || 'chat-images';

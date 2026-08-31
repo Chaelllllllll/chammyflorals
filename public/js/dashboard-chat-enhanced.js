@@ -425,7 +425,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const formData = new FormData();
                     formData.append('message', message);
                     if (selectedImage) {
-                        formData.append('image', selectedImage);
+                        const compImage = typeof compressImage === 'function' ? await compressImage(selectedImage) : selectedImage;
+                        formData.append('image', compImage);
                     }
                     if (productId) {
                         formData.append('product_id', productId);

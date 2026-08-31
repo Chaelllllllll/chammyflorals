@@ -371,10 +371,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         if (selectedImage) {
+          const compImage = typeof compressImage === 'function' ? await compressImage(selectedImage) : selectedImage;
           const formData = new FormData();
           formData.append('message', message);
           formData.append('customer_id', currentCustomerId);
-          formData.append('image', selectedImage);
+          formData.append('image', compImage);
           body = formData;
         } else {
           headers['Content-Type'] = 'application/json';

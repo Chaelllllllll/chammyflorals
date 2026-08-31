@@ -149,6 +149,14 @@ app.use('/api', apiRoutes);
 app.use('/admin', adminRoutes);
 
 app.use((err, req, res, next) => {
+  if (err && (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE')) {
+    const statusCode = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    return res.status(statusCode).json({
+      error: err.code === 'LIMIT_FILE_SIZE' ? 'File is too large. Image upload limit is 25MB.' : (err.message || 'File upload error'),
+      message: err.message,
+      code: err.code
+    });
+  }
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });

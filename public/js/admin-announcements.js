@@ -191,8 +191,11 @@ document.getElementById('announcementForm').addEventListener('submit', async (e)
     formData.append('type', document.getElementById('type').value);
     formData.append('is_active', document.getElementById('is_active').checked);
     
-    const imageFile = document.getElementById('image').files[0];
+    let imageFile = document.getElementById('image').files[0];
     if (imageFile) {
+        if (typeof compressImage === 'function') {
+            imageFile = await compressImage(imageFile);
+        }
         formData.append('image', imageFile);
     }
     

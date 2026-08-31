@@ -4,7 +4,7 @@ const supabase = require('../config/supabase');
 const authenticateAdmin = require('../middleware/auth');
 const multer = require('multer');
 // Push notifications removed; server-side push helper deleted.
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 const push = require('../lib/push-notifications');
 const mailer = require('../lib/mailer');
 

@@ -666,7 +666,8 @@ window.submitReview = async function(orderId) {
         
         // Add image if selected
         if (imageInput && imageInput.files && imageInput.files[0]) {
-            formData.append('image', imageInput.files[0]);
+            const compImage = typeof compressImage === 'function' ? await compressImage(imageInput.files[0]) : imageInput.files[0];
+            formData.append('image', compImage);
         }
         
         const response = await fetch(`${API_URL}/api/reviews`, {
