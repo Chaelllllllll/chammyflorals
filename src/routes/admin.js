@@ -628,7 +628,7 @@ router.get('/orders', auth, async (req, res) => {
     const allOrders = [
       ...(regularOrders || []).map(order => ({
         ...order,
-        order_type: 'regular',
+        order_type: order.order_type || 'regular',
         orderId: order.order_id,
         items: order.items || []
       })),
@@ -903,10 +903,10 @@ router.get('/reports', auth, async (req, res) => {
     const startDate = from ? new Date(from).toISOString() : defaultFrom.toISOString();
     const endDate = to ? new Date(to).toISOString() : null;
 
-    // Query regular orders
+    // Query regular orders (including outside sales)
     const regularQuery = supabase
       .from('orders')
-      .select('order_id,name,total_fee,created_at,status')
+      .select('order_id,name,email,total_fee,created_at,status,order_type,flower_type,quantity,items,addons,payment_method,message')
       .gte('created_at', startDate)
       .order('created_at', { ascending: true });
     
@@ -915,7 +915,7 @@ router.get('/reports', auth, async (req, res) => {
     // Query custom orders
     const customQuery = supabase
       .from('custom_orders')
-      .select('order_id,name,total_fee,created_at,status')
+      .select('order_id,name,email,total_fee,created_at,status')
       .gte('created_at', startDate)
       .order('created_at', { ascending: true });
     
@@ -925,20 +925,31 @@ router.get('/reports', auth, async (req, res) => {
 
     if (regularResult.error) throw regularResult.error;
 
-    // Combine regular and custom orders
+    // Combine regular and custom orders while preserving order_type
     const allOrders = [
-      ...(regularResult.data || []).map(o => ({ ...o, order_type: 'regular' })),
+      ...(regularResult.data || []).map(o => ({
+        ...o,
+        order_type: o.order_type || 'regular'
+      })),
       ...(customResult.data || []).map(o => ({ ...o, order_type: 'custom' }))
     ];
 
     // Sort by created_at
     allOrders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
-    // compute total revenue from delivered orders and return list of delivered orders
+    // compute total revenue, outside revenue, and online revenue from delivered orders
     let total = 0;
+    let outside_revenue = 0;
+    let online_revenue = 0;
     const deliveredOrders = allOrders.filter(o => String(o.status || '').toLowerCase() === 'delivered');
     for (const o of deliveredOrders) {
-      total += Number(o.total_fee) || 0;
+      const fee = Number(o.total_fee) || 0;
+      total += fee;
+      if (o.order_type === 'outside') {
+        outside_revenue += fee;
+      } else {
+        online_revenue += fee;
+      }
     }
     
     // Query reviews to check which orders have already been reviewed
@@ -948,20 +959,210 @@ router.get('/reports', auth, async (req, res) => {
 
     const reviewedOrderIds = new Set((reviewRows || []).map(r => String(r.order_id)));
 
-    // return minimal fields for display
+    // return rich fields for display and filtering
     const rows = deliveredOrders.map(o => ({ 
       order_id: o.order_id, 
       name: o.name, 
+      email: o.email || '',
       total_fee: Number(o.total_fee) || 0, 
       created_at: o.created_at,
       order_type: o.order_type,
+      flower_type: o.flower_type || '',
+      quantity: o.quantity || 1,
+      items: o.items || null,
+      addons: o.addons || null,
+      payment_method: o.payment_method || '',
+      message: o.message || '',
       has_reviewed: reviewedOrderIds.has(String(o.order_id))
     }));
     
-    return res.json({ total_revenue: total, orders: rows });
+    return res.json({ 
+      total_revenue: total, 
+      outside_revenue: outside_revenue,
+      online_revenue: online_revenue,
+      orders: rows 
+    });
   } catch (err) {
     console.error('reports error:', err);
     return res.status(500).json({ error: 'Failed to compute reports' });
+  }
+});
+
+// Admin: record an outside sale / revenue directly
+router.post('/outside-sales', auth, async (req, res) => {
+  try {
+    const {
+      revenue_type, // 'quick' or 'itemized'
+      name,
+      customer_name,
+      email,
+      customer_email,
+      phone,
+      customer_phone,
+      total_fee,
+      items,
+      addons,
+      flower_type,
+      quantity,
+      payment_method,
+      message,
+      notes,
+      created_at
+    } = req.body || {};
+
+    const resolvedName = String(customer_name || name || 'Walk-in Customer').trim().substring(0, 255) || 'Walk-in Customer';
+    const resolvedEmail = String(customer_email || email || 'walkin@chammyflorals.com').trim().substring(0, 255);
+    const resolvedPhone = String(customer_phone || phone || '').trim() || null;
+    const resolvedPaymentMethod = String(payment_method || 'Cash').trim() || 'Cash';
+    const resolvedNotes = String(notes || message || 'Outside sale').trim();
+
+    let resolvedTotalFee = 0;
+    let resolvedFlowerType = '';
+    let resolvedQuantity = 1;
+    let resolvedItems = [];
+    let resolvedAddons = [];
+
+    if (revenue_type === 'itemized' || (Array.isArray(items) && items.length > 0)) {
+      // Validate items array
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: 'At least one item is required for itemized order' });
+      }
+
+      resolvedItems = items.map(it => {
+        const itemFlower = String(it.flower_type || it.flower || it.name || 'Custom Product').trim();
+        const itemQty = Math.max(1, parseInt(it.quantity || it.qty || 1, 10) || 1);
+        const itemPrice = Math.max(0, parseFloat(it.price || it.unit_price || 0) || 0);
+        const itemColor = it.color ? {
+          name: String(it.color.name || it.color || '').trim(),
+          value: String(it.color.value || it.color.hex || '').trim()
+        } : null;
+
+        return {
+          flower_type: itemFlower,
+          quantity: itemQty,
+          price: itemPrice,
+          subtotal: itemQty * itemPrice,
+          ...(itemColor ? { color: itemColor } : {})
+        };
+      });
+
+      resolvedQuantity = resolvedItems.reduce((sum, it) => sum + it.quantity, 0);
+      resolvedFlowerType = resolvedItems.map(it => `${it.flower_type} x${it.quantity}`).join('; ').substring(0, 255);
+
+      // Process addons
+      if (Array.isArray(addons)) {
+        resolvedAddons = addons.map(a => {
+          if (typeof a === 'string') return a.trim();
+          if (a && typeof a === 'object') {
+            return {
+              name: String(a.name || a.label || '').trim(),
+              price: Math.max(0, parseFloat(a.price || 0) || 0)
+            };
+          }
+          return String(a);
+        }).filter(Boolean);
+      }
+
+      // Compute total: items + addons
+      const itemsSum = resolvedItems.reduce((sum, it) => sum + (it.subtotal || 0), 0);
+      const addonsSum = resolvedAddons.reduce((sum, a) => {
+        if (a && typeof a === 'object' && a.price) return sum + (Number(a.price) || 0);
+        return sum;
+      }, 0);
+
+      // Use explicit total_fee if provided and positive, else calculated sum
+      resolvedTotalFee = parseFloat(total_fee) > 0 ? parseFloat(total_fee) : (itemsSum + addonsSum);
+    } else {
+      // Quick Revenue entry
+      resolvedTotalFee = Math.max(0, parseFloat(total_fee) || 0);
+      if (resolvedTotalFee <= 0) {
+        return res.status(400).json({ error: 'Please provide a valid revenue amount greater than ₱0' });
+      }
+      resolvedFlowerType = String(flower_type || 'Outside Sold Product').trim().substring(0, 255) || 'Outside Sold Product';
+      resolvedQuantity = Math.max(1, parseInt(quantity, 10) || 1);
+      resolvedItems = [{
+        flower_type: resolvedFlowerType,
+        quantity: resolvedQuantity,
+        price: resolvedTotalFee,
+        subtotal: resolvedTotalFee
+      }];
+    }
+
+    // Generate unique 8-character order_id starting with 'OS' (Outside Sale)
+    let orderId = '';
+    let isUnique = false;
+    for (let attempts = 0; attempts < 10; attempts++) {
+      const randomHex = crypto.randomBytes(3).toString('hex').toUpperCase(); // 6 hex characters
+      const candidateId = `OS${randomHex}`; // total 8 characters, satisfies varchar(10)
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('order_id')
+        .eq('order_id', candidateId)
+        .maybeSingle();
+
+      if (!existing) {
+        orderId = candidateId;
+        isUnique = true;
+        break;
+      }
+    }
+
+    if (!isUnique || !orderId) {
+      orderId = `OS${Date.now().toString(36).slice(-6).toUpperCase()}`;
+    }
+
+    const orderData = {
+      order_id: orderId,
+      name: resolvedName,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      fb_link: 'Not provided',
+      flower_type: resolvedFlowerType,
+      quantity: resolvedQuantity,
+      items: resolvedItems,
+      addons: resolvedAddons,
+      message: resolvedNotes,
+      rush: 'No',
+      total_fee: resolvedTotalFee,
+      status: 'Delivered', // Automatically processed and completed
+      order_type: 'outside',
+      payment_method: resolvedPaymentMethod,
+      created_at: created_at ? new Date(created_at).toISOString() : new Date().toISOString()
+    };
+
+    const { data: insertedData, error: insertError } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select();
+
+    if (insertError) {
+      console.error('Failed to insert outside sale:', insertError);
+      return res.status(500).json({ error: 'Failed to record outside sale', details: insertError.message });
+    }
+
+    const createdOrder = insertedData && insertedData[0] ? insertedData[0] : orderData;
+
+    // Optional audit log
+    try {
+      const adminEmail = (req.admin && req.admin.email) || process.env.ADMIN_EMAIL || 'admin';
+      await supabase.from('order_audits').insert([{
+        order_id: orderId,
+        admin_email: adminEmail,
+        action: 'create_outside_sale',
+        snapshot: createdOrder
+      }]);
+    } catch (auditErr) {
+      console.warn('Failed to record outside sale audit (non-fatal):', auditErr.message);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Outside sale recorded and processed successfully',
+      order: createdOrder
+    });
+  } catch (error) {
+    console.error('Error recording outside sale:', error);
+    return res.status(500).json({ error: 'Internal server error while recording outside sale' });
   }
 });
 

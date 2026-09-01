@@ -124,6 +124,15 @@
       background-color: #ff6f9b !important;
     }
 
+    .badge-outside {
+      background: linear-gradient(135deg, #7c3aed 0%, #9333ea 100%) !important;
+      color: #ffffff !important;
+      font-weight: 600;
+      padding: 0.35em 0.65em;
+      border-radius: 6px;
+      letter-spacing: 0.2px;
+    }
+
     /* Table styles */
     .table {
       border-radius: 8px;
@@ -135,7 +144,69 @@
 
     /* Modal enhancements */
     .modal-content {
+      border-radius: 16px;
+    }
+
+    /* Outside Order Builder clean styles */
+    .outside-section-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      margin-bottom: 0.5rem;
+    }
+
+    .outside-card-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 12px;
+      padding: 1rem;
+    }
+
+    /* Saved addon card */
+    .addon-card-label {
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 0.65rem 0.85rem;
+    }
+    .addon-card-label:hover {
+      border-color: #cbd5e1;
+      background: #fdfdfd;
+    }
+    .addon-card-check:checked + .addon-card-label {
+      border-color: #f43f5e;
+      background: #fff1f5;
+    }
+
+    /* Filter button group */
+    #reportsFilterGroup .btn {
+      border: none !important;
+      border-radius: 6px !important;
+      padding: 0.35rem 0.75rem;
+      transition: all 0.2s ease;
+    }
+    #reportsFilterGroup .btn.active {
+      background: white !important;
+      color: #1e293b !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08) !important;
+    }
+
+    /* Item builder row card */
+    .item-builder-row {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.75rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .item-builder-row:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
   </style>
 </head>
@@ -269,41 +340,96 @@
 
   <div class="main-content">
   <main class="container-fluid px-3 px-md-4 pt-5" style="max-width: 1400px;">
-    <!-- Quick metrics -->
-    <div class="row g-3 mb-3">
-      <div class="col-6 col-md-6">
-        <div class="card metric-card p-3 text-center">
-          <div class="h6 mb-1 text-muted">
-            <i class="fas fa-dollar-sign text-success me-2"></i>Total Revenue
+    <!-- Quick metrics with Antigravity glassmorphic design -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card metric-card p-3 h-100 shadow-sm border-0" style="background: linear-gradient(135deg, rgba(236, 253, 245, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%);">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-semibold text-uppercase tracking-wider">Total Revenue</span>
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: rgba(16, 185, 129, 0.15); color: #059669;">
+              <i class="fas fa-coins"></i>
+            </div>
           </div>
-          <div id="totalRevenue" class="fs-5 fw-bold text-success">₱0.00</div>
+          <div id="totalRevenue" class="fs-4 fw-bold text-success">₱0.00</div>
+          <div class="small text-muted mt-1">All completed sales</div>
         </div>
       </div>
-      <div class="col-6 col-md-6">
-        <div class="card metric-card p-3 text-center">
-          <div class="h6 mb-1 text-muted">
-            <i class="fas fa-receipt text-pink me-2"></i>Transactions
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card metric-card p-3 h-100 shadow-sm border-0 cursor-pointer" id="kpiOutsideCard" style="background: linear-gradient(135deg, rgba(245, 243, 255, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%); border: 1px solid rgba(139, 92, 246, 0.25) !important; cursor: pointer;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small fw-semibold text-uppercase tracking-wider" style="color: #7c3aed;">Outside Revenue</span>
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: rgba(124, 58, 237, 0.15); color: #7c3aed;">
+              <i class="fas fa-store"></i>
+            </div>
           </div>
-          <div id="totalTransactions" class="fs-5 fw-bold text-pink">0</div>
+          <div id="outsideRevenue" class="fs-4 fw-bold" style="color: #7c3aed;">₱0.00</div>
+          <div class="small text-muted mt-1">Direct / Walk-in</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card metric-card p-3 h-100 shadow-sm border-0 cursor-pointer" id="kpiOnlineCard" style="background: linear-gradient(135deg, rgba(255, 241, 246, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%); cursor: pointer;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-semibold text-uppercase tracking-wider">Online Revenue</span>
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: rgba(244, 63, 94, 0.15); color: #f43f5e;">
+              <i class="fas fa-globe"></i>
+            </div>
+          </div>
+          <div id="onlineRevenue" class="fs-4 fw-bold" style="color: #f43f5e;">₱0.00</div>
+          <div class="small text-muted mt-1">Online orders</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card metric-card p-3 h-100 shadow-sm border-0" style="background: linear-gradient(135deg, rgba(248, 250, 252, 0.85) 0%, rgba(255, 255, 255, 0.95) 100%);">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-semibold text-uppercase tracking-wider">Transactions</span>
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; background: rgba(100, 116, 139, 0.15); color: #475569;">
+              <i class="fas fa-receipt"></i>
+            </div>
+          </div>
+          <div id="totalTransactions" class="fs-4 fw-bold text-dark">0</div>
+          <div class="small text-muted mt-1" id="transactionsSubtext">Delivered orders</div>
         </div>
       </div>
     </div>
 
     <div class="card shadow-sm">
       <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+        <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
           <div>
             <h2 class="card-title mb-0">
               <i class="fas fa-chart-line text-pink me-2"></i>Transactions
             </h2>
-            <div class="small text-muted">Overview of completed orders and revenue.</div>
+            <div class="small text-muted">Overview of completed orders, outside sales, and revenue.</div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-pink shadow-sm d-flex align-items-center gap-2 px-3 py-2" id="openOutsideSaleModalBtn" data-bs-toggle="modal" data-bs-target="#outsideSaleModal">
+              <i class="fas fa-plus-circle"></i>
+              <span class="fw-semibold">Add Outside Revenue</span>
+            </button>
           </div>
         </div>
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-3">
-          <div></div>
+
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-stretch align-items-lg-center gap-3 mb-3 pb-2 border-bottom">
+          <!-- Filter Buttons Group -->
+          <div class="btn-group btn-group-sm p-1 rounded-3 border bg-light" role="group" id="reportsFilterGroup">
+            <button type="button" class="btn btn-sm active fw-semibold" data-filter="all" id="filterBtnAll">
+              <i class="fas fa-list-ul me-1"></i>All (<span id="filterCountAll">0</span>)
+            </button>
+            <button type="button" class="btn btn-sm fw-semibold text-slate-600" data-filter="outside" id="filterBtnOutside">
+              <i class="fas fa-store me-1 text-purple" style="color: #7c3aed;"></i>Outside Revenue (<span id="filterCountOutside">0</span>)
+            </button>
+            <button type="button" class="btn btn-sm fw-semibold text-slate-600" data-filter="online" id="filterBtnOnline">
+              <i class="fas fa-globe me-1 text-pink"></i>Online Orders (<span id="filterCountOnline">0</span>)
+            </button>
+          </div>
+
+          <!-- Search & Page Size -->
           <div class="d-flex align-items-center gap-2">
-            <input id="reportsSearch" class="form-control form-control-sm" placeholder="Search by Order ID or customer">
-            <select id="reportsPageSize" class="form-select form-select-sm w-auto">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+              <input id="reportsSearch" class="form-control form-control-sm border-start-0" placeholder="Search by Order ID, customer, item...">
+            </div>
+            <select id="reportsPageSize" class="form-select form-select-sm w-auto" title="Items per page">
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
@@ -339,63 +465,206 @@
   <script src="/js/sidebar.js"></script>
     <script src="/js/admin-reports.js"></script>
     <script src="/js/push-subscribe.js"></script>
-  <!-- Order Details / Edit Modal -->
-  <div class="modal fade" id="reportOrderModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0 shadow-lg">
-        <div class="modal-header gradient-pink border-0">
-          <h5 class="modal-title text-white">Order Details & Edit</h5>
+  <!-- Add Outside Sale & Revenue Modal -->
+  <div class="modal fade" id="outsideSaleModal" tabindex="-1" aria-labelledby="outsideSaleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
+        <div class="modal-header border-0 pb-3" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%); color: white;">
+          <div class="d-flex align-items-center gap-2">
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 42px; height: 42px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px);">
+              <i class="fas fa-store fs-5 text-white"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-0 text-white" id="outsideSaleModalLabel">Add Outside Revenue</h5>
+              <div class="small text-white-50">Select public catalog products and saved add-ons to record outside sales</div>
+            </div>
+          </div>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+
+        <div class="modal-body p-4 bg-light">
+          <form id="itemizedOrderForm">
+            <!-- 1. Customer & Sale Details -->
+            <div class="bg-white p-3 rounded-3 border mb-3 shadow-sm">
+              <div class="outside-section-title mb-2">
+                <i class="fas fa-user-tag text-purple me-1" style="color: #7c3aed;"></i>Customer Details
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold text-slate-700 mb-1">Customer Name <span class="text-danger">*</span></label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" id="itemizedCustomerName" placeholder="e.g. Walk-in Customer / Maria Santos" required>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold text-slate-700 mb-1">Contact / Email <span class="text-muted fw-normal">(Optional)</span></label>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" id="itemizedCustomerContact" placeholder="customer@example.com or phone">
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold text-slate-700 mb-1">Payment Method</label>
+                  <select class="form-select form-select-sm" id="itemizedPaymentMethod">
+                    <option value="Cash" selected>Cash</option>
+                    <option value="GCash">GCash</option>
+                    <option value="Maya">Maya</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label small fw-semibold text-slate-700 mb-1">Sale Date & Time</label>
+                  <input type="datetime-local" class="form-control form-control-sm" id="itemizedSaleDate">
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Products / Items Section -->
+            <div class="bg-white p-3 rounded-3 border mb-3 shadow-sm">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="outside-section-title mb-0">
+                  <i class="fas fa-boxes-stacked text-purple me-1" style="color: #7c3aed;"></i>Order Items <span class="text-danger">*</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-pink py-1 px-2" id="addOutsideItemBtn">
+                  <i class="fas fa-plus me-1"></i>Add Another Item
+                </button>
+              </div>
+
+              <div id="outsideItemsContainer" class="d-flex flex-column gap-2">
+                <!-- Dynamic item rows inserted here by JavaScript -->
+              </div>
+            </div>
+
+            <!-- 3. Saved Add-ons Section -->
+            <div class="bg-white p-3 rounded-3 border mb-3 shadow-sm">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="outside-section-title mb-0">
+                  <i class="fas fa-gift text-purple me-1" style="color: #7c3aed;"></i>Add-ons
+                </div>
+              </div>
+
+              <div class="row g-2 mb-2" id="outsideAddonsGrid">
+                <!-- Saved add-ons checkboxes loaded dynamically from DB -->
+                <div class="col-12 text-center py-2 text-muted small" id="addonsLoadingState">
+                  <span class="spinner-border spinner-border-sm me-1"></span> Loading saved add-ons...
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Notes / Remarks -->
+            <div class="bg-white p-3 rounded-3 border mb-3 shadow-sm">
+              <div class="outside-section-title mb-1">
+                <i class="fas fa-comment-dots text-purple me-1" style="color: #7c3aed;"></i>Notes / Remarks <span class="text-muted fw-normal text-none">(Optional)</span>
+              </div>
+              <textarea class="form-control form-control-sm" id="itemizedNotes" rows="2" placeholder="e.g. Walk-in customer at physical shop, custom packaging requested, etc."></textarea>
+            </div>
+
+            <!-- 5. Live Summary Card -->
+            <div class="p-3 rounded-3 mb-3 border shadow-sm" style="background: linear-gradient(135deg, #ffffff 0%, #faf5ff 50%, #fff1f2 100%);">
+              <div class="d-flex justify-content-between text-muted small mb-1">
+                <span>Items Subtotal:</span>
+                <span id="summaryItemsTotal" class="fw-semibold text-dark">₱0.00</span>
+              </div>
+              <div class="d-flex justify-content-between text-muted small mb-2">
+                <span>Add-ons Subtotal:</span>
+                <span id="summaryAddonsTotal" class="fw-semibold text-dark">₱0.00</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                <span class="fw-bold fs-6 text-slate-800">Total Revenue:</span>
+                <span id="summaryGrandTotal" class="fw-bold fs-4 text-success">₱0.00</span>
+              </div>
+            </div>
+
+            <!-- Modal Footer Controls -->
+            <div class="d-flex gap-2 justify-content-end pt-2">
+              <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-pink px-4 shadow-sm fw-semibold" id="submitItemizedOrderBtn">
+                <i class="fas fa-check-circle me-1"></i>Submit & Auto-Process
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order Details / Edit Modal -->
+  <div class="modal fade" id="reportOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header gradient-pink border-0">
+          <h5 class="modal-title text-white d-flex align-items-center gap-2">
+            <span>Order Details</span>
+            <span id="reportOrderBadge"></span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
           <div id="reportOrderForm">
             <input type="hidden" id="reportOrderId">
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label">Customer Name</label>
+                <label class="form-label fw-semibold">Customer Name</label>
                 <input id="reportName" class="form-control" required disabled>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Email</label>
-                <input id="reportEmail" class="form-control" type="email" required disabled>
+                <label class="form-label fw-semibold">Email / Contact</label>
+                <input id="reportEmail" class="form-control" type="text" disabled>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Flower Type</label>
+                <label class="form-label fw-semibold">Product / Flower Summary</label>
                 <input id="reportFlowerType" class="form-control" disabled>
               </div>
               <div class="col-md-3">
-                <label class="form-label">Quantity</label>
+                <label class="form-label fw-semibold">Quantity</label>
                 <input id="reportQuantity" class="form-control" type="number" min="1" disabled>
               </div>
               <div class="col-md-3">
-                <label class="form-label">Rush</label>
+                <label class="form-label fw-semibold">Rush</label>
                 <select id="reportRush" class="form-select" disabled>
                   <option value="No">No</option>
                   <option value="Yes">Yes</option>
                 </select>
               </div>
+
+              <!-- Itemized breakdown container if available -->
+              <div class="col-12" id="reportItemsBreakdownContainer" style="display: none;">
+                <label class="form-label fw-semibold">Itemized Items Breakdown</label>
+                <div id="reportItemsBreakdownList" class="p-2.5 bg-light rounded-3 border small"></div>
+              </div>
+
               <div class="col-12">
-                <label class="form-label">Add-ons (comma separated)</label>
+                <label class="form-label fw-semibold">Add-ons</label>
                 <input id="reportAddons" class="form-control" disabled>
               </div>
               <div class="col-12">
-                <label class="form-label">Message</label>
+                <label class="form-label fw-semibold">Message / Notes</label>
                 <textarea id="reportMessage" class="form-control" rows="2" disabled></textarea>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Total Fee (₱)</label>
-                <input id="reportTotalFee" class="form-control" type="number" step="0.01" disabled>
+                <label class="form-label fw-semibold">Total Fee (₱)</label>
+                <input id="reportTotalFee" class="form-control fw-bold text-success fs-5" type="text" disabled>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Payment Method</label>
+                <label class="form-label fw-semibold">Payment Method</label>
                 <select id="reportPaymentMethod" class="form-select" disabled>
                   <option value="">(none)</option>
+                  <option value="Cash">Cash</option>
                   <option value="Cash on Delivery">Cash on Delivery</option>
-                  <option value="Gcash">Gcash</option>
+                  <option value="Gcash">GCash</option>
+                  <option value="GCash">GCash</option>
+                  <option value="Maya">Maya</option>
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Status</label>
+                <label class="form-label fw-semibold">Status</label>
                 <select id="reportStatus" class="form-select" disabled>
                   <option value="Pending">Pending</option>
                   <option value="Processing">Processing</option>
@@ -405,7 +674,7 @@
                 </select>
               </div>
             </div>
-            <div class="mt-3 d-flex gap-2 justify-content-end">
+            <div class="mt-4 d-flex gap-2 justify-content-end">
               <button type="button" class="btn btn-remind" id="reportModalSendReviewBtn"><i class="fas fa-star me-1"></i>Send Review Email</button>
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
             </div>
