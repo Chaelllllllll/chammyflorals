@@ -567,13 +567,25 @@
         orderData.original_total = voucherData.originalTotal;
       }
 
-      const res = await fetch(`${API_URL}/api/orders/custom`, {
+      let res = await fetch(`${API_URL}/api/orders/custom`, {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(orderData)
       });
       
-      const data = await res.json();
+      let data = await res.json();
+      
+      if (!res.ok && res.status === 401 && headers['Authorization']) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('customer');
+        delete headers['Authorization'];
+        res = await fetch(`${API_URL}/api/orders/custom`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(orderData)
+        });
+        data = await res.json();
+      }
       
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit order');

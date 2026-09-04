@@ -1223,11 +1223,30 @@ const initChammyFlorals = () => {
             alertError('Authentication error. Please ensure you are logged in to the admin panel.');
             return;
           }
-          // Token expired or invalid - user needs to log in again
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('customer');
-          alertError('Your session has expired. Please log in again to place an order.');
-          window.location.href = '/customer-login.html';
+          // If a stale or invalid token was sent, clear it and retry placing the order as guest
+          if (headers['Authorization']) {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('customer');
+            delete headers['Authorization'];
+            try {
+              const retryResponse = await fetch('/api/inquiry', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data),
+              });
+              const retryResult = await retryResponse.json();
+              if (retryResponse.ok) {
+                const orderId = retryResult.orderId || retryResult.order_id || '';
+                if (orderId) {
+                  const formEl = document.getElementById('inquiryForm');
+                  if (formEl) formEl.reset();
+                  window.location.href = `/order-success.html?orderId=${encodeURIComponent(orderId)}`;
+                  return;
+                }
+              }
+            } catch (retryErr) {}
+          }
+          alertError(result.error || 'Something went wrong. Please try again.');
           return;
         }
         alertError(result.error || 'Something went wrong. Please try again.');

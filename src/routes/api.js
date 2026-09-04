@@ -110,6 +110,124 @@ const authenticateCustomerOrAdmin = async (req, res, next) => {
   return res.status(403).json({ error: 'Invalid or expired token' });
 };
 
+// Optional authentication middleware: populates req.user / req.admin if valid credentials provided,
+// but allows unauthenticated guest requests to proceed without blocking them.
+const optionalCustomerOrAdminAuth = async (req, res, next) => {
+  try {
+    // Debug logging to diagnose auth issues
+    try {
+      console.log('optionalCustomerOrAdminAuth - incoming', {
+        method: req.method,
+        path: req.path,
+        hasAuthHeader: !!req.headers['authorization'],
+        cookie: req.headers['cookie'] ? 'present' : 'none',
+        sessionPassport: req.session && req.session.passport && req.session.passport.user ? req.session.passport.user : null
+      });
+    } catch (e) {}
+
+    // Accept cookie/passport sessions for admins when present (allow admin cookie auth)
+    if (req.user && req.user.id) {
+      req.admin = { id: req.user.id, email: req.user.email };
+      req.userType = 'admin';
+      return next();
+    }
+    if (req.session && req.session.passport && req.session.passport.user) {
+      try {
+        const stored = req.session.passport.user;
+        if (stored && typeof stored === 'object' && stored.id) {
+          req.admin = { id: stored.id, email: stored.email };
+        } else {
+          req.admin = { id: stored };
+        }
+        req.userType = 'admin';
+        return next();
+      } catch (e) {
+        // fall through to header/token checks
+      }
+    }
+
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    // If manual_order is requested (from admin dashboard), require valid admin authentication
+    const isManualOrderRequested = req.body && (req.body.manual_order === true || req.body.manual_order === 'true');
+
+    if (!token) {
+      if (isManualOrderRequested) {
+        return res.status(401).json({ error: 'Admin authentication required for manual orders' });
+      }
+      req.userType = 'guest';
+      req.user = null;
+      return next();
+    }
+
+    const tokenStr = String(token || '').trim();
+
+    // 1. Try admin session token authentication first
+    try {
+      const rec = getSession(tokenStr);
+      if (rec && rec.expires && rec.expires > Date.now()) {
+        req.admin = rec.admin || { id: rec.adminId };
+        req.user = { id: null };
+        req.userType = 'admin';
+        return next();
+      }
+
+      const { data: sessionRow, error: sessErr } = await supabase
+        .from('admins')
+        .select('id,email,session_expires')
+        .eq('session_token', tokenStr)
+        .limit(1)
+        .single();
+        
+      if (!sessErr && sessionRow && sessionRow.session_expires && 
+          new Date(sessionRow.session_expires).getTime() > Date.now()) {
+        req.admin = { id: sessionRow.id, email: sessionRow.email };
+        req.user = { id: null };
+        req.userType = 'admin';
+        return next();
+      }
+    } catch (adminErr) {
+      // Admin auth attempt failed, continue
+    }
+
+    // If manual order was requested from admin dashboard, admin authentication must succeed
+    if (isManualOrderRequested) {
+      return res.status(401).json({ error: 'Valid admin token required for manual orders' });
+    }
+
+    // 2. Try customer JWT authentication (supports both app JWT and Supabase OAuth JWT)
+    try {
+      const decoded = jwt.verify(tokenStr, JWT_SECRET_SAFE);
+      if (decoded && (decoded.id || decoded.sub || decoded.customerId)) {
+        req.user = decoded;
+        req.userType = 'customer';
+        return next();
+      }
+    } catch (jwtErr) {
+      try {
+        const decoded = jwt.decode(tokenStr);
+        if (decoded && (decoded.id || decoded.sub || decoded.customerId || decoded.email)) {
+          req.user = decoded;
+          req.userType = 'customer';
+          return next();
+        }
+      } catch (de) {}
+    }
+
+    // Token provided was not a valid admin or customer token — proceed as guest rather than blocking order
+    req.userType = 'guest';
+    req.user = null;
+    return next();
+  } catch (err) {
+    console.error('optionalCustomerOrAdminAuth error:', err);
+    req.userType = 'guest';
+    req.user = null;
+    return next();
+  }
+};
+
+
 // Health check endpoint to verify API and database connectivity
 // Returns minimal info - safe for public access
 router.get('/health', async (req, res) => {
@@ -358,7 +476,7 @@ const inquiryLimiter = rateLimit({
   },
 });
 
-router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
+router.post('/inquiry', optionalCustomerOrAdminAuth, validate.inquiry, sanitizeBody, inquiryLimiter, async (req, res) => {
   try {
     // Log minimal info to avoid leaking PII in logs
     const safeEmail = (req.body.user_email || '').replace(/(.{2}).+(@.+)/, '$1***$2');
@@ -681,7 +799,7 @@ router.post('/inquiry', authenticateCustomerOrAdmin, validate.inquiry, sanitizeB
     }
     
     // Set status to Delivered for manual orders (from admin dashboard)
-    const isManualOrder = req.body.manual_order === true || req.body.manual_order === 'true';
+    const isManualOrder = (req.body.manual_order === true || req.body.manual_order === 'true') && req.userType === 'admin';
     if (req.body.status && isManualOrder) {
       orderData.status = sanitizeString(req.body.status, 50);
       console.log('Manual order - setting status to:', orderData.status);
@@ -2613,7 +2731,7 @@ router.get('/customization/options', async (req, res) => {
 });
 
 // POST submit a custom order
-router.post('/orders/custom', authenticateCustomerOrAdmin, async (req, res) => {
+router.post('/orders/custom', optionalCustomerOrAdminAuth, async (req, res) => {
   try {
     const {
       full_name,
@@ -3027,3 +3145,5 @@ router.get('/orders/delivery-dates', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.optionalCustomerOrAdminAuth = optionalCustomerOrAdminAuth;
+module.exports.authenticateCustomerOrAdmin = authenticateCustomerOrAdmin;
